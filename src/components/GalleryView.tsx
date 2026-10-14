@@ -52,7 +52,7 @@ export function GalleryView({ photos, tags }: { photos: GalleryPhoto[]; tags: Ta
       ) : (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {shown.map((p) => (
-            <button key={p.id} onClick={() => setOpen(p)} className="tap group relative aspect-square overflow-hidden rounded-2xl bg-slate-100 text-left">
+            <button key={p.id} onClick={() => setOpen(p)} className="tap group relative aspect-square overflow-hidden rounded-lg bg-slate-100 text-left">
               {p.url && /* eslint-disable-next-line @next/next/no-img-element */ <img src={p.url} alt={`${p.store}, ${p.date}`} loading="lazy" decoding="async" className="h-full w-full object-cover" />}
               <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 text-[11px] leading-tight text-white">
                 <b className="block truncate">{p.store}</b>

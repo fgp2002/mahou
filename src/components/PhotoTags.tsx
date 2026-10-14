@@ -60,14 +60,14 @@ export function PhotoTags({ photoId, allTags, selected, onTagCreated, onChange }
         <Tag size={14} /> {chosen.length ? chosen.map((t) => t.name).join(" · ") : "Etiquetar"}
       </button>
       {open && (
-        <div className="fade-in mt-2 space-y-3 rounded-2xl border border-slate-200 p-3">
+        <div className="fade-in mt-2 space-y-3 rounded-lg border border-slate-200 p-3">
           {(["product", "promo"] as const).map((kind) => (
             <div key={kind} className="space-y-2">
               <div className="label">{KIND_LABEL[kind]}</div>
               <div className="flex flex-wrap gap-1.5">
                 {allTags.filter((t) => t.kind === kind).map((t) => (
                   <button key={t.id} type="button" onClick={() => toggle(t)}
-                    className={clsx("tap min-h-9 rounded-full border px-3 text-xs", selected.includes(t.id) ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 text-slate-700")}>
+                    className={clsx("tap min-h-9 rounded-full border px-3 text-xs", selected.includes(t.id) ? "border-brand-600 bg-brand-600 text-[rgb(var(--on-accent))]" : "border-slate-300 text-slate-700")}>
                     {t.name}
                   </button>
                 ))}

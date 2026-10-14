@@ -35,7 +35,7 @@ export function ThemeSwitch() {
       <div className="grid grid-cols-3 gap-2">
         {opts.map(([v, l, I]) => (
           <button key={v} type="button" onClick={() => choose(v)} aria-pressed={t === v}
-            className={clsx("tap flex flex-col items-center gap-1.5 rounded-2xl border p-3 text-sm", t === v ? "border-slate-900 bg-slate-900 font-semibold text-[rgb(var(--on-accent))]" : "border-slate-200 text-slate-600")}>
+            className={clsx("tap flex flex-col items-center gap-1.5 rounded-lg border p-3 text-sm", t === v ? "border-brand-600 bg-brand-600 font-semibold text-[rgb(var(--on-accent))]" : "border-slate-200 text-slate-600")}>
             <I size={20} /> {l}
           </button>
         ))}
@@ -72,7 +72,7 @@ export function AccountPanel({ email }: { email: string }) {
   return (
     <section className="card space-y-4">
       <div className="flex items-center gap-3">
-        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-lg font-bold uppercase text-[rgb(var(--on-accent))]">{email.slice(0, 1)}</span>
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-lg font-bold uppercase text-[rgb(var(--on-accent))]">{email.slice(0, 1)}</span>
         <div className="min-w-0"><h2 className="font-semibold">Cuenta</h2><p className="truncate text-sm text-slate-500">{email}</p></div>
       </div>
       <div className="space-y-2">

@@ -71,7 +71,7 @@ export function StoreForm({ store }: { store?: Store }) {
         <Field label="Latitud" inputMode="decimal" value={v.lat} onChange={(x) => setV({ ...v, lat: x })} />
         <Field label="Longitud" inputMode="decimal" value={v.lng} onChange={(x) => setV({ ...v, lng: x })} />
         <Field label="Periodicidad" value={v.frequency} onChange={(x) => setV({ ...v, frequency: x })} options={Object.entries(FREQ_LABEL)} />
-        <label className="flex min-h-[3.4rem] items-center gap-3 rounded-2xl border border-slate-300 bg-white px-4 text-sm">
+        <label className="flex min-h-[3.4rem] items-center gap-3 rounded-lg border border-slate-300 bg-white px-4 text-sm">
           <input type="checkbox" className="h-5 w-5 accent-[rgb(var(--slate-900))]" checked={audit} onChange={(e) => setAudit(e.target.checked)} /> Audit (prioridad máxima)
         </label>
       </div>

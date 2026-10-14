@@ -164,7 +164,7 @@ export function MapView({ stores }: { stores: MapStore[] }) {
         <span>{filtered.length} de {stores.length}</span>
         {msg && <span className="text-red-600" role="alert">{msg}</span>}
       </div>
-      <div className="relative isolate min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-200">
+      <div className="relative isolate min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-200">
         <div ref={el} className="h-full w-full" />
         {!ready && <div className="skeleton absolute inset-0 z-[400] rounded-none" aria-label="Cargando mapa" />}
         {sel && (
@@ -175,7 +175,7 @@ export function MapView({ stores }: { stores: MapStore[] }) {
             </div>
             <p className="text-sm text-slate-500">{sel.address}{sel.postal_code ? `, ${sel.postal_code}` : ""} {sel.town}</p>
             <dl className="my-3 space-y-1 text-sm">
-              <div>Estado: <b>{STATE_LABEL[sel.state]}</b> {sel.audit && <span className="badge bg-slate-900 text-white">Audit</span>}</div>
+              <div>Estado: <b>{STATE_LABEL[sel.state]}</b> {sel.audit && <span className="badge bg-slate-900 text-slate-50">Audit</span>}</div>
               <div>Periodicidad: {FREQ_LABEL[sel.frequency]}</div>
               <div>Última visita: {sel.lastVisit ?? "ninguna"}</div>
               {sel.deadline && sel.state !== "cumplida" && <div>Vence: {sel.deadline}</div>}

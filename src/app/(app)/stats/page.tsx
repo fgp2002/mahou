@@ -158,7 +158,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
               {zones.map(([town, z]) => {
                 const k = z.visits / zmax;
                 return (
-                  <div key={town} className="relative rounded-2xl p-2.5" style={{ backgroundColor: `rgb(var(--st-ok) / ${0.08 + k * 0.82})`, color: k > 0.55 ? "white" : undefined }}>
+                  <div key={town} className="relative rounded-lg p-2.5" style={{ backgroundColor: `rgb(var(--st-ok) / ${0.08 + k * 0.82})`, color: k > 0.55 ? "white" : undefined }}>
                     <div className="truncate text-xs font-semibold">{town}</div>
                     <div className="text-[11px] opacity-80">{z.visits} visitas · {z.stores} tiendas</div>
                     {z.late > 0 && <span title={`${z.late} atrasadas`} className="absolute right-2 top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-st-late px-1 text-[10px] font-bold text-white">{z.late}</span>}

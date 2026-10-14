@@ -162,7 +162,7 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
         <ol className="flex items-center gap-2" aria-label="Pasos de la visita">
           {STEPS.map((l, i) => (
             <li key={l} className="flex flex-1 items-center gap-2">
-              <button type="button" onClick={() => setStep(i)} className={`tap flex h-8 min-w-0 flex-1 items-center justify-center rounded-full px-3 text-xs font-semibold ${i === step ? "bg-slate-900 text-[rgb(var(--on-accent))]" : i < step ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
+              <button type="button" onClick={() => setStep(i)} className={`tap flex h-8 min-w-0 flex-1 items-center justify-center rounded-full px-3 text-xs font-semibold ${i === step ? "bg-brand-600 text-[rgb(var(--on-accent))]" : i < step ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
                 {i < step ? "✓ " : `${i + 1}. `}{l}
               </button>
             </li>
@@ -241,7 +241,7 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
                   <div className="flex flex-wrap gap-1.5">
                     {chips.map((c) => (
                       <button key={c} type="button" onClick={() => setExtras(extras.map((x, j) => (j === i ? { ...x, amount: String(c) } : x)))}
-                        className={`tap min-h-9 rounded-full border px-3 text-xs ${Number(ex.amount.replace(",", ".")) === c ? "border-slate-900 bg-slate-900 text-[rgb(var(--on-accent))]" : "border-slate-300 text-slate-700"}`}>{eur(c)}</button>
+                        className={`tap min-h-9 rounded-full border px-3 text-xs ${Number(ex.amount.replace(",", ".")) === c ? "border-brand-600 bg-brand-600 text-[rgb(var(--on-accent))]" : "border-slate-300 text-slate-700"}`}>{eur(c)}</button>
                     ))}
                   </div>
                 )}

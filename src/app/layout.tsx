@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { Nunito } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const nunito = Nunito({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
+const nunito = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 
 export const metadata: Metadata = {
   title: "Mahou · Gestión de visitas",

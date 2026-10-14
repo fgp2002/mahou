@@ -23,10 +23,13 @@ export function Kpi({ label, value, hint, tone }: { label: string; value: React.
   );
 }
 
-export function PageHeader({ title, children }: { title: string; children?: React.ReactNode }) {
+export function PageHeader({ title, count, children }: { title: string; count?: number; children?: React.ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-      <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight">
+        {title}
+        {count != null && <span className="rounded-md bg-slate-200/70 px-2 py-0.5 text-sm font-semibold tabular-nums text-slate-600">{count.toLocaleString("es-ES")}</span>}
+      </h1>
       <div className="flex flex-wrap gap-2">{children}</div>
     </div>
   );
@@ -72,7 +75,7 @@ export function EmptyState({ title, text, children }: { title: string; text?: st
 export function Collapsible({ title, hint, open, children }: { title: string; hint?: string; open?: boolean; children: React.ReactNode }) {
   return (
     <details open={open} className="card group !p-0">
-      <summary className="flex min-h-14 cursor-pointer select-none items-center gap-3 rounded-3xl px-4 md:px-5">
+      <summary className="flex min-h-14 cursor-pointer select-none items-center gap-3 rounded-xl px-4 md:px-5">
         <span className="font-semibold">{title}</span>
         {hint && <span className="truncate text-xs text-slate-500">{hint}</span>}
         <svg viewBox="0 0 24 24" className="ml-auto h-5 w-5 shrink-0 text-slate-400 transition-transform duration-300 group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="m6 9 6 6 6-6" /></svg>

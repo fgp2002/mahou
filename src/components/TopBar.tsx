@@ -60,7 +60,7 @@ export function TopBar({ unread, alerts }: { unread: number; alerts: AlertItem[]
             placeholder="Buscar tienda, municipio o enseña…" aria-label="Buscar" className="input !rounded-full !pl-10 !pr-9" />
           {q && <button aria-label="Borrar búsqueda" onClick={() => { setQ(""); setHits([]); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400"><X size={16} /></button>}
           {searchOpen && q.trim().length >= 2 && (
-            <div className="sheet-in absolute inset-x-0 top-full mt-2 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-card">
+            <div className="sheet-in absolute inset-x-0 top-full mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-card">
               {hits.length === 0 ? <div className="p-4 text-sm text-slate-500">Sin resultados.</div> : (
                 <ul className="max-h-80 divide-y divide-slate-100 overflow-y-auto text-sm">
                   {hits.map((h) => (
@@ -78,7 +78,7 @@ export function TopBar({ unread, alerts }: { unread: number; alerts: AlertItem[]
             {unread > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-semibold text-white">{unread > 99 ? "99+" : unread}</span>}
           </button>
           {bell && (
-            <div className="sheet-in absolute right-0 top-full mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-3xl border border-slate-200 bg-white p-4 shadow-card">
+            <div className="sheet-in absolute right-0 top-full mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-4 shadow-card">
               <div className="mb-2 font-semibold">Alertas</div>
               {alerts.length === 0 ? <p className="text-sm text-slate-500">Todo en orden, sin alertas.</p> : (
                 <ul className="max-h-72 space-y-2 overflow-y-auto text-sm">

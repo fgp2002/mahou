@@ -14,7 +14,7 @@ export default async function VisitsPage() {
   const open = rows.find((r) => r.status === "in_progress");
   return (
     <div className="space-y-6">
-      <PageHeader title="Visitas">
+      <PageHeader title="Visitas" count={rows.length}>
         <Link href="/visits/new" className="btn">Nueva visita</Link>
       </PageHeader>
       {open && (
@@ -22,7 +22,7 @@ export default async function VisitsPage() {
           Visita en curso: <b>{open.stores?.name}</b> — pulsa para continuar.
         </Link>
       )}
-      <div className="card p-0">
+      <div className="card p-0 md:hidden">
         <ul className="divide-y divide-slate-100 text-sm">
           {rows.map((v) => (
             <li key={v.id}>
@@ -37,6 +37,26 @@ export default async function VisitsPage() {
           ))}
           {rows.length === 0 && <li><EmptyState title="Aún no hay visitas" text="Empieza tu primera visita y quedará registrada aquí."><Link href="/visits/new" className="btn">Iniciar visita</Link></EmptyState></li>}
         </ul>
+      </div>
+      <div className="card hidden overflow-hidden !p-0 md:block">
+        <div className="h-scroll max-h-[calc(100dvh-14rem)] overflow-y-auto">
+          <table className="data-table">
+            <thead><tr><th className="pl-4">Fecha</th><th>Tienda</th><th>Municipio</th><th>Tipo</th><th>Duración</th><th className="pr-4">Estado</th></tr></thead>
+            <tbody>
+              {rows.map((v) => (
+                <tr key={v.id}>
+                  <td className="whitespace-nowrap pl-4 tabular-nums text-slate-600">{v.visit_date.slice(8, 10)}/{v.visit_date.slice(5, 7)}/{v.visit_date.slice(0, 4)}</td>
+                  <td className="max-w-[20rem]"><Link href={`/visits/${v.id}`} className="block truncate font-semibold hover:text-brand-600">{v.stores?.name}</Link></td>
+                  <td className="whitespace-nowrap text-slate-600">{v.stores?.town ?? "—"}</td>
+                  <td className="whitespace-nowrap text-slate-600">{VISIT_TYPES[v.visit_type]}{v.is_manual ? " · manual" : ""}</td>
+                  <td className="whitespace-nowrap tabular-nums text-slate-600">{v.duration_minutes != null ? `${v.duration_minutes} min` : "—"}</td>
+                  <td className="pr-4"><span className={`badge font-bold ${v.status === "completed" ? "bg-st-ok text-[#fff]" : v.status === "in_progress" ? "bg-brand-600 text-[rgb(var(--on-accent))]" : v.status === "cancelled" ? "bg-st-none text-[#fff]" : "bg-slate-200 text-slate-700"}`}>{ST[v.status]}</span></td>
+                </tr>
+              ))}
+              {rows.length === 0 && <tr><td colSpan={6}><EmptyState title="Aún no hay visitas" text="Empieza tu primera visita y quedará registrada aquí."><Link href="/visits/new" className="btn">Iniciar visita</Link></EmptyState></td></tr>}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

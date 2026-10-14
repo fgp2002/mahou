@@ -123,7 +123,7 @@ export default async function Today() {
               {top.map((s) => (
                 <li key={s.id}>
                   <Link href={`/stores/${s.id}`} className="row-link -mx-2 flex min-h-12 items-center justify-between gap-2 rounded-xl px-2 py-2 text-sm">
-                    <span className="min-w-0 truncate">{s.audit && <span className="badge mr-1 bg-slate-900 text-white">Audit</span>}{s.name}</span>
+                    <span className="min-w-0 truncate">{s.audit && <span className="badge mr-1 bg-slate-900 text-slate-50">Audit</span>}{s.name}</span>
                     <StateBadge state={s.ob.state} />
                   </Link>
                 </li>

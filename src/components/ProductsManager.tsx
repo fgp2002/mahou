@@ -118,8 +118,8 @@ export function ProductsManager({ products }: { products: Product[] }) {
         <ul className="-mx-2 divide-y divide-slate-100">
           {shown.map((p) => (
             <li key={p.id}>
-              <button onClick={() => { setErr(null); setD(toDraft(p)); }} className={clsx("row-link flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left", !p.active && "opacity-50")}>
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500"><Package size={18} /></span>
+              <button onClick={() => { setErr(null); setD(toDraft(p)); }} className={clsx("row-link flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left", !p.active && "opacity-50")}>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500"><Package size={18} /></span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold">{p.name}{!p.active && " (inactivo)"}</span>
                   <span className="block truncate text-xs text-slate-500">{[p.reference && `Ref. ${p.reference}`, p.brand, productSummary(p)].filter(Boolean).join(" · ")}</span>
@@ -134,7 +134,7 @@ export function ProductsManager({ products }: { products: Product[] }) {
       {d && (
         <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 fade-in md:items-center" onClick={() => setD(null)}>
           <div role="dialog" aria-label={d.id ? "Editar producto" : "Nuevo producto"} onClick={(e) => e.stopPropagation()}
-            className="sheet-up max-h-[92dvh] w-full max-w-lg space-y-3 overflow-y-auto rounded-t-[2rem] bg-white p-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:rounded-[2rem]">
+            className="sheet-up max-h-[92dvh] w-full max-w-lg space-y-3 overflow-y-auto rounded-t-2xl bg-white p-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:rounded-lg">
             <div className="flex items-center justify-between"><b className="text-lg">{d.id ? "Editar producto" : "Nuevo producto"}</b><button aria-label="Cerrar" className="p-2" onClick={() => setD(null)}><X size={18} /></button></div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Referencia" value={d.reference} onChange={(v) => setD({ ...d, reference: v })} maxLength={60} />
@@ -146,7 +146,7 @@ export function ProductsManager({ products }: { products: Product[] }) {
               <div className="label">Envase</div>
               <div className="flex flex-wrap gap-1.5">
                 {CONTAINERS.map(([k, l]) => (
-                  <button key={k} type="button" onClick={() => setD({ ...d, container: k })} className={clsx("tap min-h-10 rounded-full border px-4 text-sm", d.container === k ? "border-slate-900 bg-slate-900 text-[rgb(var(--on-accent))]" : "border-slate-300 text-slate-700")}>{l}</button>
+                  <button key={k} type="button" onClick={() => setD({ ...d, container: k })} className={clsx("tap min-h-10 rounded-full border px-4 text-sm", d.container === k ? "border-brand-600 bg-brand-600 text-[rgb(var(--on-accent))]" : "border-slate-300 text-slate-700")}>{l}</button>
                 ))}
               </div>
             </div>
@@ -158,13 +158,13 @@ export function ProductsManager({ products }: { products: Product[] }) {
                   const on = capMl(d) === ml;
                   return (
                     <button key={ml} type="button" onClick={() => setD({ ...d, capacity: String(ml >= 1000 ? ml / 1000 : ml / 10).replace(".", ","), capUnit: ml >= 1000 ? "L" : "cl" })}
-                      className={clsx("tap min-h-9 rounded-full border px-3 text-xs", on ? "border-slate-900 bg-slate-900 text-[rgb(var(--on-accent))]" : "border-slate-300 text-slate-700")}>{fmtCapacity(ml)}</button>
+                      className={clsx("tap min-h-9 rounded-full border px-3 text-xs", on ? "border-brand-600 bg-brand-600 text-[rgb(var(--on-accent))]" : "border-slate-300 text-slate-700")}>{fmtCapacity(ml)}</button>
                   );
                 })}
               </div>
               <div className="flex gap-2">
                 <Field className="flex-1" label="Otra capacidad" inputMode="decimal" value={d.capacity} onChange={(v) => setD({ ...d, capacity: v })} />
-                <div className="flex rounded-2xl bg-slate-100 p-1">
+                <div className="flex rounded-lg bg-slate-100 p-1">
                   {(["cl", "L"] as const).map((u) => (
                     <button key={u} type="button" onClick={() => setD({ ...d, capUnit: u })} className={clsx("min-w-12 rounded-xl px-3 text-sm font-semibold", d.capUnit === u ? "bg-white shadow-card" : "text-slate-500")}>{u}</button>
                   ))}
@@ -176,7 +176,7 @@ export function ProductsManager({ products }: { products: Product[] }) {
               <div className="label">Unidades por pack</div>
               <div className="mb-2 flex flex-wrap gap-1.5">
                 {PACKS.map((n) => (
-                  <button key={n} type="button" onClick={() => setD({ ...d, pack: String(n) })} className={clsx("tap min-h-9 rounded-full border px-3 text-xs", d.pack === String(n) ? "border-slate-900 bg-slate-900 text-[rgb(var(--on-accent))]" : "border-slate-300 text-slate-700")}>{n === 1 ? "Unidad" : `×${n}`}</button>
+                  <button key={n} type="button" onClick={() => setD({ ...d, pack: String(n) })} className={clsx("tap min-h-9 rounded-full border px-3 text-xs", d.pack === String(n) ? "border-brand-600 bg-brand-600 text-[rgb(var(--on-accent))]" : "border-slate-300 text-slate-700")}>{n === 1 ? "Unidad" : `×${n}`}</button>
                 ))}
               </div>
               <Field label="Otra cantidad" inputMode="numeric" value={d.pack} onChange={(v) => setD({ ...d, pack: v.replace(/\D/g, "") })} />

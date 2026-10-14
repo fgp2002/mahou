@@ -137,7 +137,7 @@ export function RouteEditor({ route, stops }: { route: RouteView; stops: StopVie
               <div className="text-xs text-slate-400">{s.planned_arrival?.slice(0, 5)} · {i === 0 ? "salida" : `+${fmtDuration(Math.round((s.drive_seconds_from_prev ?? 0) / 60))} · ${((s.distance_m_from_prev ?? 0) / 1000).toFixed(1)} km`}</div>
               <div className="font-medium">
                 {i + 1}. <Link href={`/stores/${s.store_id}`} className="hover:underline">{s.stores.name}</Link>
-                {s.stores.audit && <span className="badge ml-2 bg-slate-900 text-white">Audit</span>}
+                {s.stores.audit && <span className="badge ml-2 bg-slate-900 text-slate-50">Audit</span>}
                 {s.forced_priority && <span className="badge ml-2 bg-red-100 text-red-700">Prioritaria</span>}
               </div>
               <div className="text-slate-500">{s.stores.address}, {s.stores.town} · {s.reason}</div>

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { PageTransition } from "@/components/PageTransition";
 import { Nav } from "@/components/Nav";
 import { TopBar, type AlertItem } from "@/components/TopBar";
@@ -13,10 +14,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
   return (
     <div className="h-dvh overflow-hidden">
-      <Nav unread={count ?? 0} />
+      <Suspense fallback={null}><Nav unread={count ?? 0} /></Suspense>
       <ToastHost />
       <PullToRefresh />
-      <main className="scroll-root min-w-0 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:ml-56 md:px-6 md:pb-10 xl:px-8">
+      <main className="scroll-root min-w-0 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:ml-60 md:px-6 md:pb-10 xl:px-8">
         <TopBar unread={count ?? 0} alerts={(alerts ?? []) as AlertItem[]} />
         <div className="page pt-2"><PageTransition>{children}</PageTransition></div>
       </main>

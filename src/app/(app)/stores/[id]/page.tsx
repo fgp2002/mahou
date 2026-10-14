@@ -51,7 +51,7 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
             <p className="truncate text-sm text-slate-500">{[s.banner, s.town].filter(Boolean).join(" · ")}</p>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <StateBadge state={ob.state} />
-              {s.audit && <span className="badge bg-slate-900 text-[rgb(var(--on-accent))]">Audit</span>}
+              {s.audit && <span className="badge bg-slate-900 text-slate-50">Audit</span>}
               <span className="badge bg-slate-100 text-slate-600">{FREQ_LABEL[s.frequency]}</span>
               {s.geocode_status === "partial" && <span className="badge bg-amber-100 text-amber-800">Ubicación aproximada</span>}
               {s.lat == null && <span className="badge bg-slate-100 text-slate-600">Sin ubicación</span>}
@@ -90,7 +90,7 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
           <ul className="-my-2 divide-y divide-slate-100 text-sm">
             {vs.map((v) => (
               <li key={v.id}>
-                <Link href={`/visits/${v.id}`} className="row-link -mx-2 flex min-h-12 items-center justify-between gap-2 rounded-2xl px-2">
+                <Link href={`/visits/${v.id}`} className="row-link -mx-2 flex min-h-12 items-center justify-between gap-2 rounded-lg px-2">
                   <span>{dmy(v.visit_date)} · {VISIT_TYPES[v.visit_type]}</span>
                   <span className="text-slate-500">{v.status === "completed" ? `${v.duration_minutes ?? "?"} min` : v.status === "in_progress" ? "En curso" : v.status === "planned" ? "Planificada" : "Cancelada"}</span>
                 </Link>
