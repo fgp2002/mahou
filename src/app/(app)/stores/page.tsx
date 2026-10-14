@@ -2,6 +2,7 @@ import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import { loadCompletedDates, loadSettings, withObligations } from "@/lib/server/load";
 import { PageHeader, StateBadge } from "@/components/ui";
+import { StoreFilters } from "@/components/StoreFilters";
 import { FREQ_LABEL, type Store } from "@/lib/types";
 
 const PAGE = 50;
@@ -42,32 +43,22 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
       <PageHeader title={`Tiendas (${count ?? 0})`}>
         <Link href="/stores/new" className="btn">Nueva tienda</Link>
       </PageHeader>
-      <form className="card grid grid-cols-2 gap-2 md:grid-cols-6">
-        <input name="q" defaultValue={sp.q} placeholder="Buscar nombre, municipio, dirección, ID" className="input col-span-2" />
-        <select name="town" defaultValue={sp.town ?? ""} className="input">
-          <option value="">Municipio</option>
-          {towns.map((t) => <option key={t}>{t}</option>)}
-        </select>
-        <select name="banner" defaultValue={sp.banner ?? ""} className="input">
-          <option value="">Enseña</option>
-          {banners.map((t) => <option key={t}>{t}</option>)}
-        </select>
-        <select name="freq" defaultValue={sp.freq ?? ""} className="input">
-          <option value="">Periodicidad</option>
-          {Object.entries(FREQ_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
-        <select name="audit" defaultValue={sp.audit ?? ""} className="input">
-          <option value="">Audit: todas</option>
-          <option value="1">Solo Audit</option>
-        </select>
-        <select name="geo" defaultValue={sp.geo ?? ""} className="input">
-          <option value="">Ubicación: todas</option>
-          <option value="no">Sin ubicación</option>
-        </select>
-        <button className="btn md:col-span-1">Filtrar</button>
-        <Link href="/stores" className="btn-secondary">Limpiar</Link>
-      </form>
-      <div className="card overflow-x-auto p-0">
+      <StoreFilters towns={towns} banners={banners} />
+      <ul className="space-y-2 md:hidden">
+        {rows.map((s) => (
+          <li key={s.id}>
+            <Link href={`/stores/${s.id}`} className="card flex items-center justify-between gap-3 !p-3">
+              <span className="min-w-0">
+                <span className="block truncate font-medium">{s.audit && <span className="badge mr-1 bg-slate-900 text-white">Audit</span>}{s.name}</span>
+                <span className="block truncate text-xs text-slate-500">{s.address}, {s.town} · {FREQ_LABEL[s.frequency]}</span>
+              </span>
+              <StateBadge state={s.ob.state} />
+            </Link>
+          </li>
+        ))}
+        {rows.length === 0 && <li className="card text-center text-sm text-slate-500">Sin resultados.</li>}
+      </ul>
+      <div className="card hidden overflow-x-auto p-0 md:block">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr><th className="p-3">Tienda</th><th>Municipio</th><th>Periodicidad</th><th>Estado</th><th>Ubic.</th></tr>
@@ -77,7 +68,7 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
               <tr key={s.id} className="hover:bg-slate-50">
                 <td className="p-3">
                   <Link href={`/stores/${s.id}`} className="font-medium hover:underline">{s.name}</Link>
-                  {s.audit && <span className="badge ml-2 bg-brand-100 text-brand-700">Audit</span>}
+                  {s.audit && <span className="badge ml-2 bg-slate-900 text-white">Audit</span>}
                   <div className="text-xs text-slate-400">{s.address}</div>
                 </td>
                 <td>{s.town}</td>
