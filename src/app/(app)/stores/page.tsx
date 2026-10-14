@@ -10,8 +10,13 @@ import { brandKey, logoUrl } from "@/lib/brands";
 
 const PAGE = 50;
 
-export default async function StoresPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const sp = await searchParams;
+export default async function StoresPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const raw = await searchParams;
+  // Los filtros admiten varios valores (?banner=A&banner=B); el resto son valores sueltos.
+  const many = (k: string) => { const v = raw[k]; return (Array.isArray(v) ? v : v ? [v] : []).filter(Boolean); };
+  const sp = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v])) as Record<string, string | undefined>;
+  const f = { state: many("state"), town: many("town"), banner: many("banner"), chain: many("chain"), type: many("type"), freq: many("freq") };
+  const inF = (vals: string[], x: string | null | undefined) => !vals.length || vals.includes(x ?? "");
   const q = (sp.q ?? "").trim().toLowerCase();
   const page = Math.max(1, Number(sp.page ?? 1) || 1);
 
@@ -22,8 +27,8 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
   // Con 300–2000 tiendas es más rápido y consistente filtrar en memoria (el estado se calcula, no se guarda).
   const filtered = withObligations(all, dates, settings).filter((s) =>
     (!q || `${s.name} ${s.town ?? ""} ${s.address ?? ""} ${s.source_id ?? ""}`.toLowerCase().includes(q)) &&
-    (!sp.state || s.ob.state === sp.state) && (!sp.town || s.town === sp.town) && (!sp.banner || s.banner === sp.banner) &&
-    (!sp.chain || s.chain === sp.chain) && (!sp.type || s.store_type === sp.type) && (!sp.freq || s.frequency === sp.freq) &&
+    inF(f.state, s.ob.state) && inF(f.town, s.town) && inF(f.banner, s.banner) &&
+    inF(f.chain, s.chain) && inF(f.type, s.store_type) && inF(f.freq, s.frequency) &&
     (sp.audit !== "1" || s.audit) && (sp.geo !== "no" || s.lat == null));
   const sb = await supabaseServer();
   const { data: bl } = await sb.from("brand_logos").select("brand_key,storage_path");
@@ -44,7 +49,7 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
   filtered.sort((a, b) => (cmp[sort] ?? cmp.prio)(a, b) * (sort === "prio" ? 1 : dir));
   const sortHref = (k: string) => {
     const u = new URLSearchParams();
-    for (const [kk, v] of Object.entries(sp)) if (v && !["page", "sort", "dir"].includes(kk)) u.set(kk, v);
+    for (const [kk, v] of Object.entries(raw)) if (v && !["page", "sort", "dir"].includes(kk)) for (const x of Array.isArray(v) ? v : [v]) u.append(kk, x);
     u.set("sort", k);
     if (sort === k && dir === 1) u.set("dir", "desc");
     return `/stores?${u}`;
@@ -62,7 +67,7 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
   const pages = Math.max(1, Math.ceil(count / PAGE));
   const qs = (p: number) => {
     const u = new URLSearchParams();
-    for (const [k, v] of Object.entries(sp)) if (v && k !== "page") u.set(k, v);
+    for (const [k, v] of Object.entries(raw)) if (v && k !== "page") for (const x of Array.isArray(v) ? v : [v]) u.append(k, x);
     u.set("page", String(p));
     return `/stores?${u}`;
   };

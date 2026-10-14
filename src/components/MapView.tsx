@@ -9,6 +9,8 @@ import { STATE_LABEL } from "@/lib/domain/periodicity";
 import { FREQ_LABEL } from "@/lib/types";
 import { googleMapsPlaceUrl } from "@/lib/domain/geo";
 import { FilterSelect } from "./FilterSelect";
+import { MultiFilter } from "./MultiFilter";
+import { MapRouteCard } from "./MapRouteCard";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { StartVisitButton } from "./StartVisitButton";
 
@@ -39,13 +41,13 @@ export function MapView({ stores }: { stores: MapStore[] }) {
   const ref = useRef<{ L: any; map: any; cluster: any; me: any; markers: Map<string, any> } | null>(null);
   const [ready, setReady] = useState(false);
   const [q, setQ] = useState("");
-  const [state, setState] = useState("");
-  const [town, setTown] = useState("");
-  const [freq, setFreq] = useState("");
+  const [state, setState] = useState<string[]>([]);
+  const [town, setTown] = useState<string[]>([]);
+  const [freq, setFreq] = useState<string[]>([]);
   const [audit, setAudit] = useState("");
-  const [banner, setBanner] = useState("");
-  const [chain, setChain] = useState("");
-  const [type, setType] = useState("");
+  const [banner, setBanner] = useState<string[]>([]);
+  const [chain, setChain] = useState<string[]>([]);
+  const [type, setType] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [sel, setSel] = useState<MapStore | null>(null);
   const [contacts, setContacts] = useState<{ id: string; full_name: string | null; phone: string | null }[]>([]);
@@ -59,11 +61,11 @@ export function MapView({ stores }: { stores: MapStore[] }) {
   const filtered = useMemo(() => {
     const t = q.trim().toLowerCase();
     return stores.filter((s) =>
-      (!state || s.state === state) && (!town || s.town === town) && (!freq || s.frequency === freq) && (!audit || s.audit) &&
-      (!banner || s.banner === banner) && (!chain || s.chain === chain) && (!type || s.storeType === type) &&
+      (!state.length || state.includes(s.state)) && (!town.length || town.includes(s.town ?? "")) && (!freq.length || freq.includes(s.frequency)) && (!audit || s.audit) &&
+      (!banner.length || banner.includes(s.banner ?? "")) && (!chain.length || chain.includes(s.chain ?? "")) && (!type.length || type.includes(s.storeType ?? "")) &&
       (!t || `${s.name} ${s.town} ${s.address}`.toLowerCase().includes(t)));
   }, [stores, q, state, town, freq, audit, banner, chain, type]);
-  const filtersOn = !!(q || state || town || freq || audit || banner || chain || type);
+  const filtersOn = !!(q || state.length || town.length || freq.length || audit || banner.length || chain.length || type.length);
 
   // Mapa y marcadores se crean UNA vez; los filtros solo cambian qué marcadores están en el clúster.
   useEffect(() => {
@@ -157,17 +159,18 @@ export function MapView({ stores }: { stores: MapStore[] }) {
       <div className="fold" data-open={showFilters}>
         <div>
           <div className="grid grid-cols-2 items-end gap-2 pb-1 md:grid-cols-3 xl:grid-cols-4">
-            <FilterSelect label="Estado" value={state} onChange={setState} options={Object.entries(STATE_LABEL)} />
-            <FilterSelect label="Municipio" value={town} onChange={setTown} options={towns} />
-            <FilterSelect label="Enseña" value={banner} onChange={setBanner} options={banners} all="Todas" />
-            <FilterSelect label="Cadena" value={chain} onChange={setChain} options={chains} all="Todas" />
-            <FilterSelect label="Tipo de tienda" value={type} onChange={setType} options={types} />
-            <FilterSelect label="Periodicidad" value={freq} onChange={setFreq} options={Object.entries(FREQ_LABEL)} all="Todas" />
+            <MultiFilter label="Estado" values={state} onChange={setState} options={Object.entries(STATE_LABEL)} />
+            <MultiFilter label="Municipio" values={town} onChange={setTown} options={towns} />
+            <MultiFilter label="Enseña" values={banner} onChange={setBanner} options={banners} all="Todas" />
+            <MultiFilter label="Cadena" values={chain} onChange={setChain} options={chains} all="Todas" />
+            <MultiFilter label="Tipo de tienda" values={type} onChange={setType} options={types} />
+            <MultiFilter label="Periodicidad" values={freq} onChange={setFreq} options={Object.entries(FREQ_LABEL)} all="Todas" />
             <FilterSelect label="Audit" value={audit} onChange={setAudit} options={[["1", "Solo Audit"]]} all="Todas" />
-            <button className="btn-secondary" disabled={!filtersOn} onClick={() => { setQ(""); setState(""); setTown(""); setFreq(""); setAudit(""); setBanner(""); setChain(""); setType(""); }}>Limpiar filtros</button>
+            <button className="btn-secondary" disabled={!filtersOn} onClick={() => { setQ(""); setState([]); setTown([]); setFreq([]); setAudit(""); setBanner([]); setChain([]); setType([]); }}>Limpiar filtros</button>
           </div>
         </div>
       </div>
+      <MapRouteCard banners={banner} allBanners={banners.map(([b]) => b)} onChange={setBanner} />
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
         {(Object.keys(COLORS) as DueState[]).map((k) => <span key={k} className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-full" style={{ background: COLORS[k] }} />{STATE_LABEL[k]}</span>)}
         <span className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-full bg-white" style={{ boxShadow: "0 0 0 1.5px #94a3b8, 0 0 0 3px #111" }} />Audit (aro negro)</span>

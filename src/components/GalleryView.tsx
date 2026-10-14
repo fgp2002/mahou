@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Images, X } from "lucide-react";
-import { FilterSelect } from "./FilterSelect";
+import { MultiFilter } from "./MultiFilter";
 
 export interface GalleryPhoto { id: string; url: string | null; date: string; visitId: string; storeId: string; store: string; town: string; banner: string; tagIds: string[] }
 interface Tag { id: string; kind: "product" | "promo"; name: string }
@@ -10,16 +10,17 @@ interface Tag { id: string; kind: "product" | "promo"; name: string }
 const uniq = (a: string[]) => [...new Set(a.filter(Boolean))].sort((x, y) => x.localeCompare(y, "es"));
 
 export function GalleryView({ photos, tags }: { photos: GalleryPhoto[]; tags: Tag[] }) {
-  const [f, setF] = useState({ store: "", banner: "", product: "", promo: "", from: "", to: "" });
+  const empty = { store: [] as string[], banner: [] as string[], product: [] as string[], promo: [] as string[], from: "", to: "" };
+  const [f, setF] = useState(empty);
   const [open, setOpen] = useState<GalleryPhoto | null>(null);
   const tagById = new Map(tags.map((t) => [t.id, t]));
   const stores = useMemo(() => [...new Map(photos.filter((p) => p.storeId).map((p) => [p.storeId, `${p.store}${p.town ? " · " + p.town : ""}`])).entries()].sort((a, b) => a[1].localeCompare(b[1], "es")), [photos]);
   const banners = useMemo(() => uniq(photos.map((p) => p.banner)), [photos]);
   const shown = photos.filter((p) =>
-    (!f.store || p.storeId === f.store) && (!f.banner || p.banner === f.banner) &&
-    (!f.product || p.tagIds.includes(f.product)) && (!f.promo || p.tagIds.includes(f.promo)) &&
+    (!f.store.length || f.store.includes(p.storeId)) && (!f.banner.length || f.banner.includes(p.banner)) &&
+    (!f.product.length || f.product.some((t) => p.tagIds.includes(t))) && (!f.promo.length || f.promo.some((t) => p.tagIds.includes(t))) &&
     (!f.from || p.date >= f.from) && (!f.to || p.date <= f.to));
-  const dirty = Object.values(f).some(Boolean);
+  const dirty = Object.values(f).some((v) => (Array.isArray(v) ? v.length > 0 : !!v));
 
   if (photos.length === 0) {
     return (
@@ -35,15 +36,15 @@ export function GalleryView({ photos, tags }: { photos: GalleryPhoto[]; tags: Ta
   return (
     <>
       <div className="card grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <FilterSelect label="Tienda" value={f.store} onChange={(v) => setF({ ...f, store: v })} options={stores} all="Todas" />
-        <FilterSelect label="Enseña" value={f.banner} onChange={(v) => setF({ ...f, banner: v })} options={banners.map((b) => [b, b])} all="Todas" />
-        <FilterSelect label="Marca y modelo" value={f.product} onChange={(v) => setF({ ...f, product: v })} options={tags.filter((t) => t.kind === "product").map((t) => [t.id, t.name])} all="Todos" />
-        <FilterSelect label="Promoción" value={f.promo} onChange={(v) => setF({ ...f, promo: v })} options={tags.filter((t) => t.kind === "promo").map((t) => [t.id, t.name])} all="Todas" />
+        <MultiFilter label="Tienda" values={f.store} onChange={(v) => setF({ ...f, store: v })} options={stores} all="Todas" />
+        <MultiFilter label="Enseña" values={f.banner} onChange={(v) => setF({ ...f, banner: v })} options={banners.map((b) => [b, b])} all="Todas" />
+        <MultiFilter label="Marca y modelo" values={f.product} onChange={(v) => setF({ ...f, product: v })} options={tags.filter((t) => t.kind === "product").map((t) => [t.id, t.name])} all="Todos" />
+        <MultiFilter label="Promoción" values={f.promo} onChange={(v) => setF({ ...f, promo: v })} options={tags.filter((t) => t.kind === "promo").map((t) => [t.id, t.name])} all="Todas" />
         <div className="min-w-0"><label className="label" htmlFor="g-from">Desde</label><input id="g-from" type="date" className="input" value={f.from} onChange={(e) => setF({ ...f, from: e.target.value })} /></div>
         <div className="min-w-0"><label className="label" htmlFor="g-to">Hasta</label><input id="g-to" type="date" className="input" value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} /></div>
         <div className="col-span-2 flex items-center justify-between text-sm text-slate-500 md:col-span-3 xl:col-span-6">
           <span>{shown.length} de {photos.length} fotos</span>
-          {dirty && <button className="underline" onClick={() => setF({ store: "", banner: "", product: "", promo: "", from: "", to: "" })}>Limpiar filtros</button>}
+          {dirty && <button className="underline" onClick={() => setF(empty)}>Limpiar filtros</button>}
         </div>
       </div>
 

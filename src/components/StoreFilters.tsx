@@ -4,6 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FREQ_LABEL } from "@/lib/types";
 import { STATE_LABEL } from "@/lib/domain/periodicity";
 import { FilterSelect } from "./FilterSelect";
+import { MultiFilter } from "./MultiFilter";
 
 export interface Facets { towns: string[]; banners: string[]; chains: string[]; types: string[] }
 
@@ -16,15 +17,21 @@ export function StoreFilters({ facets }: { facets: Facets }) {
   const [q, setQ] = useState(sp.get("q") ?? "");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function push(next: Record<string, string>) {
+  function push(next: Record<string, string | string[]>) {
     const u = new URLSearchParams(sp.toString());
-    for (const [k, v] of Object.entries(next)) (v ? u.set(k, v) : u.delete(k));
+    for (const [k, v] of Object.entries(next)) {
+      u.delete(k);
+      for (const x of Array.isArray(v) ? v : [v]) if (x) u.append(k, x);
+    }
     u.delete("page");
     start(() => router.replace(`${path}?${u}`, { scroll: false }));
   }
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
   const f = (name: string, label: string, options: [string, string][], all?: string) => (
+    <MultiFilter label={label} values={sp.getAll(name)} onChange={(v) => push({ [name]: v })} options={options} all={all} />
+  );
+  const one = (name: string, label: string, options: [string, string][], all?: string) => (
     <FilterSelect label={label} value={sp.get(name) ?? ""} onChange={(v) => push({ [name]: v })} options={options} all={all} />
   );
   const same = (xs: string[]): [string, string][] => xs.map((x) => [x, x]);
@@ -41,8 +48,8 @@ export function StoreFilters({ facets }: { facets: Facets }) {
         {f("chain", "Cadena", same(facets.chains), "Todas")}
         {f("type", "Tipo de tienda", same(facets.types))}
         {f("freq", "Periodicidad", Object.entries(FREQ_LABEL), "Todas")}
-        {f("audit", "Audit", [["1", "Solo Audit"]], "Todas")}
-        {f("geo", "Ubicación", [["no", "Sin ubicación"]], "Todas")}
+        {one("audit", "Audit", [["1", "Solo Audit"]], "Todas")}
+        {one("geo", "Ubicación", [["no", "Sin ubicación"]], "Todas")}
       </div>
       <div className="flex items-center gap-3">
         <button className="btn-secondary" disabled={!anyFilter} onClick={() => { setQ(""); start(() => router.replace(path, { scroll: false })); }}>Limpiar filtros</button>
