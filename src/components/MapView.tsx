@@ -58,6 +58,7 @@ export function MapView({ stores }: { stores: MapStore[] }) {
   const [picked, setPicked] = useState<string[]>([]);
   const pickingRef = useRef(false);
   pickingRef.current = picking;
+  const pickedRef = useRef<string[]>([]);
   const byId = useMemo(() => new Map(stores.map((s) => [s.id, s])), [stores]);
 
   const uniq = (xs: (string | null)[]): [string, string][] => ([...new Set(xs.filter(Boolean))].sort((a, b) => a!.localeCompare(b!, "es")) as string[]).map((x) => [x, x]);
@@ -118,10 +119,13 @@ export function MapView({ stores }: { stores: MapStore[] }) {
   useEffect(() => {
     const r = ref.current;
     if (!r || !ready) return;
+    // Filtros y selección son independientes: lo que ya está seleccionado sigue visible aunque un filtro lo oculte.
+    const ids = new Set(filtered.map((s) => s.id));
     const visible = filtered.map((s) => r.markers.get(s.id)).filter(Boolean);
+    const extra = pickedRef.current.filter((id) => !ids.has(id)).map((id) => r.markers.get(id)).filter(Boolean);
     r.cluster.clearLayers();
-    r.cluster.addLayers(visible);
-    if (filtersOn && visible.length) r.map.fitBounds(r.cluster.getBounds().pad(0.15), { maxZoom: 15, animate: false });
+    r.cluster.addLayers([...visible, ...extra]);
+    if (filtersOn && visible.length) r.map.fitBounds(r.L.featureGroup(visible).getBounds().pad(0.15), { maxZoom: 15, animate: false });
   }, [filtered, ready, filtersOn]);
 
   // Repinta los pines al cambiar la selección (solo los afectados).
@@ -136,6 +140,7 @@ export function MapView({ stores }: { stores: MapStore[] }) {
       if (s && m) m.setIcon(r.L.divIcon({ className: "", iconSize: [34, 34], iconAnchor: [17, 17], html: pinHtml(s, picked.includes(id)) }));
     }
     prevPicked.current = picked;
+    pickedRef.current = picked;
   }, [picked, ready, byId]);
 
   useEffect(() => {
