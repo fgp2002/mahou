@@ -3,7 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { addDays, fmtHM, madridDate, parseHM, weekdayMon0 } from "../domain/dates.ts";
 import { computeObligation, priorityScore } from "../domain/periodicity.ts";
-import { estimateMatrix, googleMatrix, type Matrix } from "../domain/geo.ts";
+import { estimateMatrix, googleMatrix, googleRoutePolyline, type Matrix } from "../domain/geo.ts";
 import { geocodeOne } from "./geocode.ts";
 import { pickZone, planRoute, scheduleFixedOrder, ZONE_DEFAULTS, type Lunch } from "../domain/planner.ts";
 
@@ -237,6 +237,7 @@ export async function generateRoute(
     })));
     if (e2) throw new Error(e2.message);
   }
+  await saveRouteShape(sb, route.id, settings.home, (result?.stops ?? []).map((st) => ({ lat: cand[st.index].s.lat!, lng: cand[st.index].s.lng! })));
 
   const nStops = result?.stops.length ?? 0;
   await sb.from("alerts").upsert({
@@ -277,6 +278,7 @@ export async function recalcRoute(sb: SupabaseClient, ownerId: string, routeId: 
       drive_seconds_from_prev: Math.round(st.driveSecondsFromPrev), distance_m_from_prev: Math.round(st.distanceMFromPrev),
     }).eq("id", list[i].id);
   }
+  await saveRouteShape(sb, routeId, home, pts);
   const warnings: string[] = matrix.estimated ? ["Tiempos de trayecto ESTIMADOS (no por carretera real)."] : [];
   const { data: set } = await sb.from("user_settings").select("work_end").eq("owner_id", ownerId).single();
   if (set && r.endMinutes > parseHM(String(set.work_end).slice(0, 5))) warnings.push(`La ruta termina a las ${fmtHM(r.endMinutes)}, después del fin de jornada (${String(set.work_end).slice(0, 5)}).`);
@@ -286,4 +288,23 @@ export async function recalcRoute(sb: SupabaseClient, ownerId: string, routeId: 
     lunch_start: r.lunch ? fmtHM(r.lunch.start) : null, lunch_after_position: r.lunch ? r.lunch.afterStop + 1 : null,
   }).eq("id", routeId);
   return { estimate: matrix.estimated };
+}
+
+/** Guarda el trazado por carretera y el punto de salida para la vista previa de la ruta. */
+export async function saveRouteShape(sb: SupabaseClient, routeId: string, home: { lat: number; lng: number } | null, stops: { lat: number; lng: number }[]) {
+  const key = process.env.GOOGLE_API_KEY;
+  const pts = home ? [home, ...stops] : stops;
+  let polyline: string | null = null;
+  if (key && pts.length > 1) {
+    try { polyline = await googleRoutePolyline(pts, key); } catch { polyline = null; }
+  }
+  await sb.from("routes").update({ polyline: polyline ?? "", start_lat: home?.lat ?? null, start_lng: home?.lng ?? null }).eq("id", routeId);
+  return { polyline, start: home };
+}
+
+/** Para rutas antiguas sin trazado: lo calcula una vez al abrirlas. */
+export async function ensureRouteShape(sb: SupabaseClient, ownerId: string, routeId: string, stops: { lat: number; lng: number }[]) {
+  const settings = await loadOwnerSettings(sb, ownerId);
+  if (settings) await ensureHome(sb, ownerId, settings);
+  return saveRouteShape(sb, routeId, settings?.home ?? null, stops);
 }

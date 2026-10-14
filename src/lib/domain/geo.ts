@@ -125,3 +125,39 @@ export function googleMapsRouteUrl(stops: UrlStop[]): string | null {
   if (mid.length) params.set("waypoints", mid.map(stopQuery).join("|"));
   return `https://www.google.com/maps/dir/?${params.toString()}`;
 }
+
+/** Trazado por carretera (polilínea codificada) de un recorrido en orden, con Google Routes API. */
+export async function googleRoutePolyline(points: LatLng[], apiKey: string): Promise<string | null> {
+  if (points.length < 2) return null;
+  const wp = (p: LatLng) => ({ location: { latLng: { latitude: p.lat, longitude: p.lng } } });
+  const res = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Goog-Api-Key": apiKey, "X-Goog-FieldMask": "routes.polyline.encodedPolyline" },
+    body: JSON.stringify({
+      origin: wp(points[0]),
+      destination: wp(points[points.length - 1]),
+      intermediates: points.slice(1, -1).map(wp),
+      travelMode: "DRIVE",
+      routingPreference: "TRAFFIC_UNAWARE",
+    }),
+  });
+  if (!res.ok) return null;
+  const j = (await res.json()) as { routes?: { polyline?: { encodedPolyline?: string } }[] };
+  return j.routes?.[0]?.polyline?.encodedPolyline ?? null;
+}
+
+/** Decodifica una polilínea de Google en una lista de [lat, lng]. */
+export function decodePolyline(str: string): [number, number][] {
+  const out: [number, number][] = [];
+  let i = 0, lat = 0, lng = 0;
+  while (i < str.length) {
+    for (const k of [0, 1]) {
+      let shift = 0, result = 0, b: number;
+      do { b = str.charCodeAt(i++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+      const d = result & 1 ? ~(result >> 1) : result >> 1;
+      if (k === 0) lat += d; else lng += d;
+    }
+    out.push([lat / 1e5, lng / 1e5]);
+  }
+  return out;
+}

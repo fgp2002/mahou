@@ -167,3 +167,17 @@ details[open] > .fold-body { animation: page-in 220ms var(--ease) both; }
 .data-table tbody tr:hover .row-actions, .data-table tbody tr:focus-within .row-actions { opacity: 1; }
 @media (hover: none) { .row-actions { opacity: 1; } }
 .icon-btn { @apply inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-900; }
+
+/* Mapas: el pellizco y el arrastre solo afectan al mapa, nunca a la página. */
+.map-touch, .leaflet-container { touch-action: none; overscroll-behavior: contain; }
+.leaflet-container { font-family: inherit; }
+
+/* Vista previa de ruta */
+.rp-pin { width: 30px; height: 30px; border-radius: 9999px; background: rgb(91 79 233); color: #fff; font: 800 13px/30px var(--font-sans), system-ui, sans-serif; text-align: center; border: 2.5px solid #fff; box-shadow: 0 2px 8px rgb(0 0 0 / 0.45); }
+.rp-done { background: #34C759; }
+.rp-next { transform: scale(1.18); box-shadow: 0 0 0 4px rgb(91 79 233 / 0.35), 0 2px 8px rgb(0 0 0 / 0.45); }
+.rp-home { width: 34px; height: 34px; border-radius: 10px; background: #111; color: #fff; font: 700 20px/32px system-ui, sans-serif; text-align: center; border: 2.5px solid #fff; box-shadow: 0 2px 8px rgb(0 0 0 / 0.5); }
+@keyframes rp-flow { to { stroke-dashoffset: -30; } }
+.rp-flow { animation: rp-flow 1.1s linear infinite; }
+@keyframes rp-draw { from { stroke-dasharray: 4000; stroke-dashoffset: 4000; } to { stroke-dasharray: 4000; stroke-dashoffset: 0; } }
+.rp-line { animation: rp-draw 1.6s var(--ease) backwards; }

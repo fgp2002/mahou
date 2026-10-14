@@ -72,12 +72,12 @@ export function MapView({ stores }: { stores: MapStore[] }) {
       const L = (await import("leaflet")).default;
       await import("leaflet.markercluster");
       if (dead || !el.current || ref.current) return;
-      const map = L.map(el.current, { preferCanvas: true, zoomControl: true }).setView([36.72, -4.42], 9);
+      const map = L.map(el.current, { preferCanvas: true, zoomControl: true, zoomSnap: 0.5, wheelPxPerZoomLevel: 90, inertiaDeceleration: 2500 }).setView([36.72, -4.42], 9);
       // Vista satélite sin rótulos de comercios; encima solo las vías con su nombre.
-      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 20, maxNativeZoom: 19, attribution: "Imágenes © Esri, Maxar, Earthstar Geographics" }).addTo(map);
-      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}", { maxZoom: 20, maxNativeZoom: 19, attribution: "Vías © Esri" }).addTo(map);
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 20, maxNativeZoom: 19, keepBuffer: 4, updateWhenZooming: false, attribution: "Imágenes © Esri, Maxar, Earthstar Geographics" }).addTo(map);
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}", { maxZoom: 20, maxNativeZoom: 19, keepBuffer: 4, updateWhenZooming: false, attribution: "Vías © Esri" }).addTo(map);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cluster = (L as any).markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 50, chunkedLoading: true, animate: false });
+      const cluster = (L as any).markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 50, chunkedLoading: true, animate: true, removeOutsideVisibleBounds: true });
       map.addLayer(cluster);
       const markers = new Map();
       for (const s of stores) {
@@ -89,7 +89,17 @@ export function MapView({ stores }: { stores: MapStore[] }) {
       ref.current = { L, map, cluster, me: null, markers };
       setReady(true);
     })();
-    return () => { dead = true; ref.current?.map.remove(); ref.current = null; setReady(false); };
+    // Pellizcar dentro del mapa solo hace zoom en el mapa, nunca en la página (Safari iOS).
+    const node = el.current;
+    const block = (e: Event) => e.preventDefault();
+    node?.addEventListener("gesturestart", block, { passive: false });
+    node?.addEventListener("gesturechange", block, { passive: false });
+    return () => {
+      dead = true;
+      node?.removeEventListener("gesturestart", block);
+      node?.removeEventListener("gesturechange", block);
+      ref.current?.map.remove(); ref.current = null; setReady(false);
+    };
   }, [stores]);
 
   useEffect(() => {
