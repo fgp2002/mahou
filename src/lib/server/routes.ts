@@ -6,7 +6,8 @@ import { computeObligation, priorityScore } from "../domain/periodicity.ts";
 import { estimateMatrix, googleMatrix, type Matrix } from "../domain/geo.ts";
 import { planRoute, scheduleFixedOrder } from "../domain/planner.ts";
 
-export const MAX_CANDIDATES = 25;
+import { MAX_CANDIDATES } from "./labels.ts";
+export { UNSCHEDULED_LABEL } from "./labels.ts";
 
 export interface OwnerSettings {
   tracking_start: string;
@@ -19,13 +20,6 @@ export interface OwnerSettings {
   audit_first: boolean;
 }
 
-export const UNSCHEDULED_LABEL: Record<string, string> = {
-  tiempo: "No cabe en el tiempo disponible de la jornada",
-  no_cabe: "Su duración supera por sí sola la jornada",
-  sin_ubicacion: "Sin ubicación: no se puede calcular el trayecto",
-  fuera_candidatos: `Fuera de las ${MAX_CANDIDATES} tiendas más prioritarias consideradas`,
-  limite_paradas: "Superaría el máximo de paradas por día",
-};
 
 export async function loadOwnerSettings(sb: SupabaseClient, ownerId: string): Promise<OwnerSettings | null> {
   const { data } = await sb.from("user_settings").select("*").eq("owner_id", ownerId).maybeSingle();
@@ -182,6 +176,13 @@ export async function generateRoute(
     owner_id: ownerId, kind: "route_proposed", severity: "info", dedupe_key: `route:${date}`,
     message: `Ruta propuesta para ${date}: ${nStops} paradas${unscheduled.length ? ` y ${unscheduled.length} sin programar` : ""}. Revísala y acéptala.`,
   }, { onConflict: "owner_id,dedupe_key", ignoreDuplicates: true });
+
+  if (unscheduled.length) {
+    await sb.from("alerts").upsert({
+      owner_id: ownerId, kind: "route_unscheduled", severity: "warning", dedupe_key: `unsched:${date}`,
+      message: `${unscheduled.length} tiendas pendientes no caben en la ruta del ${date}. Mira el motivo en la ruta.`,
+    }, { onConflict: "owner_id,dedupe_key", ignoreDuplicates: true });
+  }
 
   return { status: "created", routeId: route.id, stops: nStops, unscheduled: unscheduled.length, estimate: matrix?.estimated ?? false };
 }
