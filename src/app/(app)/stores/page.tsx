@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { loadAllStores, loadCompletedDates, loadSettings, withObligations } from "@/lib/server/load";
-import { PageHeader, StateBadge } from "@/components/ui";
+import { PageHeader, StateBadge, EmptyState } from "@/components/ui";
 import { StoreFilters, type Facets } from "@/components/StoreFilters";
 import { FREQ_LABEL } from "@/lib/types";
+import { StoreRow } from "@/components/StoreRow";
+import { supabaseServer } from "@/lib/supabase/server";
+import { brandKey, logoUrl } from "@/lib/brands";
 
 const PAGE = 50;
 
@@ -21,6 +24,9 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
     (!sp.state || s.ob.state === sp.state) && (!sp.town || s.town === sp.town) && (!sp.banner || s.banner === sp.banner) &&
     (!sp.chain || s.chain === sp.chain) && (!sp.type || s.store_type === sp.type) && (!sp.freq || s.frequency === sp.freq) &&
     (sp.audit !== "1" || s.audit) && (sp.geo !== "no" || s.lat == null));
+  const sb = await supabaseServer();
+  const { data: bl } = await sb.from("brand_logos").select("brand_key,storage_path");
+  const logos = new Map((bl ?? []).map((l) => [l.brand_key, logoUrl(l.storage_path)]));
   const count = filtered.length;
   const rows = filtered.slice((page - 1) * PAGE, page * PAGE);
   const pages = Math.max(1, Math.ceil(count / PAGE));
@@ -37,19 +43,15 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
         <Link href="/stores/new" className="btn">Nueva tienda</Link>
       </PageHeader>
       <StoreFilters facets={facets} />
-      <ul className="space-y-3 md:hidden">
+      <ul className="space-y-2.5 md:hidden">
         {rows.map((s) => (
-          <li key={s.id}>
-            <Link href={`/stores/${s.id}`} className="card tap flex items-center justify-between gap-3 !p-3">
-              <span className="min-w-0">
-                <span className="block truncate font-medium">{s.audit && <span className="badge mr-1 bg-slate-900 text-white">Audit</span>}{s.name}</span>
-                <span className="block truncate text-xs text-slate-500">{s.address}, {s.town} · {FREQ_LABEL[s.frequency]}</span>
-              </span>
-              <StateBadge state={s.ob.state} />
-            </Link>
-          </li>
+          <StoreRow key={s.id} s={{
+            id: s.id, name: s.name, audit: s.audit, state: s.ob.state, lat: s.lat, lng: s.lng,
+            logo: logos.get(brandKey(s.banner) ?? "") ?? null,
+            sub: [s.town, FREQ_LABEL[s.frequency], s.ob.deadline && s.ob.pending > 0 ? `vence ${s.ob.deadline.slice(8, 10)}/${s.ob.deadline.slice(5, 7)}` : null].filter(Boolean).join(" · "),
+          }} />
         ))}
-        {rows.length === 0 && <li className="card text-center text-sm text-slate-500">Sin resultados.</li>}
+        {rows.length === 0 && <li><EmptyState title="Sin resultados" text="Prueba a quitar algún filtro." /></li>}
       </ul>
       <div className="card hidden h-scroll p-0 md:block">
         <table className="w-full text-sm">

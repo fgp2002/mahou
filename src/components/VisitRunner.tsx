@@ -26,6 +26,10 @@ async function resize(file: File, max = 1600): Promise<Blob> {
 const fmt = (s: number) => `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
 const NEW = "__new__";
+const STEPS = ["Fotos", "Pagos", "Notas"];
+function activeTypesDefaults(ts: PaymentType[]): number[] {
+  return ts.filter((t) => t.active && t.default_amount != null).map((t) => Number(t.default_amount)).sort((a, b) => a - b);
+}
 
 export function VisitRunner({ visit, storeName, contacts, concepts, photos, types, suggestedNext, tags }: { visit: Visit; storeName: string; contacts: Contact[]; concepts: PConcept[]; photos: PhotoView[]; types: PaymentType[]; suggestedNext: string | null; tags: PhotoTag[] }) {
   const router = useRouter();
@@ -39,6 +43,9 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
   const [next, setNext] = useState(visit.next_visit_recommended ?? suggestedNext ?? "");
   const [extras, setExtras] = useState<{ typeId: string; amount: string }[]>([]);
   const [localTypes, setLocalTypes] = useState(types);
+  const [step, setStep] = useState(0);
+  const vis = (n: number) => !running || step === n;
+  const chips = [...new Set(activeTypesDefaults(types))].slice(0, 5);
   const [allTags, setAllTags] = useState(tags);
   const [photoTagIds, setPhotoTagIds] = useState<Record<string, string[]>>(() => Object.fromEntries(photos.map((p) => [p.id, p.tagIds])));
   const [creatingFor, setCreatingFor] = useState<number | null>(null);
@@ -151,7 +158,20 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
         <div className="text-xs text-slate-400">{visit.visit_date}{visit.is_manual ? " · registro manual" : ""}</div>
       </div>
 
-      <div className="card space-y-3">
+      {running && (
+        <ol className="flex items-center gap-2" aria-label="Pasos de la visita">
+          {STEPS.map((l, i) => (
+            <li key={l} className="flex flex-1 items-center gap-2">
+              <button type="button" onClick={() => setStep(i)} className={`tap flex h-8 min-w-0 flex-1 items-center justify-center rounded-full px-3 text-xs font-semibold ${i === step ? "bg-slate-900 text-[rgb(var(--on-accent))]" : i < step ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
+                {i < step ? "✓ " : `${i + 1}. `}{l}
+              </button>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {vis(0) && (
+      <div className="card space-y-3 fade-in">
         <h2 className="font-medium">Fotos</h2>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {photos.map((p) => (
@@ -165,14 +185,23 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
           ))}
         </div>
         <label className="btn-secondary cursor-pointer">
-          Hacer / añadir foto
-          <input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => upload(e.target.files)} disabled={busy} />
+          Hacer foto
+          <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => upload(e.target.files)} disabled={busy} />
         </label>
+        <label className="btn-secondary cursor-pointer">
+          Elegir de la galería
+          <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => upload(e.target.files)} disabled={busy} />
+        </label>
+        {err && <p className="text-sm text-red-600">{err}</p>}
+        {running && <button type="button" className="btn w-full" onClick={() => setStep(1)}>Siguiente: Pagos</button>}
+        {running && <button type="button" className="w-full py-1 text-sm text-slate-500 underline" onClick={cancel}>Cancelar visita</button>}
       </div>
+      )}
 
-      <div className="card space-y-3">
-        <h2 className="font-medium">Datos de la visita</h2>
-        {running && contacts.length > 0 && (
+      {(!running || step > 0) && (
+      <div className="card space-y-3 fade-in">
+        <h2 className="font-medium">{running ? STEPS[step] : "Datos de la visita"}</h2>
+        {vis(2) && running && contacts.length > 0 && (
           <div>
             <label className="label">Persona que te atendió</label>
             <select className="input" value={f.contact} onChange={(e) => setF({ ...f, contact: e.target.value })}>
@@ -181,10 +210,10 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
             </select>
           </div>
         )}
-        {([["result", "Resultado"], ["items", "Productos / elementos revisados"], ["incidents", "Incidencias"], ["notes", "Notas"]] as const).map(([k, l]) => (
+        {vis(2) && ([["result", "Resultado"], ["items", "Productos / elementos revisados"], ["incidents", "Incidencias"], ["notes", "Notas"]] as const).map(([k, l]) => (
           <div key={k}><label className="label">{l}</label><textarea className="input" rows={2} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} /></div>
         ))}
-        {running && (
+        {running && step === 1 && (
           <div className="space-y-2">
             <label className="label">Cobros comprobados en esta visita</label>
             {concepts.map((c) => (
@@ -208,6 +237,14 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
                   <input className="input w-28" inputMode="decimal" placeholder="€" aria-label="Importe" value={ex.amount} onChange={(e) => setExtras(extras.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)))} />
                   <button type="button" className="btn-secondary" aria-label="Quitar cobro" onClick={() => setExtras(extras.filter((_, j) => j !== i))}>✕</button>
                 </div>
+                {chips.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {chips.map((c) => (
+                      <button key={c} type="button" onClick={() => setExtras(extras.map((x, j) => (j === i ? { ...x, amount: String(c) } : x)))}
+                        className={`tap min-h-9 rounded-full border px-3 text-xs ${Number(ex.amount.replace(",", ".")) === c ? "border-slate-900 bg-slate-900 text-[rgb(var(--on-accent))]" : "border-slate-300 text-slate-700"}`}>{eur(c)}</button>
+                    ))}
+                  </div>
+                )}
                 {creatingFor === i && (
                   <NewTypeInline onCancel={() => setCreatingFor(null)} onCreated={(t) => {
                     setLocalTypes([...localTypes, t]);
@@ -220,22 +257,30 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
             <button type="button" className="btn-secondary" onClick={() => setExtras([...extras, { typeId: "", amount: "" }])}>＋ Añadir otro cobro</button>
           </div>
         )}
-        {running && (
+        {running && step === 1 && (
+          <div className="flex gap-2">
+            <button type="button" className="btn-secondary" onClick={() => setStep(0)}>Atrás</button>
+            <button type="button" className="btn flex-1" onClick={() => setStep(2)}>Siguiente: Notas</button>
+          </div>
+        )}
+        {running && step === 2 && (
           <div>
             <label className="label">Próxima visita recomendada{suggestedNext ? " (sugerida según la periodicidad)" : ""}</label>
             <input type="date" className="input" value={next} onChange={(e) => setNext(e.target.value)} />
           </div>
         )}
-        {err && <p className="text-sm text-red-600">{err}</p>}
-        {running ? (
+        {err && (!running || step > 0) && <p className="text-sm text-red-600">{err}</p>}
+        {running && step === 2 ? (
           <div className="flex gap-2">
+            <button className="btn-secondary" onClick={() => setStep(1)}>Atrás</button>
             <button className="btn flex-1" onClick={finish} disabled={busy}>Finalizar visita</button>
             <button className="btn-secondary" onClick={cancel}>Cancelar</button>
           </div>
-        ) : (
+        ) : !running ? (
           <button className="btn" onClick={saveEdits} disabled={busy}>Guardar cambios</button>
-        )}
+        ) : null}
       </div>
+      )}
     </div>
   );
 }
