@@ -94,7 +94,10 @@ export function MapView({ stores }: { stores: MapStore[] }) {
     setContacts([]);
     if (!sel) return;
     let live = true;
-    supabaseBrowser().from("store_contacts").select("id,full_name,phone").eq("store_id", sel.id).limit(3).then(({ data }) => live && setContacts(data ?? []));
+    (async () => {
+      const { data } = await supabaseBrowser().from("store_contacts").select("id,full_name,phone").eq("store_id", sel.id).limit(3);
+      if (live) setContacts((data ?? []) as { id: string; full_name: string | null; phone: string | null }[]);
+    })();
     return () => { live = false; };
   }, [sel]);
 

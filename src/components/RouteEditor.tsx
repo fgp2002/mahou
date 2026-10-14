@@ -107,7 +107,7 @@ export function RouteEditor({ route, stops }: { route: RouteView; stops: StopVie
     <div className="space-y-4">
       <div className="card space-y-2 text-sm">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="badge bg-brand-100 text-brand-700">{ST[route.status]}</span>
+          <span className="badge bg-slate-200 text-slate-800">{ST[route.status]}</span>
           <span className="text-slate-500">{route.generated_by === "auto" ? "Generada automáticamente" : "Generada a mano"}{route.user_modified ? " · editada" : ""}</span>
         </div>
         <div>{stops.length} paradas · conducción {fmtDuration(Math.round(route.drive / 60))} · visitas {fmtDuration(Math.round(route.visit / 60))} · {(route.dist / 1000).toFixed(1)} km</div>
