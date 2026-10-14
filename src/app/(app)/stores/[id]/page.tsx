@@ -29,7 +29,7 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
   const ob = computeObligation(s.frequency, madridDate(), done, { trackingStart: settings.tracking_start });
 
   return (
-    <div className="max-w-4xl space-y-4">
+    <div className="max-w-4xl space-y-6">
       <PageHeader title={s.name}>
         <Link href={`/visits/new?store=${s.id}`} className="btn">Registrar visita</Link>
         {s.lat != null && s.lng != null && (

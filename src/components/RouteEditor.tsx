@@ -104,7 +104,7 @@ export function RouteEditor({ route, stops }: { route: RouteView; stops: StopVie
   const url = googleMapsRouteUrl(stops.map((s) => ({ lat: s.stores.lat, lng: s.stores.lng, address: s.stores.address, town: s.stores.town, postal_code: s.stores.postal_code })));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="card space-y-2 text-sm">
         <div className="flex flex-wrap items-center gap-2">
           <span className="badge bg-slate-200 text-slate-800">{ST[route.status]}</span>

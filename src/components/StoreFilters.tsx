@@ -27,8 +27,8 @@ export function StoreFilters({ towns, banners }: { towns: string[]; banners: str
     </select>
   );
   return (
-    <div className="card grid grid-cols-2 gap-2 md:grid-cols-6" aria-busy={pending}>
-      <input aria-label="Buscar" className="input col-span-2" placeholder="Buscar nombre, municipio, dirección, ID" value={q}
+    <div className="card grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" aria-busy={pending}>
+      <input aria-label="Buscar" className="input col-span-2 md:col-span-3 xl:col-span-2" placeholder="Buscar nombre, municipio, dirección, ID" value={q}
         onChange={(e) => { setQ(e.target.value); if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => push({ q: e.target.value.trim() }), 250); }} />
       {sel("town", "Municipio", towns.map((t) => [t, t]))}
       {sel("banner", "Enseña", banners.map((t) => [t, t]))}
@@ -36,7 +36,7 @@ export function StoreFilters({ towns, banners }: { towns: string[]; banners: str
       {sel("audit", "Audit", [["1", "Solo Audit"]])}
       {sel("geo", "Ubicación", [["no", "Sin ubicación"]])}
       <button className="btn-secondary" onClick={() => { setQ(""); start(() => router.replace(path, { scroll: false })); }}>Limpiar</button>
-      {pending && <span className="col-span-2 text-xs text-slate-400">Actualizando…</span>}
+      {pending && <span className="col-span-2 text-xs text-slate-400 md:col-span-3 xl:col-span-6">Actualizando…</span>}
     </div>
   );
 }

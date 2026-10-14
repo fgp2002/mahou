@@ -13,7 +13,7 @@ export default async function VisitsPage() {
   const rows = (data ?? []) as unknown as { id: string; visit_date: string; status: string; visit_type: string; duration_minutes: number | null; is_manual: boolean; stores: { name: string; town: string | null } | null }[];
   const open = rows.find((r) => r.status === "in_progress");
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <PageHeader title="Visitas">
         <Link href="/visits/new" className="btn">Nueva visita</Link>
       </PageHeader>
@@ -26,7 +26,7 @@ export default async function VisitsPage() {
         <ul className="divide-y divide-slate-100 text-sm">
           {rows.map((v) => (
             <li key={v.id}>
-              <Link href={`/visits/${v.id}`} className="flex items-center justify-between gap-2 p-3 hover:bg-slate-50">
+              <Link href={`/visits/${v.id}`} className="flex items-center justify-between gap-2 p-3 row-link">
                 <span className="min-w-0 truncate">
                   <b>{v.stores?.name}</b> <span className="text-slate-400">· {v.stores?.town}</span>
                   <div className="text-xs text-slate-500">{v.visit_date} · {VISIT_TYPES[v.visit_type]}{v.is_manual ? " · manual" : ""}</div>

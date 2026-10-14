@@ -12,7 +12,7 @@ export default async function RoutePage({ params }: { params: Promise<{ date: st
   const { data: route } = await sb.from("routes").select("*").eq("route_date", date).maybeSingle();
   if (!route) {
     return (
-      <div className="max-w-3xl space-y-4">
+      <div className="max-w-3xl space-y-6">
         <PageHeader title={formatLong(date)}><Link href="/routes" className="btn-secondary">Todas las rutas</Link></PageHeader>
         <p className="text-sm text-slate-500">No hay ruta para este día.</p>
         <GenerateRoute defaultDate={date} routeStart="la hora configurada" />
@@ -24,7 +24,7 @@ export default async function RoutePage({ params }: { params: Promise<{ date: st
   const vmap = new Map((visits ?? []).map((v) => [v.route_stop_id, v]));
   const views: StopView[] = ((stops ?? []) as unknown as (Omit<StopView, "visit"> & { id: string })[]).map((s) => ({ ...s, visit: vmap.get(s.id) ? { id: vmap.get(s.id)!.id, status: vmap.get(s.id)!.status } : null }));
   return (
-    <div className="max-w-3xl space-y-4">
+    <div className="max-w-3xl space-y-6">
       <PageHeader title={formatLong(date)}><Link href="/routes" className="btn-secondary">Todas las rutas</Link></PageHeader>
       <RouteEditor
         route={{ id: route.id, date, status: route.status, start_time: String(route.start_time).slice(0, 5), is_estimate: route.is_estimate, provider: route.routing_provider, drive: route.est_drive_seconds ?? 0, visit: route.est_visit_seconds ?? 0, dist: route.est_distance_m ?? 0, unscheduled: route.unscheduled ?? [], warnings: route.warnings ?? [], generated_by: route.generated_by, user_modified: route.user_modified }}

@@ -131,7 +131,7 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
   }
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="max-w-2xl space-y-6">
       <div className="card text-center">
         <div className="text-sm text-slate-500">{storeName} · {VISIT_TYPES[visit.visit_type]}</div>
         {running ? (

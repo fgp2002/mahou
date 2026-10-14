@@ -32,7 +32,7 @@ export function SettingsForm({ initial }: { initial: SettingsValues }) {
   return (
     <section className="card space-y-3">
       <h2 className="font-medium">Jornada y planificación</h2>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {([["work_start", "Inicio jornada"], ["work_end", "Fin jornada"], ["route_start", "Salida de la ruta"]] as const).map(([k, l]) => (
           <div key={k}><label className="label">{l}</label><input type="time" className="input" value={v[k]} onChange={(e) => setV({ ...v, [k]: e.target.value })} /></div>
         ))}
@@ -57,7 +57,7 @@ export function SettingsForm({ initial }: { initial: SettingsValues }) {
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={v.audit_first} onChange={(e) => setV({ ...v, audit_first: e.target.checked })} /> Priorizar tiendas Audit</label>
       <div>
         <label className="label">Duración por tipo de visita (min)</label>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Object.entries(VISIT_TYPES).map(([k, l]) => (
             <div key={k}><span className="text-xs text-slate-500">{l}</span>
               <input className="input" inputMode="numeric" value={v.visit_durations[k] ?? ""} onChange={(e) => setV({ ...v, visit_durations: { ...v.visit_durations, [k]: Number(e.target.value) || 0 } })} />

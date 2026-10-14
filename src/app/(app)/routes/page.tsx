@@ -30,7 +30,7 @@ export default async function RoutesPage() {
     </ul>
   );
   return (
-    <div className="max-w-3xl space-y-4">
+    <div className="max-w-3xl space-y-6">
       <PageHeader title="Rutas" />
       <GenerateRoute defaultDate={defaultDate} routeStart={settings.route_start} />
       <section className="card p-0"><h2 className="p-3 pb-0 font-medium">Próximas</h2><List items={upcoming} /></section>

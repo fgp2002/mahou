@@ -48,14 +48,14 @@ export default async function Today() {
   const top = [...pendientes].sort((a, b) => b.score - a.score).slice(0, 5);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <header>
         <p className="text-sm text-slate-500">{formatLong(today)}</p>
         <h1 className="text-2xl font-semibold tracking-tight">Hoy</h1>
       </header>
 
       {open && (
-        <Link href={`/visits/${open.id}`} className="card flex items-center justify-between gap-3 !bg-slate-900 !text-white">
+        <Link href={`/visits/${open.id}`} className="card tap flex items-center justify-between gap-3 !bg-slate-900 !text-white">
           <span className="min-w-0"><span className="block text-xs opacity-70">Visita en curso</span><b className="block truncate">{(open.stores as unknown as { name: string } | null)?.name}</b></span>
           <span className="shrink-0 text-sm underline">Continuar</span>
         </Link>
@@ -100,12 +100,12 @@ export default async function Today() {
       </section>
 
       {tomorrow && (
-        <Link href={`/routes/${tomorrow.route_date}`} className="card block text-sm">
+        <Link href={`/routes/${tomorrow.route_date}`} className="card tap block text-sm">
           Ruta propuesta para {formatLong(tomorrow.route_date)} <span className="underline">— revisar y aceptar</span>
         </Link>
       )}
 
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
           { l: "Pendientes", v: pendientes.length },
           { l: "Atrasadas", v: atrasadas, tone: atrasadas ? "text-red-600" : "" },
@@ -116,14 +116,14 @@ export default async function Today() {
         ))}
       </section>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
         <section className="card">
           <h2 className="mb-2 font-medium">Prioritarias ahora</h2>
           {top.length === 0 ? <p className="text-sm text-slate-500">Nada pendiente. El seguimiento arranca el {settings.tracking_start}.</p> : (
             <ul className="divide-y divide-slate-200">
               {top.map((s) => (
                 <li key={s.id}>
-                  <Link href={`/stores/${s.id}`} className="flex min-h-12 items-center justify-between gap-2 py-2 text-sm">
+                  <Link href={`/stores/${s.id}`} className="row-link -mx-2 flex min-h-12 items-center justify-between gap-2 rounded-xl px-2 py-2 text-sm">
                     <span className="min-w-0 truncate">{s.audit && <span className="badge mr-1 bg-slate-900 text-white">Audit</span>}{s.name}</span>
                     <StateBadge state={s.ob.state} />
                   </Link>

@@ -39,7 +39,7 @@ export default async function SettingsPage() {
     holidays: (pp.holidays ?? []).join(", "), work_days: pp.work_days ?? [0, 1, 2, 3, 4], max_stops: pp.max_stops_per_day ? String(pp.max_stops_per_day) : "", audit_first: pp.audit_first ?? true,
   };
   return (
-    <div className="max-w-3xl space-y-4">
+    <div className="max-w-3xl space-y-6">
       <PageHeader title="Ajustes" />
       <SettingsForm initial={initial} />
       <PaymentTypesManager types={types} usage={usage} />

@@ -39,15 +39,15 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <PageHeader title={`Tiendas (${count ?? 0})`}>
         <Link href="/stores/new" className="btn">Nueva tienda</Link>
       </PageHeader>
       <StoreFilters towns={towns} banners={banners} />
-      <ul className="space-y-2 md:hidden">
+      <ul className="space-y-3 md:hidden">
         {rows.map((s) => (
           <li key={s.id}>
-            <Link href={`/stores/${s.id}`} className="card flex items-center justify-between gap-3 !p-3">
+            <Link href={`/stores/${s.id}`} className="card tap flex items-center justify-between gap-3 !p-3">
               <span className="min-w-0">
                 <span className="block truncate font-medium">{s.audit && <span className="badge mr-1 bg-slate-900 text-white">Audit</span>}{s.name}</span>
                 <span className="block truncate text-xs text-slate-500">{s.address}, {s.town} · {FREQ_LABEL[s.frequency]}</span>
@@ -65,7 +65,7 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
           </thead>
           <tbody className="divide-y divide-slate-100">
             {rows.map((s) => (
-              <tr key={s.id} className="hover:bg-slate-50">
+              <tr key={s.id} className="row-link">
                 <td className="p-3">
                   <Link href={`/stores/${s.id}`} className="font-medium hover:underline">{s.name}</Link>
                   {s.audit && <span className="badge ml-2 bg-slate-900 text-white">Audit</span>}

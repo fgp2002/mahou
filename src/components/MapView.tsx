@@ -133,21 +133,25 @@ export function MapView({ stores }: { stores: MapStore[] }) {
         <button className="btn-secondary" onClick={locate} aria-label="Mi ubicación">Mi ubicación</button>
         <button className="btn-secondary hidden md:inline-flex" onClick={fullscreen}>Pantalla completa</button>
       </div>
-      <div className={`${showFilters ? "grid" : "hidden"} grid-cols-2 items-center gap-2 md:grid md:grid-cols-5`}>
-        <select className="input" aria-label="Estado" value={state} onChange={(e) => setState(e.target.value)}>
-          <option value="">Estado: todos</option>
-          {Object.entries(STATE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-        </select>
-        <select className="input" aria-label="Municipio" value={town} onChange={(e) => setTown(e.target.value)}>
-          <option value="">Municipio: todos</option>
-          {towns.map((t) => <option key={t}>{t}</option>)}
-        </select>
-        <select className="input" aria-label="Periodicidad" value={freq} onChange={(e) => setFreq(e.target.value)}>
-          <option value="">Periodicidad: todas</option>
-          {Object.entries(FREQ_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-        </select>
-        <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" className="h-5 w-5" checked={audit} onChange={(e) => setAudit(e.target.checked)} /> Solo Audit</label>
-        {filtersOn && <button className="btn-secondary" onClick={() => { setQ(""); setState(""); setTown(""); setFreq(""); setAudit(false); }}>Limpiar</button>}
+      <div className="fold" data-open={showFilters}>
+        <div>
+          <div className="grid grid-cols-2 items-center gap-2 pb-1 md:grid-cols-3 xl:grid-cols-5">
+            <select className="input" aria-label="Estado" value={state} onChange={(e) => setState(e.target.value)}>
+              <option value="">Estado: todos</option>
+              {Object.entries(STATE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+            <select className="input" aria-label="Municipio" value={town} onChange={(e) => setTown(e.target.value)}>
+              <option value="">Municipio: todos</option>
+              {towns.map((t) => <option key={t}>{t}</option>)}
+            </select>
+            <select className="input" aria-label="Periodicidad" value={freq} onChange={(e) => setFreq(e.target.value)}>
+              <option value="">Periodicidad: todas</option>
+              {Object.entries(FREQ_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+            <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" className="h-5 w-5" checked={audit} onChange={(e) => setAudit(e.target.checked)} /> Solo Audit</label>
+            {filtersOn && <button className="btn-secondary" onClick={() => { setQ(""); setState(""); setTown(""); setFreq(""); setAudit(false); }}>Limpiar</button>}
+          </div>
+        </div>
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
         {(Object.keys(COLORS) as DueState[]).map((k) => <span key={k} className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-full" style={{ background: COLORS[k] }} />{STATE_LABEL[k]}</span>)}
@@ -159,7 +163,7 @@ export function MapView({ stores }: { stores: MapStore[] }) {
         <div ref={el} className="h-full w-full" />
         {!ready && <div className="skeleton absolute inset-0 z-[400] rounded-none" aria-label="Cargando mapa" />}
         {sel && (
-          <aside className="absolute inset-x-0 bottom-0 z-[500] max-h-[60%] overflow-y-auto rounded-t-3xl bg-white p-4 shadow-card md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-80 md:rounded-none" aria-label={`Ficha de ${sel.name}`}>
+          <aside className="map-panel absolute inset-x-0 bottom-0 z-[500] max-h-[60%] overflow-y-auto rounded-t-3xl bg-white p-4 shadow-card md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-80 md:rounded-none" aria-label={`Ficha de ${sel.name}`}>
             <div className="flex items-start justify-between gap-2">
               <h3 className="font-semibold">{sel.name}</h3>
               <button aria-label="Cerrar ficha" className="-mr-2 -mt-2 flex h-11 w-11 items-center justify-center text-slate-500" onClick={() => setSel(null)}>✕</button>

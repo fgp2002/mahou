@@ -63,18 +63,18 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
   const tot = (st: string) => [...(payAgg.get(st)?.values() ?? [])].reduce((a, b) => a + b, 0);
 
   return (
-    <div className="max-w-4xl space-y-4">
+    <div className="max-w-4xl space-y-6">
       <PageHeader title="Estadísticas">
         <a className="btn-secondary" href={includeDemo ? "/stats" : "/stats?demo=1"}>{includeDemo ? "Ocultar datos DEMO" : "Incluir datos DEMO"}</a>
       </PageHeader>
       <p className="text-xs text-slate-500">Visitas completadas de los últimos 180 días. Las visitas registradas a mano tienen duración declarada, no medida: la duración media «real» solo usa visitas cronometradas.</p>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Kpi label="Visitas (180 días)" value={visits.length} />
         <Kpi label="Duración media (cronometrada)" value={avgReal != null ? `${avgReal} min` : "—"} hint={`${real.length} visitas medidas`} />
         <Kpi label="Cobros comprobados" value={eur(tot("comprobado"))} hint={includeDemo ? "incluye DEMO" : "sin DEMO"} />
         <Kpi label="Cobros abonados" value={eur(tot("abonado"))} />
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
         <section className="card"><h2 className="mb-2 font-medium">Visitas por mes</h2><Bars data={[...byMonth].sort().map(([label, value]) => ({ label, value }))} /></section>
         <section className="card"><h2 className="mb-2 font-medium">Cumplimiento actual por periodicidad</h2><Bars data={comp} unit="%" /></section>
         <section className="card"><h2 className="mb-2 font-medium">Por tipo de visita</h2><Bars data={[...byType].map(([k, value]) => ({ label: VISIT_TYPES[k] ?? k, value }))} /></section>
