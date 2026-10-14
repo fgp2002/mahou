@@ -1,5 +1,6 @@
 // Etiquetas de motivos por los que una tienda no entra en una ruta (sin dependencias de servidor).
-export const MAX_CANDIDATES = 25;
+// 24 tiendas + casa = 25 puntos, el máximo de una matriz de Google Routes.
+export const MAX_CANDIDATES = 24;
 export const UNSCHEDULED_LABEL: Record<string, string> = {
   tiempo: "No cabe en el tiempo disponible de la jornada",
   no_cabe: "Su duración supera por sí sola la jornada",

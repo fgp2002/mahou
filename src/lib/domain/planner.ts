@@ -1,8 +1,9 @@
+// Planificador de rutas.
+// 1) Selección por zona (pickZone): ancla urgente + tiendas cercanas, penalizando lo lejano a casa.
+// 2) Orden (planRoute): sale de casa (nodo fijo), camino abierto (acaba en la última tienda),
+//    inserción más barata + mejoras 2-opt y Or-opt sobre un coste mixto tiempo + km,
+//    con pausa de comida flexible dentro de una franja.
 import { haversineKm } from "./geo.ts";
-// Planificador de rutas: selección por prioridad con inserción más barata
-// y mejora local 2-opt sobre la matriz de tiempos. No usa orden alfabético
-// ni distancia en línea recta como si fuera una ruta optimizada: trabaja
-// con la matriz de tiempos que se le entregue (por carretera o estimada).
 
 export interface PlanStore {
   id: string;
@@ -14,14 +15,20 @@ export interface PlanStore {
   forced?: boolean;
 }
 
+export interface Lunch { earliest: number; latest: number; minutes: number }
+
 export interface PlanInput {
   stores: PlanStore[];
-  /** dur[i][j] en segundos entre tiendas (mismos índices que `stores`) */
+  /** dur[a][b] en segundos. Si hasHome, el nodo 0 es casa y la tienda i es el nodo i+1. */
   dur: number[][];
   dist: number[][];
   /** minutos desde medianoche */
   startMinutes: number;
   endMinutes: number;
+  hasHome?: boolean;
+  lunch?: Lunch | null;
+  /** minutos de «coste» por km recorrido (equilibrio tiempo/km). 0 = solo tiempo. */
+  kmWeight?: number;
 }
 
 export type UnscheduledReason = "tiempo" | "no_cabe";
@@ -42,31 +49,86 @@ export interface PlanResult {
   totalDistanceM: number;
   totalVisitMinutes: number;
   endMinutes: number;
+  /** comida: posición (0-based) de la parada tras la que se come, y hora de inicio; null si no aplica */
+  lunch: { afterStop: number; start: number } | null;
 }
 
-function routeDriveSeconds(order: number[], dur: number[][]): number {
+interface Ctx { input: PlanInput; node: (i: number) => number; home: number | null; w: number }
+
+function ctxOf(input: PlanInput): Ctx {
+  return { input, node: (i) => (input.hasHome ? i + 1 : i), home: input.hasHome ? 0 : null, w: input.kmWeight ?? 0 };
+}
+
+function legCost(c: Ctx, a: number, b: number): number {
+  return c.input.dur[a][b] / 60 + (c.w * c.input.dist[a][b]) / 1000;
+}
+
+/** Coste del camino (incluye el tramo casa → primera tienda). */
+function pathCost(c: Ctx, order: number[]): number {
   let t = 0;
-  for (let k = 1; k < order.length; k++) t += dur[order[k - 1]][order[k]];
+  let prev = c.home;
+  for (const i of order) {
+    const n = c.node(i);
+    if (prev != null) t += legCost(c, prev, n);
+    prev = n;
+  }
   return t;
 }
 
-function totalMinutes(order: number[], input: PlanInput): number {
-  const visit = order.reduce((acc, i) => acc + input.stores[i].minutes, 0);
-  return visit + routeDriveSeconds(order, input.dur) / 60;
+/** Simula horarios: trayectos, visitas y pausa de comida. */
+function simulate(c: Ctx, order: number[]) {
+  const { input } = c;
+  let clock = input.startMinutes;
+  let prev = c.home;
+  let lunch: PlanResult["lunch"] = null;
+  const legs: { arrival: number; drive: number; dist: number }[] = [];
+  order.forEach((i, k) => {
+    const n = c.node(i);
+    const drive = prev != null ? input.dur[prev][n] : 0;
+    const d = prev != null ? input.dist[prev][n] : 0;
+    // Comida flexible: se hace en el primer hueco entre tiendas a partir de la hora mínima.
+    if (input.lunch && !lunch && k > 0 && clock >= input.lunch.earliest) {
+      lunch = { afterStop: k - 1, start: Math.round(clock) };
+      clock += input.lunch.minutes;
+    }
+    clock += drive / 60;
+    legs.push({ arrival: clock, drive, dist: d });
+    clock += input.stores[i].minutes;
+    prev = n;
+  });
+  return { end: clock, legs, lunch };
 }
 
-function twoOpt(order: number[], dur: number[][]): number[] {
+function feasible(c: Ctx, order: number[]): boolean {
+  return simulate(c, order).end <= c.input.endMinutes + 1e-6;
+}
+
+/** Mejora local: 2-opt (invertir tramos) y Or-opt (mover 1–3 paradas), con el inicio en casa fijo. */
+function improve(c: Ctx, order: number[]): number[] {
   let best = order.slice();
+  let bestCost = pathCost(c, best);
   let improved = true;
   let guard = 0;
-  while (improved && guard++ < 200) {
+  while (improved && guard++ < 100) {
     improved = false;
     for (let i = 0; i < best.length - 1; i++) {
       for (let k = i + 1; k < best.length; k++) {
         const cand = best.slice(0, i).concat(best.slice(i, k + 1).reverse(), best.slice(k + 1));
-        if (routeDriveSeconds(cand, dur) + 1e-9 < routeDriveSeconds(best, dur)) {
-          best = cand;
-          improved = true;
+        const cc = pathCost(c, cand);
+        if (cc + 1e-9 < bestCost && feasible(c, cand)) { best = cand; bestCost = cc; improved = true; }
+      }
+    }
+    for (let len = 1; len <= 3; len++) {
+      for (let i = 0; i + len <= best.length; i++) {
+        const seg = best.slice(i, i + len);
+        const rest = best.slice(0, i).concat(best.slice(i + len));
+        for (let p = 0; p <= rest.length; p++) {
+          if (p === i) continue;
+          for (const s of [seg, seg.slice().reverse()]) {
+            const cand = rest.slice(0, p).concat(s, rest.slice(p));
+            const cc = pathCost(c, cand);
+            if (cc + 1e-9 < bestCost && feasible(c, cand)) { best = cand; bestCost = cc; improved = true; }
+          }
         }
       }
     }
@@ -74,8 +136,20 @@ function twoOpt(order: number[], dur: number[][]): number[] {
   return best;
 }
 
+function tryInsert(c: Ctx, order: number[], i: number): number[] | null {
+  let bestOrder: number[] | null = null;
+  let bestCost = Infinity;
+  for (let pos = 0; pos <= order.length; pos++) {
+    const cand = order.slice(0, pos).concat([i], order.slice(pos));
+    const cc = pathCost(c, cand);
+    if (cc < bestCost && feasible(c, cand)) { bestCost = cc; bestOrder = cand; }
+  }
+  return bestOrder;
+}
+
 export function planRoute(input: PlanInput): PlanResult {
-  const { stores, dur, dist } = input;
+  const c = ctxOf(input);
+  const { stores } = input;
   const budget = input.endMinutes - input.startMinutes;
 
   const ranking = stores
@@ -83,127 +157,99 @@ export function planRoute(input: PlanInput): PlanResult {
     .sort((a, b) => Number(!!b.s.forced) - Number(!!a.s.forced) || b.s.priority - a.s.priority || a.i - b.i);
 
   let order: number[] = [];
+  const pending: { s: PlanStore; i: number }[] = [];
   const unscheduled: PlanResult["unscheduled"] = [];
 
-  for (const { s, i } of ranking) {
-    if (s.minutes > budget) {
-      unscheduled.push({ index: i, id: s.id, reason: "no_cabe" });
-      continue;
-    }
-    let bestPos = -1;
-    let bestTotal = Infinity;
-    for (let pos = 0; pos <= order.length; pos++) {
-      const cand = order.slice(0, pos).concat([i], order.slice(pos));
-      const total = totalMinutes(cand, input);
-      if (total < bestTotal) {
-        bestTotal = total;
-        bestPos = pos;
-      }
-    }
-    if (bestTotal <= budget) {
-      order = order.slice(0, bestPos).concat([i], order.slice(bestPos));
-    } else {
-      unscheduled.push({ index: i, id: s.id, reason: "tiempo" });
-    }
+  for (const r of ranking) {
+    if (r.s.minutes > budget) { unscheduled.push({ index: r.i, id: r.s.id, reason: "no_cabe" }); continue; }
+    const next = tryInsert(c, order, r.i);
+    if (next) order = next; else pending.push(r);
+  }
+  order = improve(c, order);
+  // Con el orden mejorado puede quedar hueco: segundo intento con las que no entraron.
+  for (const r of pending) {
+    const next = tryInsert(c, order, r.i);
+    if (next) order = improve(c, next); else unscheduled.push({ index: r.i, id: r.s.id, reason: "tiempo" });
   }
 
-  order = twoOpt(order, dur);
-
-  const stops: PlannedStop[] = [];
-  let clock = input.startMinutes;
-  let totalDrive = 0;
-  let totalDist = 0;
-  let totalVisit = 0;
-  order.forEach((idx, k) => {
-    const drive = k === 0 ? 0 : dur[order[k - 1]][idx];
-    const d = k === 0 ? 0 : dist[order[k - 1]][idx];
-    clock += drive / 60;
-    stops.push({
-      index: idx,
-      id: stores[idx].id,
-      arrivalMinutes: Math.round(clock),
-      minutes: stores[idx].minutes,
-      driveSecondsFromPrev: drive,
-      distanceMFromPrev: d,
-    });
-    clock += stores[idx].minutes;
-    totalDrive += drive;
-    totalDist += d;
-    totalVisit += stores[idx].minutes;
-  });
-
+  const sim = simulate(c, order);
+  const stops: PlannedStop[] = order.map((idx, k) => ({
+    index: idx, id: stores[idx].id, arrivalMinutes: Math.round(sim.legs[k].arrival), minutes: stores[idx].minutes,
+    driveSecondsFromPrev: sim.legs[k].drive, distanceMFromPrev: sim.legs[k].dist,
+  }));
   return {
     stops,
     unscheduled,
-    totalDriveSeconds: totalDrive,
-    totalDistanceM: totalDist,
-    totalVisitMinutes: totalVisit,
-    endMinutes: Math.round(clock),
+    totalDriveSeconds: stops.reduce((a, s) => a + s.driveSecondsFromPrev, 0),
+    totalDistanceM: stops.reduce((a, s) => a + s.distanceMFromPrev, 0),
+    totalVisitMinutes: stops.reduce((a, s) => a + s.minutes, 0),
+    endMinutes: Math.round(sim.end),
+    lunch: sim.lunch,
   };
 }
 
-/** Recalcula horarios de una ruta con un orden ya fijado (edición manual). */
+/** Recalcula horarios de una ruta con un orden ya fijado (edición manual). Mismos índices de matriz que planRoute. */
 export function scheduleFixedOrder(
   order: { id: string; minutes: number }[],
   dur: number[][],
   dist: number[][],
   startMinutes: number,
+  opts: { hasHome?: boolean; lunch?: Lunch | null } = {},
 ): PlanResult {
-  let clock = startMinutes;
-  let totalDrive = 0;
-  let totalDist = 0;
-  let totalVisit = 0;
-  const stops: PlannedStop[] = order.map((o, k) => {
-    const drive = k === 0 ? 0 : dur[k - 1][k];
-    const d = k === 0 ? 0 : dist[k - 1][k];
-    clock += drive / 60;
-    const stop: PlannedStop = {
-      index: k,
-      id: o.id,
-      arrivalMinutes: Math.round(clock),
-      minutes: o.minutes,
-      driveSecondsFromPrev: drive,
-      distanceMFromPrev: d,
-    };
-    clock += o.minutes;
-    totalDrive += drive;
-    totalDist += d;
-    totalVisit += o.minutes;
-    return stop;
-  });
+  const input: PlanInput = {
+    stores: order.map((o) => ({ id: o.id, minutes: o.minutes, priority: 0 })), dur, dist,
+    startMinutes, endMinutes: Infinity, hasHome: opts.hasHome, lunch: opts.lunch ?? null,
+  };
+  const c = ctxOf(input);
+  const idx = order.map((_, k) => k);
+  const sim = simulate(c, idx);
+  const stops: PlannedStop[] = idx.map((k) => ({
+    index: k, id: order[k].id, arrivalMinutes: Math.round(sim.legs[k].arrival), minutes: order[k].minutes,
+    driveSecondsFromPrev: sim.legs[k].drive, distanceMFromPrev: sim.legs[k].dist,
+  }));
   return {
-    stops,
-    unscheduled: [],
-    totalDriveSeconds: totalDrive,
-    totalDistanceM: totalDist,
-    totalVisitMinutes: totalVisit,
-    endMinutes: Math.round(clock),
+    stops, unscheduled: [],
+    totalDriveSeconds: stops.reduce((a, s) => a + s.driveSecondsFromPrev, 0),
+    totalDistanceM: stops.reduce((a, s) => a + s.distanceMFromPrev, 0),
+    totalVisitMinutes: stops.reduce((a, s) => a + s.minutes, 0),
+    endMinutes: Math.round(sim.end),
+    lunch: sim.lunch,
   };
 }
 
 // ── Selección por zona ─────────────────────────────────────────────────────
-// La ruta del día se construye alrededor de un «ancla» (la tienda más urgente, normalmente
-// una Audit) y se rellena con las pendientes CERCANAS. Cada km de distancia al ancla resta
-// prioridad, y hay un tope de Audit por día para repartirlas entre jornadas.
-
+// La ruta del día se construye alrededor de un «ancla» (la tienda más urgente teniendo en cuenta
+// lo lejos que está de casa) y se rellena con las pendientes CERCANAS. Cada km al ancla y a casa
+// resta prioridad, y hay un tope de Audit por día para repartirlas entre jornadas.
 
 export interface ZoneCandidate { id: string; lat: number; lng: number; score: number; audit: boolean; overdue: boolean; forced?: boolean }
-export interface ZoneOptions { max: number; maxAudits: number; kmPenalty: number; radiusKm: number }
+export interface ZoneOptions {
+  max: number; maxAudits: number;
+  /** puntos de prioridad que resta cada km de distancia al ancla */
+  kmPenalty: number;
+  radiusKm: number;
+  /** casa (punto de salida) y puntos que resta cada km de distancia a casa */
+  home?: { lat: number; lng: number } | null;
+  homePenalty?: number;
+}
 export type ZoneDropReason = "otra_zona" | "limite_audit" | "fuera_candidatos";
 export interface ZonePick { picked: { id: string; priority: number; distKm: number }[]; dropped: { id: string; reason: ZoneDropReason }[] }
 
-export const ZONE_DEFAULTS: ZoneOptions = { max: 25, maxAudits: 2, kmPenalty: 4, radiusKm: 30 };
+export const ZONE_DEFAULTS: ZoneOptions = { max: 24, maxAudits: 2, kmPenalty: 4, radiusKm: 30, homePenalty: 1.5 };
 
 export function pickZone(cands: ZoneCandidate[], o: ZoneOptions = ZONE_DEFAULTS): ZonePick {
   const res: ZonePick = { picked: [], dropped: [] };
   if (!cands.length) return res;
-  const byScore = [...cands].sort((a, b) => Number(!!b.forced) - Number(!!a.forced) || b.score - a.score);
-  const anchors = byScore.filter((c) => c.forced);
-  if (!anchors.length) anchors.push(byScore[0]);
+  const hp = o.home ? (o.homePenalty ?? 0) : 0;
+  const dHome = (c: ZoneCandidate) => (o.home ? haversineKm(o.home, c) : 0);
+  // Ancla: la más urgente una vez descontada la distancia a casa (equilibrio urgencia/cercanía).
+  const byUrgency = [...cands].sort((a, b) => Number(!!b.forced) - Number(!!a.forced) || (b.score - hp * dHome(b)) - (a.score - hp * dHome(a)));
+  const anchors = byUrgency.filter((c) => c.forced);
+  if (!anchors.length) anchors.push(byUrgency[0]);
   const near = (c: ZoneCandidate) => Math.min(...anchors.map((a) => haversineKm(a, c)));
 
-  const ranked = byScore
-    .map((c) => { const d = near(c); return { c, d, adj: c.score - o.kmPenalty * d }; })
+  const ranked = byUrgency
+    .map((c) => { const d = near(c); return { c, d, adj: c.score - o.kmPenalty * d - hp * dHome(c) }; })
     .sort((a, b) => Number(!!b.c.forced) - Number(!!a.c.forced) || b.adj - a.adj);
 
   let audits = 0;

@@ -27,7 +27,7 @@ export default async function RoutePage({ params }: { params: Promise<{ date: st
     <div className="max-w-3xl space-y-6">
       <PageHeader title={formatLong(date)}><Link href="/routes" className="btn-secondary">Todas las rutas</Link></PageHeader>
       <RouteEditor
-        route={{ id: route.id, date, status: route.status, start_time: String(route.start_time).slice(0, 5), is_estimate: route.is_estimate, provider: route.routing_provider, drive: route.est_drive_seconds ?? 0, visit: route.est_visit_seconds ?? 0, dist: route.est_distance_m ?? 0, unscheduled: route.unscheduled ?? [], warnings: route.warnings ?? [], generated_by: route.generated_by, user_modified: route.user_modified }}
+        route={{ id: route.id, date, status: route.status, start_time: String(route.start_time).slice(0, 5), is_estimate: route.is_estimate, provider: route.routing_provider, drive: route.est_drive_seconds ?? 0, visit: route.est_visit_seconds ?? 0, dist: route.est_distance_m ?? 0, unscheduled: route.unscheduled ?? [], warnings: route.warnings ?? [], generated_by: route.generated_by, user_modified: route.user_modified, lunch_start: route.lunch_start, lunch_after: route.lunch_after_position, banners: route.banner_filter }}
         stops={views}
       />
     </div>

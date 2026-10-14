@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -17,6 +17,7 @@ export interface StopView {
 interface RouteView {
   id: string; date: string; status: string; start_time: string; is_estimate: boolean; provider: string | null; drive: number; visit: number; dist: number;
   unscheduled: { store_id: string; name: string; reason: string }[]; warnings: string[]; generated_by: string; user_modified: boolean;
+  lunch_start?: string | null; lunch_after?: number | null; banners?: string[] | null;
 }
 const ST: Record<string, string> = { proposed: "Propuesta (pendiente de aceptar)", accepted: "Aceptada", rejected: "Rechazada", completed: "Completada" };
 
@@ -111,6 +112,7 @@ export function RouteEditor({ route, stops }: { route: RouteView; stops: StopVie
           <span className="text-slate-500">{route.generated_by === "auto" ? "Generada automáticamente" : "Generada a mano"}{route.user_modified ? " · editada" : ""}</span>
         </div>
         <div>{stops.length} paradas · conducción {fmtDuration(Math.round(route.drive / 60))} · visitas {fmtDuration(Math.round(route.visit / 60))} · {(route.dist / 1000).toFixed(1)} km</div>
+        {route.banners?.length ? <div className="flex flex-wrap items-center gap-1.5"><span className="text-slate-500">Solo enseñas:</span>{route.banners.map((b) => <span key={b} className="badge bg-brand-50 text-brand-700">{b}</span>)}</div> : null}
         {route.is_estimate && <div className="rounded bg-amber-50 p-2 text-amber-800">⚠ Tiempos ESTIMADOS (no por carretera real). {route.provider}</div>}
         {!route.is_estimate && route.provider && <div className="text-xs text-slate-400">Tiempos de trayecto: {route.provider}</div>}
         {route.warnings.filter((w) => !w.startsWith("Tiempos")).map((w, i) => <div key={i} className="text-amber-700">⚠ {w}</div>)}
@@ -132,9 +134,13 @@ export function RouteEditor({ route, stops }: { route: RouteView; stops: StopVie
 
       <ol className="space-y-2">
         {stops.map((s, i) => (
-          <li key={s.id} className="card flex flex-wrap items-start justify-between gap-2 text-sm">
+          <Fragment key={s.id}>
+          {route.lunch_start && route.lunch_after === i && (
+            <li className="flex items-center gap-3 rounded-lg border border-dashed border-slate-300 px-4 py-2.5 text-sm text-slate-600">🍽 Pausa para comer · {route.lunch_start.slice(0, 5)} (1 h)</li>
+          )}
+          <li className="card flex flex-wrap items-start justify-between gap-2 text-sm">
             <div className="min-w-0">
-              <div className="text-xs text-slate-400">{s.planned_arrival?.slice(0, 5)} · {i === 0 ? "salida" : `+${fmtDuration(Math.round((s.drive_seconds_from_prev ?? 0) / 60))} · ${((s.distance_m_from_prev ?? 0) / 1000).toFixed(1)} km`}</div>
+              <div className="text-xs text-slate-400">{s.planned_arrival?.slice(0, 5)} · {i === 0 && !(s.drive_seconds_from_prev ?? 0) ? "salida" : `${i === 0 ? "desde casa " : ""}+${fmtDuration(Math.round((s.drive_seconds_from_prev ?? 0) / 60))} · ${((s.distance_m_from_prev ?? 0) / 1000).toFixed(1)} km`}</div>
               <div className="font-medium">
                 {i + 1}. <Link href={`/stores/${s.store_id}`} className="hover:underline">{s.stores.name}</Link>
                 {s.stores.audit && <span className="badge ml-2 bg-slate-900 text-slate-50">Audit</span>}
@@ -153,6 +159,7 @@ export function RouteEditor({ route, stops }: { route: RouteView; stops: StopVie
               </div>
             )}
           </li>
+          </Fragment>
         ))}
         {stops.length === 0 && <li className="card text-sm text-slate-500">La ruta no tiene paradas.</li>}
       </ol>

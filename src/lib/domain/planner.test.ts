@@ -102,3 +102,18 @@ test("la zona se construye alrededor del ancla y limita las Audit por día", () 
   assert.equal(r.dropped.find((d) => d.id === "audit3")?.reason, "limite_audit");
   assert.equal(r.dropped.find((d) => d.id === "lejos")?.reason, "otra_zona");
 });
+
+test("sale de casa, no hace zigzag y come en la franja", () => {
+  // Casa en 0; tiendas en línea hacia el este: A(1km) B(2km) C(3km) D(4km), dadas desordenadas.
+  const pts = [0, 4, 1, 3, 2].map((k) => ({ lat: 36.72, lng: -4.42 + k * 0.0112 }));
+  const m = estimateMatrix(pts);
+  const ids = ["D", "A", "C", "B"];
+  const r = planRoute({
+    stores: ids.map((id) => ({ id, minutes: 90, priority: 1 })), dur: m.dur, dist: m.dist,
+    startMinutes: 9 * 60, endMinutes: 19 * 60, hasHome: true, kmWeight: 0.6,
+    lunch: { earliest: 13 * 60 + 30, latest: 16 * 60, minutes: 60 },
+  });
+  assert.deepEqual(r.stops.map((s) => s.id), ["A", "B", "C", "D"], "de la más cercana a la más lejana");
+  assert.ok(r.stops[0].driveSecondsFromPrev > 0, "el primer tramo sale de casa");
+  assert.ok(r.lunch && r.lunch.start >= 13 * 60 + 30 && r.lunch.start <= 15 * 60, "comida dentro de la franja");
+});

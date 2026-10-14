@@ -56,13 +56,15 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 async function Jornada() {
   const sb = await supabaseServer();
   const { data: s } = await sb.from("user_settings").select("*").maybeSingle();
-  const pp = (s?.planning_prefs ?? {}) as { audit_first?: boolean; max_stops_per_day?: number | null; holidays?: string[]; work_days?: number[] };
+  const pp = (s?.planning_prefs ?? {}) as { audit_first?: boolean; max_stops_per_day?: number | null; holidays?: string[]; work_days?: number[]; default_visit_minutes?: number; lunch?: { enabled?: boolean; from?: string; to?: string; minutes?: number } };
   const initial: SettingsValues = {
     owner_id: s?.owner_id ?? "",
     work_start: (s?.work_start ?? "08:00").slice(0, 5), work_end: (s?.work_end ?? "18:00").slice(0, 5), route_start: (s?.route_start ?? "09:00").slice(0, 5),
     transport: s?.transport ?? "driving", tracking_start: s?.tracking_start ?? madridDate(),
     visit_durations: { ...DEFAULT_DURATIONS, ...(s?.visit_durations ?? {}) },
     holidays: (pp.holidays ?? []).join(", "), work_days: pp.work_days ?? [0, 1, 2, 3, 4], max_stops: pp.max_stops_per_day ? String(pp.max_stops_per_day) : "", audit_first: pp.audit_first ?? true,
+    home_address: s?.home_address ?? "", home_located: s?.home_lat != null, default_minutes: String(pp.default_visit_minutes ?? 45),
+    lunch_enabled: pp.lunch?.enabled ?? true, lunch_from: pp.lunch?.from ?? "13:30", lunch_to: pp.lunch?.to ?? "16:00", lunch_minutes: String(pp.lunch?.minutes ?? 60),
   };
   return <SettingsForm initial={initial} />;
 }
