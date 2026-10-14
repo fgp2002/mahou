@@ -2,15 +2,15 @@ import clsx from "clsx";
 import { STATE_LABEL, type DueState } from "@/lib/domain/periodicity";
 
 export const STATE_STYLE: Record<DueState, string> = {
-  sin_obligacion: "bg-slate-100 text-slate-600",
-  cumplida: "bg-green-100 text-green-700",
-  pendiente: "bg-amber-100 text-amber-800",
-  proxima: "bg-orange-100 text-orange-800",
-  atrasada: "bg-red-100 text-red-700",
+  sin_obligacion: "bg-st-none text-[#fff]",
+  cumplida: "bg-st-ok text-[#fff]",
+  pendiente: "bg-st-pend text-black",
+  proxima: "bg-st-soon text-[#fff]",
+  atrasada: "bg-st-late text-[#fff]",
 };
 
 export function StateBadge({ state }: { state: DueState }) {
-  return <span className={clsx("badge", STATE_STYLE[state])}>{STATE_LABEL[state]}</span>;
+  return <span className={clsx("badge font-bold", STATE_STYLE[state])}>{STATE_LABEL[state]}</span>;
 }
 
 export function Kpi({ label, value, hint, tone }: { label: string; value: React.ReactNode; hint?: string; tone?: "red" | "green" | "amber" }) {

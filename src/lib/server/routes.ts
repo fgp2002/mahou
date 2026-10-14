@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { addDays, fmtHM, madridDate, parseHM, weekdayMon0 } from "../domain/dates.ts";
 import { computeObligation, priorityScore } from "../domain/periodicity.ts";
 import { estimateMatrix, googleMatrix, type Matrix } from "../domain/geo.ts";
-import { planRoute, scheduleFixedOrder } from "../domain/planner.ts";
+import { pickZone, planRoute, scheduleFixedOrder, ZONE_DEFAULTS } from "../domain/planner.ts";
 
 import { MAX_CANDIDATES } from "./labels.ts";
 export { UNSCHEDULED_LABEL } from "./labels.ts";
@@ -122,8 +122,15 @@ export async function generateRoute(
   const unscheduled: { store_id: string; name: string; reason: string }[] = [];
   const located = scored.filter((x) => x.s.lat != null && x.s.lng != null);
   for (const x of scored) if (x.s.lat == null || x.s.lng == null) unscheduled.push({ store_id: x.s.id, name: x.s.name, reason: "sin_ubicacion" });
-  const cand = located.slice(0, MAX_CANDIDATES);
-  for (const x of located.slice(MAX_CANDIDATES)) unscheduled.push({ store_id: x.s.id, name: x.s.name, reason: "fuera_candidatos" });
+  // Zona del día: ancla (la más urgente) + pendientes cercanas, con tope de Audit por día.
+  const zone = pickZone(located.map((x) => ({
+    id: x.s.id, lat: x.s.lat!, lng: x.s.lng!, score: x.score, audit: x.s.audit && settings.audit_first,
+    overdue: x.ob.state === "atrasada", forced: forced.has(x.s.id),
+  })), { ...ZONE_DEFAULTS, max: MAX_CANDIDATES });
+  const byId = new Map(located.map((x) => [x.s.id, x]));
+  const prio = new Map(zone.picked.map((p) => [p.id, p.priority]));
+  const cand = zone.picked.map((p) => byId.get(p.id)!);
+  for (const d of zone.dropped) { const x = byId.get(d.id)!; unscheduled.push({ store_id: x.s.id, name: x.s.name, reason: d.reason }); }
 
   const startMin = parseHM(settings.route_start);
   const endMin = parseHM(settings.work_end);
@@ -136,7 +143,7 @@ export async function generateRoute(
     if (matrix.estimated) warnings.push("Tiempos de trayecto ESTIMADOS (no por carretera real): la distancia en línea recta se multiplica por 1,35 a 45 km/h.");
     const dur = settings.visit_durations.ordinaria ?? 60;
     result = planRoute({
-      stores: cand.map((x) => ({ id: x.s.id, minutes: dur, priority: x.score, forced: forced.has(x.s.id) })),
+      stores: cand.map((x) => ({ id: x.s.id, minutes: dur, priority: prio.get(x.s.id) ?? x.score, forced: forced.has(x.s.id) })),
       dur: matrix.dur, dist: matrix.dist, startMinutes: startMin, endMinutes: endMin,
     });
     if (settings.max_stops && result.stops.length > settings.max_stops) {

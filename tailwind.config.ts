@@ -18,6 +18,7 @@ const config: Config = {
       green: scale("green", [100, 600, 700]),
       amber: scale("amber", [50, 100, 300, 600, 700, 800]),
       orange: scale("orange", [100, 800]),
+      st: { ok: v("st-ok"), pend: v("st-pend"), soon: v("st-soon"), late: v("st-late"), none: v("st-none") },
     },
     extend: {
       fontFamily: {

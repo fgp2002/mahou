@@ -65,7 +65,7 @@ input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-dat
   .btn-danger { @apply transition inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[rgb(var(--danger))] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 md:min-h-10; }
   .input { @apply transition-colors min-h-11 w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 md:min-h-10; }
   .label { @apply mb-1 block text-xs font-medium text-slate-600; }
-  .badge { @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium; }
+  .badge { @apply inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium; }
   .page { @apply mx-auto w-full max-w-6xl; }
   .tap { @apply transition duration-200; }
   .row-link { @apply transition-colors duration-150; }
@@ -119,8 +119,7 @@ input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-dat
 }
 
 /* Leaflet en modo oscuro: baja el brillo del mapa sin cambiar los pines */
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .leaflet-tile-pane { filter: brightness(0.75) contrast(1.05) saturate(0.8); } }
-:root[data-theme="dark"] .leaflet-tile-pane { filter: brightness(0.75) contrast(1.05) saturate(0.8); }
+/* El mapa es vista satélite: no se oscurece en modo oscuro. */
 
 /* Campos con etiqueta flotante: la etiqueta vive dentro del campo y sube al escribir. */
 .ff { position: relative; }
@@ -142,3 +141,12 @@ details[open] > .fold-body { animation: page-in 220ms var(--ease) both; }
 @keyframes bar-grow-x { from { transform: scaleX(0); } }
 .bar-grow { transform-origin: bottom; animation: bar-grow 700ms var(--spring) both; }
 .bar-grow-x { transform-origin: left; animation: bar-grow-x 700ms var(--ease) both; }
+
+/* Colores de estado vivos, estilo iOS (verde, amarillo, naranja, rojo, gris del sistema). */
+:root { --st-ok: 52 199 89; --st-pend: 255 204 0; --st-soon: 255 149 0; --st-late: 255 59 48; --st-none: 142 142 147; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --st-ok: 48 209 88; --st-pend: 255 214 10; --st-soon: 255 159 10; --st-late: 255 69 58; --st-none: 99 99 102; } }
+:root[data-theme="dark"] { --st-ok: 48 209 88; --st-pend: 255 214 10; --st-soon: 255 159 10; --st-late: 255 69 58; --st-none: 99 99 102; }
+
+/* Agrupaciones del mapa: círculo negro con número blanco, se leen bien sobre satélite. */
+.marker-cluster-small, .marker-cluster-medium, .marker-cluster-large { background-color: rgb(255 255 255 / 0.55) !important; }
+.marker-cluster-small div, .marker-cluster-medium div, .marker-cluster-large div { background-color: #111 !important; color: #fff !important; font-weight: 800; font-family: var(--font-sans), system-ui, sans-serif; }

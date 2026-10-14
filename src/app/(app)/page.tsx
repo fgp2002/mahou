@@ -110,9 +110,9 @@ export default async function Today() {
 
       <section className="card grid grid-cols-2 gap-y-5 sm:grid-cols-4">
         <Ring label="Ruta de hoy" value={doneStops} total={stops.length} display={stops.length ? `${doneStops}/${stops.length}` : "—"} />
-        <Ring label="Cumplimiento" value={cumplidas} total={conObl} display={conObl ? `${Math.round((cumplidas / conObl) * 100)}%` : "—"} color="rgb(var(--green-600))" />
-        <Ring label="Atrasadas" value={atrasadas} total={conObl} color="rgb(var(--red-600))" />
-        <Ring label="Vencen pronto" value={proximas} total={conObl} color="rgb(var(--amber-600))" />
+        <Ring label="Cumplimiento" value={cumplidas} total={conObl} display={conObl ? `${Math.round((cumplidas / conObl) * 100)}%` : "—"} color="rgb(var(--st-ok))" />
+        <Ring label="Atrasadas" value={atrasadas} total={conObl} color="rgb(var(--st-late))" />
+        <Ring label="Vencen pronto" value={proximas} total={conObl} color="rgb(var(--st-soon))" />
       </section>
 
       <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">

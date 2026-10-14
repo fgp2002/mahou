@@ -8,7 +8,7 @@ import { addDays, madridDate, weekStart } from "@/lib/domain/dates";
 import { STATE_LABEL, type DueState } from "@/lib/domain/periodicity";
 
 const STATE_COLOR: Record<DueState, string> = {
-  cumplida: "bg-green-600", pendiente: "bg-amber-600", proxima: "bg-orange-800", atrasada: "bg-red-600", sin_obligacion: "bg-slate-300",
+  cumplida: "bg-st-ok", pendiente: "bg-st-pend", proxima: "bg-st-soon", atrasada: "bg-st-late", sin_obligacion: "bg-st-none",
 };
 const ORDER: DueState[] = ["cumplida", "pendiente", "proxima", "atrasada", "sin_obligacion"];
 const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -20,7 +20,7 @@ function Columns({ data }: { data: { label: string; value: number; current?: boo
       {data.map((d) => (
         <div key={d.label} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1">
           <span className="text-[11px] font-semibold tabular-nums text-slate-600">{d.value || ""}</span>
-          <div className={clsx("bar-grow w-full rounded-t-xl rounded-b-md", d.current ? "bg-slate-900" : "bg-green-600")} style={{ height: `${Math.max(d.value ? 6 : 2, (d.value / max) * 100)}%`, opacity: d.value ? 1 : 0.25 }} />
+          <div className={clsx("bar-grow w-full rounded-t-xl rounded-b-md", d.current ? "bg-slate-900" : "bg-st-ok")} style={{ height: `${Math.max(d.value ? 6 : 2, (d.value / max) * 100)}%`, opacity: d.value ? 1 : 0.25 }} />
           <span className="w-full truncate text-center text-[10px] text-slate-500">{d.label}</span>
         </div>
       ))}
@@ -158,10 +158,10 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
               {zones.map(([town, z]) => {
                 const k = z.visits / zmax;
                 return (
-                  <div key={town} className="relative rounded-2xl p-2.5" style={{ backgroundColor: `rgb(var(--green-600) / ${0.08 + k * 0.82})`, color: k > 0.55 ? "white" : undefined }}>
+                  <div key={town} className="relative rounded-2xl p-2.5" style={{ backgroundColor: `rgb(var(--st-ok) / ${0.08 + k * 0.82})`, color: k > 0.55 ? "white" : undefined }}>
                     <div className="truncate text-xs font-semibold">{town}</div>
                     <div className="text-[11px] opacity-80">{z.visits} visitas · {z.stores} tiendas</div>
-                    {z.late > 0 && <span title={`${z.late} atrasadas`} className="absolute right-2 top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">{z.late}</span>}
+                    {z.late > 0 && <span title={`${z.late} atrasadas`} className="absolute right-2 top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-st-late px-1 text-[10px] font-bold text-white">{z.late}</span>}
                   </div>
                 );
               })}

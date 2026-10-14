@@ -26,7 +26,7 @@ export function ToastHost() {
   return (
     <div className="pointer-events-none fixed inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] z-[90] flex justify-center px-4" role="status" aria-live="polite">
       <div key={t.id} className="toast-in pointer-events-auto flex max-w-sm items-center gap-2 rounded-full bg-slate-900 px-4 py-2.5 text-sm font-medium text-[rgb(var(--on-accent))] shadow-[0_10px_30px_rgb(0_0_0/0.3)]">
-        <span className={clsx("flex h-5 w-5 items-center justify-center rounded-full", t.kind === "ok" ? "bg-green-600 text-white" : "bg-red-600 text-white")}>
+        <span className={clsx("flex h-5 w-5 items-center justify-center rounded-full", t.kind === "ok" ? "bg-st-ok text-[#fff]" : "bg-st-late text-[#fff]")}>
           {t.kind === "ok" ? <Check size={13} strokeWidth={3} /> : <AlertCircle size={13} />}
         </span>
         <span className="min-w-0">{t.message}</span>

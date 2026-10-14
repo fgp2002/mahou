@@ -46,7 +46,7 @@ export function StoreRow({ s }: { s: StoreRowData }) {
       <div className="absolute inset-y-0 right-0 flex w-[132px] items-stretch" aria-hidden={x === 0}>
         <Link href={`/visits/new?store=${s.id}`} tabIndex={x === 0 ? -1 : 0} className="flex flex-1 flex-col items-center justify-center gap-1 bg-slate-900 text-[11px] font-medium text-[rgb(var(--on-accent))]"><Play size={18} />Visita</Link>
         {gmaps
-          ? <a href={gmaps} target="_blank" rel="noreferrer" tabIndex={x === 0 ? -1 : 0} className="flex flex-1 flex-col items-center justify-center gap-1 bg-green-600 text-[11px] font-medium text-white"><MapPin size={18} />Ir</a>
+          ? <a href={gmaps} target="_blank" rel="noreferrer" tabIndex={x === 0 ? -1 : 0} className="flex flex-1 flex-col items-center justify-center gap-1 bg-st-ok text-[11px] font-semibold text-[#fff]"><MapPin size={18} />Ir</a>
           : <span className="flex flex-1 flex-col items-center justify-center gap-1 bg-slate-300 text-[11px] text-slate-600"><MapPin size={18} />Sin mapa</span>}
       </div>
       <div style={{ transform: `translateX(${x}px)`, transition: dragging.current && start.current ? "none" : "transform 320ms var(--spring)" }}

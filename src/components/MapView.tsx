@@ -19,7 +19,7 @@ export interface MapStore {
 }
 
 // Colores de estado: se conservan los de antes. Audit se indica con el anillo exterior negro.
-const COLORS: Record<DueState, string> = { sin_obligacion: "#94a3b8", cumplida: "#16a34a", pendiente: "#d97706", proxima: "#ea580c", atrasada: "#dc2626" };
+const COLORS: Record<DueState, string> = { sin_obligacion: "#8E8E93", cumplida: "#34C759", pendiente: "#FFCC00", proxima: "#FF9500", atrasada: "#FF3B30" };
 const STORE_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#555" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/></svg>';
 
 function escapeAttr(s: string) { return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!)); }
@@ -73,7 +73,9 @@ export function MapView({ stores }: { stores: MapStore[] }) {
       await import("leaflet.markercluster");
       if (dead || !el.current || ref.current) return;
       const map = L.map(el.current, { preferCanvas: true, zoomControl: true }).setView([36.72, -4.42], 9);
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { maxZoom: 19, subdomains: "abcd", attribution: "© OpenStreetMap © CARTO" }).addTo(map);
+      // Vista satélite sin rótulos de comercios; encima solo las vías con su nombre.
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 20, maxNativeZoom: 19, attribution: "Imágenes © Esri, Maxar, Earthstar Geographics" }).addTo(map);
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}", { maxZoom: 20, maxNativeZoom: 19, attribution: "Vías © Esri" }).addTo(map);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cluster = (L as any).markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 50, chunkedLoading: true, animate: false });
       map.addLayer(cluster);
@@ -117,7 +119,7 @@ export function MapView({ stores }: { stores: MapStore[] }) {
         const r = ref.current;
         if (!r) return;
         r.me?.remove();
-        r.me = r.L.circleMarker([p.coords.latitude, p.coords.longitude], { radius: 8, color: "#2563eb", fillOpacity: 0.8 }).addTo(r.map);
+        r.me = r.L.circleMarker([p.coords.latitude, p.coords.longitude], { radius: 8, color: "#007AFF", fillOpacity: 0.8 }).addTo(r.map);
         r.map.setView([p.coords.latitude, p.coords.longitude], 13);
         setMsg(null);
       },

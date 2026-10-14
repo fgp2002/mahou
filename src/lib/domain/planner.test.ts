@@ -83,3 +83,22 @@ test("orden fijo manual recalcula horarios", () => {
   assert.equal(r.stops[0].arrivalMinutes, 540);
   assert.ok(r.stops[1].arrivalMinutes > 600);
 });
+
+import { pickZone } from "./planner.ts";
+
+test("la zona se construye alrededor del ancla y limita las Audit por día", () => {
+  const base = { lat: 36.72, lng: -4.42 };
+  const at = (dLat: number) => ({ lat: base.lat + dLat, lng: base.lng });
+  const r = pickZone([
+    { id: "audit1", ...at(0), score: 130, audit: true, overdue: false },
+    { id: "audit2", ...at(0.01), score: 125, audit: true, overdue: false },
+    { id: "audit3", ...at(0.02), score: 120, audit: true, overdue: false },
+    { id: "cerca", ...at(0.005), score: 20, audit: false, overdue: false },
+    { id: "lejos", ...at(0.6), score: 90, audit: false, overdue: true },
+  ], { max: 25, maxAudits: 2, kmPenalty: 4, radiusKm: 30 });
+  const ids = r.picked.map((p) => p.id);
+  assert.deepEqual(ids.slice(0, 2), ["audit1", "audit2"]);
+  assert.ok(ids.includes("cerca"), "incluye la pendiente cercana");
+  assert.equal(r.dropped.find((d) => d.id === "audit3")?.reason, "limite_audit");
+  assert.equal(r.dropped.find((d) => d.id === "lejos")?.reason, "otra_zona");
+});
