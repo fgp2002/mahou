@@ -8,25 +8,43 @@ import type { DueState } from "@/lib/domain/periodicity";
 import { STATE_LABEL } from "@/lib/domain/periodicity";
 import { FREQ_LABEL } from "@/lib/types";
 import { googleMapsPlaceUrl } from "@/lib/domain/geo";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { StartVisitButton } from "./StartVisitButton";
 
 export interface MapStore {
   id: string; name: string; banner: string | null; town: string | null; address: string | null; postal_code: string | null;
   lat: number; lng: number; audit: boolean; frequency: string; state: DueState; lastVisit: string | null; deadline: string | null; approx: boolean;
+  logo: string | null;
 }
 
+// Colores de estado: se conservan los de antes. Audit se indica con el anillo exterior negro.
 const COLORS: Record<DueState, string> = { sin_obligacion: "#94a3b8", cumplida: "#16a34a", pendiente: "#d97706", proxima: "#ea580c", atrasada: "#dc2626" };
+const STORE_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#555" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/></svg>';
+
+function escapeAttr(s: string) { return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!)); }
+
+function pinHtml(s: MapStore): string {
+  const ring = s.audit ? `0 0 0 3px ${COLORS[s.state]}, 0 0 0 5.5px #111` : `0 0 0 3px ${COLORS[s.state]}`;
+  const inner = s.logo
+    ? `<img src="${escapeAttr(s.logo)}" alt="" decoding="async" draggable="false" style="width:24px;height:24px;object-fit:contain;pointer-events:none" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/><span style="display:none">${STORE_SVG}</span>`
+    : STORE_SVG;
+  return `<div style="width:34px;height:34px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:${ring}${s.approx ? ";opacity:.8" : ""}">${inner}</div>`;
+}
 
 export function MapView({ stores }: { stores: MapStore[] }) {
   const el = useRef<HTMLDivElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ref = useRef<{ L: any; map: any; cluster: any; me: any } | null>(null);
+  const ref = useRef<{ L: any; map: any; cluster: any; me: any; markers: Map<string, any> } | null>(null);
+  const [ready, setReady] = useState(false);
   const [q, setQ] = useState("");
   const [state, setState] = useState("");
   const [town, setTown] = useState("");
   const [freq, setFreq] = useState("");
   const [audit, setAudit] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [sel, setSel] = useState<MapStore | null>(null);
+  const [contacts, setContacts] = useState<{ id: string; full_name: string | null; phone: string | null }[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
 
   const towns = useMemo(() => [...new Set(stores.map((s) => s.town).filter(Boolean))].sort() as string[], [stores]);
@@ -36,50 +54,56 @@ export function MapView({ stores }: { stores: MapStore[] }) {
       (!state || s.state === state) && (!town || s.town === town) && (!freq || s.frequency === freq) && (!audit || s.audit) &&
       (!t || `${s.name} ${s.town} ${s.address}`.toLowerCase().includes(t)));
   }, [stores, q, state, town, freq, audit]);
+  const filtersOn = !!(q || state || town || freq || audit);
 
+  // Mapa y marcadores se crean UNA vez; los filtros solo cambian qué marcadores están en el clúster.
   useEffect(() => {
     let dead = false;
     (async () => {
       const L = (await import("leaflet")).default;
       await import("leaflet.markercluster");
       if (dead || !el.current || ref.current) return;
-      const map = L.map(el.current).setView([36.72, -4.42], 9);
+      const map = L.map(el.current, { preferCanvas: true, zoomControl: true }).setView([36.72, -4.42], 9);
       L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" }).addTo(map);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cluster = (L as any).markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 45 });
+      const cluster = (L as any).markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 50, chunkedLoading: true, animate: false });
       map.addLayer(cluster);
-      ref.current = { L, map, cluster, me: null };
-      setMsg("");
+      const markers = new Map();
+      for (const s of stores) {
+        const icon = L.divIcon({ className: "", iconSize: [34, 34], iconAnchor: [17, 17], html: pinHtml(s) });
+        const m = L.marker([s.lat, s.lng], { icon, title: s.name, keyboard: true });
+        m.on("click", () => setSel(s));
+        markers.set(s.id, m);
+      }
+      ref.current = { L, map, cluster, me: null, markers };
+      setReady(true);
     })();
-    return () => { dead = true; ref.current?.map.remove(); ref.current = null; };
-  }, []);
+    return () => { dead = true; ref.current?.map.remove(); ref.current = null; setReady(false); };
+  }, [stores]);
 
   useEffect(() => {
     const r = ref.current;
-    if (!r) return;
+    if (!r || !ready) return;
+    const visible = filtered.map((s) => r.markers.get(s.id)).filter(Boolean);
     r.cluster.clearLayers();
-    const markers = filtered.map((s) => {
-      const color = COLORS[s.state];
-      const init = (s.banner ?? s.name).replace(/[^A-Za-zÁÉÍÓÚÑ0-9]/gi, "").slice(0, 2).toUpperCase();
-      const icon = r.L.divIcon({
-        className: "",
-        iconSize: [34, 34],
-        html: `<div style="width:34px;height:34px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font:700 12px system-ui;border:3px solid ${s.audit ? "#4f46e5" : "#fff"};box-shadow:0 1px 4px rgba(0,0,0,.4)${s.approx ? ";opacity:.75" : ""}">${init}</div>`,
-      });
-      const m = r.L.marker([s.lat, s.lng], { icon, title: s.name });
-      m.on("click", () => setSel(s));
-      return m;
-    });
-    r.cluster.addLayers(markers);
-    if (markers.length && (q || state || town || freq || audit)) r.map.fitBounds(r.cluster.getBounds().pad(0.1), { maxZoom: 15 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtered, msg]);
+    r.cluster.addLayers(visible);
+    if (filtersOn && visible.length) r.map.fitBounds(r.cluster.getBounds().pad(0.15), { maxZoom: 15, animate: false });
+  }, [filtered, ready, filtersOn]);
+
+  useEffect(() => {
+    setContacts([]);
+    if (!sel) return;
+    let live = true;
+    supabaseBrowser().from("store_contacts").select("id,full_name,phone").eq("store_id", sel.id).limit(3).then(({ data }) => live && setContacts(data ?? []));
+    return () => { live = false; };
+  }, [sel]);
 
   function locate() {
     if (!navigator.geolocation) return setMsg("Tu navegador no permite geolocalización.");
     navigator.geolocation.getCurrentPosition(
       (p) => {
-        const r = ref.current!;
+        const r = ref.current;
+        if (!r) return;
         r.me?.remove();
         r.me = r.L.circleMarker([p.coords.latitude, p.coords.longitude], { radius: 8, color: "#2563eb", fillOpacity: 0.8 }).addTo(r.map);
         r.map.setView([p.coords.latitude, p.coords.longitude], 13);
@@ -94,55 +118,66 @@ export function MapView({ stores }: { stores: MapStore[] }) {
     const w = wrap.current;
     if (!w) return;
     if (document.fullscreenElement) document.exitFullscreen();
-    else w.requestFullscreen?.().then(() => setTimeout(() => ref.current?.map.invalidateSize(), 200));
+    else if (w.requestFullscreen) w.requestFullscreen().then(() => setTimeout(() => ref.current?.map.invalidateSize(), 200)).catch(() => setMsg("Este navegador no permite pantalla completa aquí."));
+    else setMsg("Pantalla completa no disponible en este dispositivo.");
   }
 
   return (
-    <div ref={wrap} className="flex h-[calc(100dvh-6.5rem-env(safe-area-inset-bottom))] flex-col gap-2 bg-slate-50 md:h-[calc(100dvh-3.5rem)]">
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-7">
-        <input className="input col-span-2" placeholder="Buscar tienda o municipio…" value={q} onChange={(e) => setQ(e.target.value)} />
-        <select className="input" value={state} onChange={(e) => setState(e.target.value)}>
-          <option value="">Estado</option>
+    <div ref={wrap} className="flex h-[calc(100dvh-6.5rem-env(safe-area-inset-bottom))] flex-col gap-2 bg-slate-50 md:h-[calc(100dvh-4.25rem)]">
+      <div className="flex gap-2">
+        <input className="input flex-1" placeholder="Buscar tienda o municipio…" aria-label="Buscar" value={q} onChange={(e) => setQ(e.target.value)} />
+        <button className="btn-secondary md:hidden" aria-expanded={showFilters} onClick={() => setShowFilters(!showFilters)}>Filtros{filtersOn ? " •" : ""}</button>
+        <button className="btn-secondary" onClick={locate} aria-label="Mi ubicación">Mi ubicación</button>
+        <button className="btn-secondary hidden md:inline-flex" onClick={fullscreen}>Pantalla completa</button>
+      </div>
+      <div className={`${showFilters ? "grid" : "hidden"} grid-cols-2 items-center gap-2 md:grid md:grid-cols-5`}>
+        <select className="input" aria-label="Estado" value={state} onChange={(e) => setState(e.target.value)}>
+          <option value="">Estado: todos</option>
           {Object.entries(STATE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select>
-        <select className="input" value={town} onChange={(e) => setTown(e.target.value)}>
-          <option value="">Municipio</option>
+        <select className="input" aria-label="Municipio" value={town} onChange={(e) => setTown(e.target.value)}>
+          <option value="">Municipio: todos</option>
           {towns.map((t) => <option key={t}>{t}</option>)}
         </select>
-        <select className="input" value={freq} onChange={(e) => setFreq(e.target.value)}>
-          <option value="">Periodicidad</option>
+        <select className="input" aria-label="Periodicidad" value={freq} onChange={(e) => setFreq(e.target.value)}>
+          <option value="">Periodicidad: todas</option>
           {Object.entries(FREQ_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select>
-        <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={audit} onChange={(e) => setAudit(e.target.checked)} /> Solo Audit</label>
-        <div className="flex gap-2">
-          <button className="btn-secondary" onClick={locate}>Mi ubicación</button>
-          <button className="btn-secondary" onClick={fullscreen}>Pantalla completa</button>
-        </div>
+        <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" className="h-5 w-5" checked={audit} onChange={(e) => setAudit(e.target.checked)} /> Solo Audit</label>
+        {filtersOn && <button className="btn-secondary" onClick={() => { setQ(""); setState(""); setTown(""); setFreq(""); setAudit(false); }}>Limpiar</button>}
       </div>
-      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
-        {Object.entries(COLORS).map(([k, c]) => <span key={k} className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-full" style={{ background: c }} />{STATE_LABEL[k as DueState]}</span>)}
-        <span className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-full border-2 border-slate-900" />Audit</span>
-        <span>{filtered.length} de {stores.length} tiendas con ubicación</span>
-        {msg && <span className="text-red-600">{msg}</span>}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
+        {(Object.keys(COLORS) as DueState[]).map((k) => <span key={k} className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-full" style={{ background: COLORS[k] }} />{STATE_LABEL[k]}</span>)}
+        <span className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-full bg-white" style={{ boxShadow: "0 0 0 1.5px #94a3b8, 0 0 0 3px #111" }} />Audit (aro negro)</span>
+        <span>{filtered.length} de {stores.length}</span>
+        {msg && <span className="text-red-600" role="alert">{msg}</span>}
       </div>
-      <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-200">
+      <div className="relative isolate min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-200">
         <div ref={el} className="h-full w-full" />
+        {!ready && <div className="skeleton absolute inset-0 z-[400] rounded-none" aria-label="Cargando mapa" />}
         {sel && (
-          <aside className="absolute inset-x-0 bottom-0 z-[500] max-h-[55%] overflow-y-auto bg-white p-4 shadow-xl md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-80">
-            <button className="float-right text-slate-400" onClick={() => setSel(null)}>✕</button>
-            <h3 className="font-semibold">{sel.name}</h3>
+          <aside className="absolute inset-x-0 bottom-0 z-[500] max-h-[60%] overflow-y-auto rounded-t-3xl bg-white p-4 shadow-card md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-80 md:rounded-none" aria-label={`Ficha de ${sel.name}`}>
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="font-semibold">{sel.name}</h3>
+              <button aria-label="Cerrar ficha" className="-mr-2 -mt-2 flex h-11 w-11 items-center justify-center text-slate-500" onClick={() => setSel(null)}>✕</button>
+            </div>
             <p className="text-sm text-slate-500">{sel.address}{sel.postal_code ? `, ${sel.postal_code}` : ""} {sel.town}</p>
-            <dl className="my-2 space-y-1 text-sm">
-              <div>Estado: <b>{STATE_LABEL[sel.state]}</b></div>
-              <div>Periodicidad: {FREQ_LABEL[sel.frequency]} {sel.audit && <span className="badge bg-slate-900 text-white">Audit</span>}</div>
+            <dl className="my-3 space-y-1 text-sm">
+              <div>Estado: <b>{STATE_LABEL[sel.state]}</b> {sel.audit && <span className="badge bg-slate-900 text-white">Audit</span>}</div>
+              <div>Periodicidad: {FREQ_LABEL[sel.frequency]}</div>
               <div>Última visita: {sel.lastVisit ?? "ninguna"}</div>
               {sel.deadline && sel.state !== "cumplida" && <div>Vence: {sel.deadline}</div>}
               {sel.approx && <div className="text-amber-700">Ubicación aproximada: revísala en la ficha.</div>}
             </dl>
-            <div className="flex flex-wrap gap-2">
-              <Link href={`/stores/${sel.id}`} className="btn-secondary">Ficha</Link>
-              <Link href={`/visits/new?store=${sel.id}`} className="btn">Visitar</Link>
+            {contacts.length > 0 && (
+              <ul className="mb-3 space-y-1 text-sm">
+                {contacts.map((c) => <li key={c.id}>{c.full_name ?? "Contacto"} {c.phone && <a className="underline" href={`tel:${c.phone}`}>{c.phone}</a>}</li>)}
+              </ul>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <StartVisitButton storeId={sel.id} label="Iniciar visita" />
               <a className="btn-secondary" target="_blank" rel="noreferrer" href={googleMapsPlaceUrl(sel)}>Cómo llegar</a>
+              <Link href={`/stores/${sel.id}`} className="btn-secondary col-span-2">Abrir ficha completa</Link>
             </div>
           </aside>
         )}

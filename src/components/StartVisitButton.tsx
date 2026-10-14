@@ -31,7 +31,7 @@ export function StartVisitButton({ storeId, plannedVisitId, routeStopId, minutes
 
   return (
     <span className="inline-flex flex-col items-end">
-      <button className="btn" onClick={go} disabled={busy}>{busy ? "…" : label}</button>
+      <button className="btn w-full" onClick={go} disabled={busy}>{busy ? "…" : label}</button>
       {err && <span className="mt-1 text-xs text-red-600">{err}</span>}
     </span>
   );
