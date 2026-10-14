@@ -69,7 +69,7 @@ export default async function Today() {
         {!route || route.status === "rejected" ? (
           <>
             <p className="text-sm text-slate-500">No hay ruta para hoy.</p>
-            <GenerateRoute defaultDate={today} routeStart={settings.route_start} />
+            <GenerateRoute embedded defaultDate={today} routeStart={settings.route_start} />
           </>
         ) : stops.length === 0 ? (
           <p className="text-sm text-slate-500">La ruta no tiene paradas.</p>

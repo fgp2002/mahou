@@ -30,7 +30,18 @@
 }
 
 html { -webkit-text-size-adjust: 100%; }
-body { @apply min-h-dvh bg-slate-50 text-slate-900 antialiased; overflow-x: hidden; }
+/* Estructura fija: la ventana no se desplaza ni rebota; solo scrollea la zona de contenido cuando hay más datos que pantalla. */
+html, body { height: 100%; max-width: 100%; overflow: hidden; overscroll-behavior: none; }
+body { @apply bg-slate-50 text-slate-900 antialiased; touch-action: pan-y pinch-zoom; }
+.scroll-root { height: 100dvh; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+/* Lo único que puede desplazarse en horizontal son las tablas, y solo dentro de su caja. */
+.h-scroll { overflow-x: auto; overscroll-behavior-x: contain; touch-action: pan-x pan-y pinch-zoom; }
+/* Los hijos de rejillas y filas pueden encogerse: evita que un campo ensanche la pantalla. */
+.grid > *, .flex > * { min-width: 0; }
+input, select, textarea { max-width: 100%; }
+/* iOS dibuja fecha/hora con un ancho propio: se fuerza a ocupar solo su celda. */
+input[type="date"], input[type="time"] { -webkit-appearance: none; appearance: none; min-width: 0; width: 100%; display: block; text-align: left; }
+input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-date-and-time-value { text-align: left; min-width: 0; }
 /* Evita el zoom automático de iOS al enfocar campos (necesita ≥16px en móvil). */
 @media (max-width: 767px) { input, select, textarea { font-size: 16px !important; } }
 

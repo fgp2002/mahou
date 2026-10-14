@@ -25,7 +25,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm items-center px-4">
+    <div className="scroll-root"><main className="mx-auto flex min-h-dvh max-w-sm items-center px-4">
       <form onSubmit={onSubmit} className="card w-full space-y-4">
         <h1 className="text-xl font-semibold">Iniciar sesión</h1>
         <div>
@@ -39,6 +39,6 @@ export default function LoginPage() {
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button className="btn w-full" disabled={busy}>{busy ? "Entrando…" : "Entrar"}</button>
       </form>
-    </main>
+    </main></div>
   );
 }

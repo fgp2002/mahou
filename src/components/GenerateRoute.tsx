@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function GenerateRoute({ defaultDate, routeStart }: { defaultDate: string; routeStart: string }) {
+export function GenerateRoute({ defaultDate, routeStart, embedded = false }: { defaultDate: string; routeStart: string; embedded?: boolean }) {
   const router = useRouter();
   const [date, setDate] = useState(defaultDate);
   const [busy, setBusy] = useState(false);
@@ -20,10 +20,10 @@ export function GenerateRoute({ defaultDate, routeStart }: { defaultDate: string
     router.refresh();
   }
   return (
-    <div className="card flex flex-wrap items-end gap-3">
-      <div><label className="label">Generar ruta para el día</label><input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+    <div className={embedded ? "flex flex-wrap items-end gap-3" : "card flex flex-wrap items-end gap-3"}>
+      <div className="min-w-0 flex-1 basis-40"><label className="label">Generar ruta para el día</label><input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} /></div>
       <button className="btn" onClick={go} disabled={busy}>{busy ? "Calculando…" : "Generar ruta"}</button>
-      <p className="text-xs text-slate-500">Sale a las {routeStart}. La ruta del día siguiente también se genera sola a partir de las 18:00 (Madrid).</p>
+      <p className="w-full text-xs text-slate-500">Sale a las {routeStart}. La ruta del día siguiente también se genera sola a partir de las 18:00 (Madrid).</p>
       {msg && <p className="w-full text-sm text-amber-700">{msg}</p>}
     </div>
   );

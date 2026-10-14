@@ -51,7 +51,7 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
         ))}
         {rows.length === 0 && <li className="card text-center text-sm text-slate-500">Sin resultados.</li>}
       </ul>
-      <div className="card hidden overflow-x-auto p-0 md:block">
+      <div className="card hidden h-scroll p-0 md:block">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr><th className="p-3">Tienda</th><th>Municipio</th><th>Periodicidad</th><th>Estado</th><th>Ubic.</th></tr>
