@@ -15,7 +15,7 @@ export default async function MapPage() {
     .map((s) => ({
       id: s.id, name: s.name, banner: s.banner, town: s.town, address: s.address, postal_code: s.postal_code,
       lat: s.lat!, lng: s.lng!, audit: s.audit, frequency: s.frequency, state: s.ob.state, lastVisit: s.ob.lastVisit,
-      deadline: s.ob.deadline, approx: s.geocode_status === "partial", logo: logos.get(brandKey(s.banner) ?? "") ?? null,
+      deadline: s.ob.deadline, approx: s.geocode_status === "partial", chain: s.chain, storeType: s.store_type, logo: logos.get(brandKey(s.banner) ?? "") ?? null,
     }));
   return <MapLoader stores={data} />;
 }

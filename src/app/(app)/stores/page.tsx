@@ -1,36 +1,29 @@
 import Link from "next/link";
-import { supabaseServer } from "@/lib/supabase/server";
-import { loadCompletedDates, loadSettings, withObligations } from "@/lib/server/load";
+import { loadAllStores, loadCompletedDates, loadSettings, withObligations } from "@/lib/server/load";
 import { PageHeader, StateBadge } from "@/components/ui";
-import { StoreFilters } from "@/components/StoreFilters";
-import { FREQ_LABEL, type Store } from "@/lib/types";
+import { StoreFilters, type Facets } from "@/components/StoreFilters";
+import { FREQ_LABEL } from "@/lib/types";
 
 const PAGE = 50;
 
 export default async function StoresPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
-  const q = (sp.q ?? "").replace(/[,()%*\\]/g, " ").trim();
+  const q = (sp.q ?? "").trim().toLowerCase();
   const page = Math.max(1, Number(sp.page ?? 1) || 1);
-  const sb = await supabaseServer();
 
-  let query = sb.from("stores").select("*", { count: "exact" }).eq("active", true);
-  if (q) query = query.or(`name.ilike.%${q}%,town.ilike.%${q}%,address.ilike.%${q}%,source_id.ilike.%${q}%`);
-  if (sp.town) query = query.eq("town", sp.town);
-  if (sp.banner) query = query.eq("banner", sp.banner);
-  if (sp.freq) query = query.eq("frequency", sp.freq);
-  if (sp.audit === "1") query = query.eq("audit", true);
-  if (sp.geo === "no") query = query.is("lat", null);
-  const { data, count } = await query.order("name").range((page - 1) * PAGE, page * PAGE - 1);
+  const [settings, dates, all] = await Promise.all([loadSettings(), loadCompletedDates(), loadAllStores()]);
+  const uniq = (xs: (string | null)[]) => [...new Set(xs.filter(Boolean))].sort((a, b) => a!.localeCompare(b!, "es")) as string[];
+  const facets: Facets = { towns: uniq(all.map((s) => s.town)), banners: uniq(all.map((s) => s.banner)), chains: uniq(all.map((s) => s.chain)), types: uniq(all.map((s) => s.store_type)) };
 
-  const [settings, dates, { data: facets }] = await Promise.all([
-    loadSettings(),
-    loadCompletedDates(),
-    sb.from("stores").select("town,banner").eq("active", true).limit(2000),
-  ]);
-  const rows = withObligations((data ?? []) as Store[], dates, settings);
-  const towns = [...new Set((facets ?? []).map((f) => f.town).filter(Boolean))].sort() as string[];
-  const banners = [...new Set((facets ?? []).map((f) => f.banner).filter(Boolean))].sort() as string[];
-  const pages = Math.max(1, Math.ceil((count ?? 0) / PAGE));
+  // Con 300–2000 tiendas es más rápido y consistente filtrar en memoria (el estado se calcula, no se guarda).
+  const filtered = withObligations(all, dates, settings).filter((s) =>
+    (!q || `${s.name} ${s.town ?? ""} ${s.address ?? ""} ${s.source_id ?? ""}`.toLowerCase().includes(q)) &&
+    (!sp.state || s.ob.state === sp.state) && (!sp.town || s.town === sp.town) && (!sp.banner || s.banner === sp.banner) &&
+    (!sp.chain || s.chain === sp.chain) && (!sp.type || s.store_type === sp.type) && (!sp.freq || s.frequency === sp.freq) &&
+    (sp.audit !== "1" || s.audit) && (sp.geo !== "no" || s.lat == null));
+  const count = filtered.length;
+  const rows = filtered.slice((page - 1) * PAGE, page * PAGE);
+  const pages = Math.max(1, Math.ceil(count / PAGE));
   const qs = (p: number) => {
     const u = new URLSearchParams();
     for (const [k, v] of Object.entries(sp)) if (v && k !== "page") u.set(k, v);
@@ -43,7 +36,7 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
       <PageHeader title={`Tiendas (${count ?? 0})`}>
         <Link href="/stores/new" className="btn">Nueva tienda</Link>
       </PageHeader>
-      <StoreFilters towns={towns} banners={banners} />
+      <StoreFilters facets={facets} />
       <ul className="space-y-3 md:hidden">
         {rows.map((s) => (
           <li key={s.id}>

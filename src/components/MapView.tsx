@@ -8,13 +8,14 @@ import type { DueState } from "@/lib/domain/periodicity";
 import { STATE_LABEL } from "@/lib/domain/periodicity";
 import { FREQ_LABEL } from "@/lib/types";
 import { googleMapsPlaceUrl } from "@/lib/domain/geo";
+import { FilterSelect } from "./FilterSelect";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { StartVisitButton } from "./StartVisitButton";
 
 export interface MapStore {
   id: string; name: string; banner: string | null; town: string | null; address: string | null; postal_code: string | null;
   lat: number; lng: number; audit: boolean; frequency: string; state: DueState; lastVisit: string | null; deadline: string | null; approx: boolean;
-  logo: string | null;
+  logo: string | null; chain: string | null; storeType: string | null;
 }
 
 // Colores de estado: se conservan los de antes. Audit se indica con el anillo exterior negro.
@@ -41,20 +42,28 @@ export function MapView({ stores }: { stores: MapStore[] }) {
   const [state, setState] = useState("");
   const [town, setTown] = useState("");
   const [freq, setFreq] = useState("");
-  const [audit, setAudit] = useState(false);
+  const [audit, setAudit] = useState("");
+  const [banner, setBanner] = useState("");
+  const [chain, setChain] = useState("");
+  const [type, setType] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [sel, setSel] = useState<MapStore | null>(null);
   const [contacts, setContacts] = useState<{ id: string; full_name: string | null; phone: string | null }[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const towns = useMemo(() => [...new Set(stores.map((s) => s.town).filter(Boolean))].sort() as string[], [stores]);
+  const uniq = (xs: (string | null)[]): [string, string][] => ([...new Set(xs.filter(Boolean))].sort((a, b) => a!.localeCompare(b!, "es")) as string[]).map((x) => [x, x]);
+  const towns = useMemo(() => uniq(stores.map((s) => s.town)), [stores]);
+  const banners = useMemo(() => uniq(stores.map((s) => s.banner)), [stores]);
+  const chains = useMemo(() => uniq(stores.map((s) => s.chain)), [stores]);
+  const types = useMemo(() => uniq(stores.map((s) => s.storeType)), [stores]);
   const filtered = useMemo(() => {
     const t = q.trim().toLowerCase();
     return stores.filter((s) =>
       (!state || s.state === state) && (!town || s.town === town) && (!freq || s.frequency === freq) && (!audit || s.audit) &&
+      (!banner || s.banner === banner) && (!chain || s.chain === chain) && (!type || s.storeType === type) &&
       (!t || `${s.name} ${s.town} ${s.address}`.toLowerCase().includes(t)));
-  }, [stores, q, state, town, freq, audit]);
-  const filtersOn = !!(q || state || town || freq || audit);
+  }, [stores, q, state, town, freq, audit, banner, chain, type]);
+  const filtersOn = !!(q || state || town || freq || audit || banner || chain || type);
 
   // Mapa y marcadores se crean UNA vez; los filtros solo cambian qué marcadores están en el clúster.
   useEffect(() => {
@@ -135,21 +144,15 @@ export function MapView({ stores }: { stores: MapStore[] }) {
       </div>
       <div className="fold" data-open={showFilters}>
         <div>
-          <div className="grid grid-cols-2 items-center gap-2 pb-1 md:grid-cols-3 xl:grid-cols-5">
-            <select className="input" aria-label="Estado" value={state} onChange={(e) => setState(e.target.value)}>
-              <option value="">Estado: todos</option>
-              {Object.entries(STATE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-            </select>
-            <select className="input" aria-label="Municipio" value={town} onChange={(e) => setTown(e.target.value)}>
-              <option value="">Municipio: todos</option>
-              {towns.map((t) => <option key={t}>{t}</option>)}
-            </select>
-            <select className="input" aria-label="Periodicidad" value={freq} onChange={(e) => setFreq(e.target.value)}>
-              <option value="">Periodicidad: todas</option>
-              {Object.entries(FREQ_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-            </select>
-            <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" className="h-5 w-5" checked={audit} onChange={(e) => setAudit(e.target.checked)} /> Solo Audit</label>
-            {filtersOn && <button className="btn-secondary" onClick={() => { setQ(""); setState(""); setTown(""); setFreq(""); setAudit(false); }}>Limpiar</button>}
+          <div className="grid grid-cols-2 items-end gap-2 pb-1 md:grid-cols-3 xl:grid-cols-4">
+            <FilterSelect label="Estado" value={state} onChange={setState} options={Object.entries(STATE_LABEL)} />
+            <FilterSelect label="Municipio" value={town} onChange={setTown} options={towns} />
+            <FilterSelect label="Enseña" value={banner} onChange={setBanner} options={banners} all="Todas" />
+            <FilterSelect label="Cadena" value={chain} onChange={setChain} options={chains} all="Todas" />
+            <FilterSelect label="Tipo de tienda" value={type} onChange={setType} options={types} />
+            <FilterSelect label="Periodicidad" value={freq} onChange={setFreq} options={Object.entries(FREQ_LABEL)} all="Todas" />
+            <FilterSelect label="Audit" value={audit} onChange={setAudit} options={[["1", "Solo Audit"]]} all="Todas" />
+            <button className="btn-secondary" disabled={!filtersOn} onClick={() => { setQ(""); setState(""); setTown(""); setFreq(""); setAudit(""); setBanner(""); setChain(""); setType(""); }}>Limpiar filtros</button>
           </div>
         </div>
       </div>
