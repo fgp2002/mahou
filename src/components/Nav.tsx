@@ -3,7 +3,7 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import clsx from "clsx";
-import { Sun, Store, Map, ClipboardList, Route, BarChart3, Settings, LogOut, Ellipsis, X } from "lucide-react";
+import { Sun, Store, Map, ClipboardList, Images, Route, BarChart3, Settings, LogOut, Ellipsis, X } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 const MAIN = [
@@ -13,6 +13,7 @@ const MAIN = [
   { href: "/visits", label: "Visitas", icon: ClipboardList },
 ];
 const MORE = [
+  { href: "/gallery", label: "Galería", icon: Images },
   { href: "/routes", label: "Rutas", icon: Route },
   { href: "/stats", label: "Estadísticas", icon: BarChart3 },
   { href: "/settings", label: "Ajustes", icon: Settings },

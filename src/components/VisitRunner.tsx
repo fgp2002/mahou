@@ -5,11 +5,12 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { VISIT_TYPES, type Visit } from "@/lib/types";
 import { eur, type PaymentType } from "@/lib/payments";
 import { NewTypeInline } from "./NewTypeInline";
+import { PhotoTags, type PhotoTag } from "./PhotoTags";
 import { madridDate } from "@/lib/domain/dates";
 import type { Contact } from "./Contacts";
 import type { PConcept } from "./Payments";
 
-export interface PhotoView { id: string; url: string | null; caption: string | null }
+export interface PhotoView { id: string; url: string | null; caption: string | null; tagIds: string[] }
 
 async function resize(file: File, max = 1600): Promise<Blob> {
   const bmp = await createImageBitmap(file);
@@ -25,7 +26,7 @@ const fmt = (s: number) => `${String(Math.floor(s / 3600)).padStart(2, "0")}:${S
 
 const NEW = "__new__";
 
-export function VisitRunner({ visit, storeName, contacts, concepts, photos, types, suggestedNext }: { visit: Visit; storeName: string; contacts: Contact[]; concepts: PConcept[]; photos: PhotoView[]; types: PaymentType[]; suggestedNext: string | null }) {
+export function VisitRunner({ visit, storeName, contacts, concepts, photos, types, suggestedNext, tags }: { visit: Visit; storeName: string; contacts: Contact[]; concepts: PConcept[]; photos: PhotoView[]; types: PaymentType[]; suggestedNext: string | null; tags: PhotoTag[] }) {
   const router = useRouter();
   const sb = supabaseBrowser();
   const running = visit.status === "in_progress";
@@ -37,6 +38,8 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
   const [next, setNext] = useState(visit.next_visit_recommended ?? suggestedNext ?? "");
   const [extras, setExtras] = useState<{ typeId: string; amount: string }[]>([]);
   const [localTypes, setLocalTypes] = useState(types);
+  const [allTags, setAllTags] = useState(tags);
+  const [photoTagIds, setPhotoTagIds] = useState<Record<string, string[]>>(() => Object.fromEntries(photos.map((p) => [p.id, p.tagIds])));
   const [creatingFor, setCreatingFor] = useState<number | null>(null);
   const activeTypes = localTypes.filter((t) => t.active);
   const typeById = new Map(localTypes.map((t) => [t.id, t]));
@@ -152,6 +155,9 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
             <div key={p.id} className="relative">
               {p.url ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={p.url} alt="Foto de la visita" loading="lazy" decoding="async" className="aspect-square w-full rounded-xl object-cover" /> : <div className="aspect-square rounded-lg bg-slate-100" />}
               <button aria-label="Eliminar foto" className="absolute right-1 top-1 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-red-600" onClick={() => removePhoto(p)}>✕</button>
+              <PhotoTags photoId={p.id} allTags={allTags} selected={photoTagIds[p.id] ?? []}
+                onTagCreated={(t) => setAllTags((a) => [...a, t])}
+                onChange={(ids) => setPhotoTagIds((m) => ({ ...m, [p.id]: ids }))} />
             </div>
           ))}
         </div>
