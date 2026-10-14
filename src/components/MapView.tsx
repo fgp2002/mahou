@@ -135,7 +135,7 @@ export function MapView({ stores }: { stores: MapStore[] }) {
   }
 
   return (
-    <div ref={wrap} className="flex h-[calc(100dvh-6.5rem-env(safe-area-inset-bottom))] flex-col gap-2 bg-slate-50 md:h-[calc(100dvh-4.25rem)]">
+    <div ref={wrap} className="flex h-[calc(100dvh-11.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] flex-col gap-2 bg-slate-50 md:h-[calc(100dvh-7.5rem)]">
       <div className="flex gap-2">
         <input className="input flex-1" placeholder="Buscar tienda o municipio…" aria-label="Buscar" value={q} onChange={(e) => setQ(e.target.value)} />
         <button className="btn-secondary md:hidden" aria-expanded={showFilters} onClick={() => setShowFilters(!showFilters)}>Filtros{filtersOn ? " •" : ""}</button>

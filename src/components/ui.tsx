@@ -26,8 +26,44 @@ export function Kpi({ label, value, hint, tone }: { label: string; value: React.
 export function PageHeader({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+      <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
       <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  );
+}
+
+/** Anillo de progreso tipo Apple: arco animado y número al centro. */
+export function Ring({ value, total, label, color = "rgb(var(--slate-900))", display }: { value: number; total: number; label: string; color?: string; display?: string }) {
+  const r = 34;
+  const len = 2 * Math.PI * r;
+  const pct = total > 0 ? Math.min(1, value / total) : 0;
+  return (
+    <div className="flex flex-col items-center gap-1.5 text-center" role="img" aria-label={`${label}: ${display ?? value}`}>
+      <div className="relative h-24 w-24">
+        <svg viewBox="0 0 80 80" className="h-full w-full -rotate-90">
+          <circle cx="40" cy="40" r={r} fill="none" stroke="rgb(var(--slate-200))" strokeWidth="9" />
+          <circle cx="40" cy="40" r={r} fill="none" stroke={color} strokeWidth="9" strokeLinecap="round"
+            className="ring-arc" strokeDasharray={len} strokeDashoffset={len * (1 - pct)} style={{ ["--ring-len" as string]: len }} />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center text-xl font-bold">{display ?? value}</div>
+      </div>
+      <div className="text-xs text-slate-500">{label}</div>
+    </div>
+  );
+}
+
+/** Pantalla vacía amable: dibujo sencillo, mensaje y una acción clara. */
+export function EmptyState({ title, text, children }: { title: string; text?: string; children?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col items-center gap-3 px-4 py-10 text-center">
+      <svg viewBox="0 0 120 100" className="h-24 w-28 text-slate-300" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M18 44 28 20h64l10 24" /><path d="M22 44v42h76V44" /><path d="M14 44h92" />
+        <path d="M48 86V62h24v24" /><path d="M48 32h0M72 32h0" strokeWidth="5" />
+        <path d="M52 52q8 6 16 0" stroke="rgb(var(--slate-500))" />
+      </svg>
+      <div className="text-base font-semibold">{title}</div>
+      {text && <p className="max-w-xs text-sm text-slate-500">{text}</p>}
+      {children}
     </div>
   );
 }

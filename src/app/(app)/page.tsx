@@ -3,7 +3,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { loadAllStores, loadCompletedDates, loadSettings, withObligations } from "@/lib/server/load";
 import { addDays, formatLong, madridDate, monthStart } from "@/lib/domain/dates";
 import { googleMapsRouteUrl } from "@/lib/domain/geo";
-import { StateBadge } from "@/components/ui";
+import { StateBadge, Ring } from "@/components/ui";
 import { StartVisitButton } from "@/components/StartVisitButton";
 import { GenerateRoute } from "@/components/GenerateRoute";
 
@@ -37,6 +37,9 @@ export default async function Today() {
     for (const v of vs ?? []) visitByStop.set(v.route_stop_id, { id: v.id, status: v.status });
   }
 
+  const hour = Number(new Intl.DateTimeFormat("es-ES", { hour: "numeric", hour12: false, timeZone: "Europe/Madrid" }).format(new Date())) % 24;
+  const greeting = hour < 6 ? "Buenas noches" : hour < 14 ? "Buenos días" : hour < 21 ? "Buenas tardes" : "Buenas noches";
+  const doneStops = stops.filter((s) => visitByStop.get(s.id)?.status === "completed").length;
   const pendientes = rows.filter((r) => r.ob.pending > 0);
   const atrasadas = rows.filter((r) => r.ob.state === "atrasada").length;
   const proximas = rows.filter((r) => r.ob.state === "proxima").length;
@@ -51,7 +54,7 @@ export default async function Today() {
     <div className="space-y-6">
       <header>
         <p className="text-sm text-slate-500">{formatLong(today)}</p>
-        <h1 className="text-2xl font-semibold tracking-tight">Hoy</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{greeting}</h1>
       </header>
 
       {open && (
@@ -105,15 +108,11 @@ export default async function Today() {
         </Link>
       )}
 
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {[
-          { l: "Pendientes", v: pendientes.length },
-          { l: "Atrasadas", v: atrasadas, tone: atrasadas ? "text-red-600" : "" },
-          { l: "Vencen pronto", v: proximas },
-          { l: "Cumplimiento", v: conObl ? `${Math.round((cumplidas / conObl) * 100)}%` : "—" },
-        ].map((k) => (
-          <div key={k.l} className="card !p-3"><div className="text-xs text-slate-500">{k.l}</div><div className={`text-2xl font-semibold ${k.tone ?? ""}`}>{k.v}</div></div>
-        ))}
+      <section className="card grid grid-cols-2 gap-y-5 sm:grid-cols-4">
+        <Ring label="Ruta de hoy" value={doneStops} total={stops.length} display={stops.length ? `${doneStops}/${stops.length}` : "—"} />
+        <Ring label="Cumplimiento" value={cumplidas} total={conObl} display={conObl ? `${Math.round((cumplidas / conObl) * 100)}%` : "—"} color="rgb(var(--green-600))" />
+        <Ring label="Atrasadas" value={atrasadas} total={conObl} color="rgb(var(--red-600))" />
+        <Ring label="Vencen pronto" value={proximas} total={conObl} color="rgb(var(--amber-600))" />
       </section>
 
       <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">

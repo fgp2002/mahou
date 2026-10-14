@@ -5,6 +5,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { VISIT_TYPES, type Visit } from "@/lib/types";
 import { eur, type PaymentType } from "@/lib/payments";
 import { NewTypeInline } from "./NewTypeInline";
+import { toast } from "./Toast";
 import { PhotoTags, type PhotoTag } from "./PhotoTags";
 import { madridDate } from "@/lib/domain/dates";
 import type { Contact } from "./Contacts";
@@ -115,6 +116,7 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
       if (pr.error) setErr("La visita se guardó, pero fallaron los pagos: " + pr.error.message);
     }
     setBusy(false);
+    toast("Visita guardada");
     router.refresh();
   }
 
@@ -130,6 +132,7 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
     const { error } = await sb.from("visits").update({ result: f.result || null, notes: f.notes || null, incidents: f.incidents || null, items_reviewed: f.items || null }).eq("id", visit.id);
     setBusy(false);
     setErr(error?.message ?? null);
+    if (error) toast("No se pudo guardar", "error"); else toast("Cambios guardados");
     router.refresh();
   }
 

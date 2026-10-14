@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/ui";
+import { PageHeader, EmptyState } from "@/components/ui";
 import { VISIT_TYPES } from "@/lib/types";
 
 const ST: Record<string, string> = { planned: "Planificada", in_progress: "En curso", completed: "Completada", cancelled: "Cancelada" };
@@ -35,7 +35,7 @@ export default async function VisitsPage() {
               </Link>
             </li>
           ))}
-          {rows.length === 0 && <li className="p-6 text-center text-slate-500">Aún no has registrado visitas.</li>}
+          {rows.length === 0 && <li><EmptyState title="Aún no hay visitas" text="Empieza tu primera visita y quedará registrada aquí."><Link href="/visits/new" className="btn">Iniciar visita</Link></EmptyState></li>}
         </ul>
       </div>
     </div>
