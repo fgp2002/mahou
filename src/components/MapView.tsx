@@ -10,7 +10,7 @@ import { FREQ_LABEL } from "@/lib/types";
 import { googleMapsPlaceUrl } from "@/lib/domain/geo";
 import { FilterSelect } from "./FilterSelect";
 import { MultiFilter } from "./MultiFilter";
-import { MapRouteCard } from "./MapRouteCard";
+import { MapSelectBar } from "./MapSelectBar";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { StartVisitButton } from "./StartVisitButton";
 
@@ -26,12 +26,13 @@ const STORE_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" s
 
 function escapeAttr(s: string) { return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!)); }
 
-function pinHtml(s: MapStore): string {
-  const ring = s.audit ? `0 0 0 3px ${COLORS[s.state]}, 0 0 0 5.5px #111` : `0 0 0 3px ${COLORS[s.state]}`;
+function pinHtml(s: MapStore, picked = false): string {
+  const ring = picked ? "0 0 0 3px #fff, 0 0 0 7px rgb(91 79 233), 0 4px 14px rgb(0 0 0 / .5)" : s.audit ? `0 0 0 3px ${COLORS[s.state]}, 0 0 0 5.5px #111` : `0 0 0 3px ${COLORS[s.state]}`;
   const inner = s.logo
     ? `<img src="${escapeAttr(s.logo)}" alt="" decoding="async" draggable="false" style="width:24px;height:24px;object-fit:contain;pointer-events:none" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/><span style="display:none">${STORE_SVG}</span>`
     : STORE_SVG;
-  return `<div style="width:34px;height:34px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:${ring}${s.approx ? ";opacity:.8" : ""}">${inner}</div>`;
+  const badge = picked ? '<span style="position:absolute;top:-8px;right:-8px;width:18px;height:18px;border-radius:50%;background:rgb(91 79 233);color:#fff;font:800 11px/18px system-ui;text-align:center;border:2px solid #fff">✓</span>' : "";
+  return `<div style="position:relative;width:34px;height:34px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:${ring}${s.approx && !picked ? ";opacity:.8" : ""}">${inner}${badge}</div>`;
 }
 
 export function MapView({ stores }: { stores: MapStore[] }) {
@@ -52,6 +53,12 @@ export function MapView({ stores }: { stores: MapStore[] }) {
   const [sel, setSel] = useState<MapStore | null>(null);
   const [contacts, setContacts] = useState<{ id: string; full_name: string | null; phone: string | null }[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
+  // Modo selección: tocar pines los añade o quita de la ruta que se va a generar.
+  const [picking, setPicking] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
+  const pickingRef = useRef(false);
+  pickingRef.current = picking;
+  const byId = useMemo(() => new Map(stores.map((s) => [s.id, s])), [stores]);
 
   const uniq = (xs: (string | null)[]): [string, string][] => ([...new Set(xs.filter(Boolean))].sort((a, b) => a!.localeCompare(b!, "es")) as string[]).map((x) => [x, x]);
   const towns = useMemo(() => uniq(stores.map((s) => s.town)), [stores]);
@@ -85,7 +92,11 @@ export function MapView({ stores }: { stores: MapStore[] }) {
       for (const s of stores) {
         const icon = L.divIcon({ className: "", iconSize: [34, 34], iconAnchor: [17, 17], html: pinHtml(s) });
         const m = L.marker([s.lat, s.lng], { icon, title: s.name, keyboard: true });
-        m.on("click", () => setSel(s));
+        m.on("click", () => {
+          if (pickingRef.current) {
+            setPicked((cur) => (cur.includes(s.id) ? cur.filter((x) => x !== s.id) : cur.length >= 24 ? cur : [...cur, s.id]));
+          } else setSel(s);
+        });
         markers.set(s.id, m);
       }
       ref.current = { L, map, cluster, me: null, markers };
@@ -112,6 +123,20 @@ export function MapView({ stores }: { stores: MapStore[] }) {
     r.cluster.addLayers(visible);
     if (filtersOn && visible.length) r.map.fitBounds(r.cluster.getBounds().pad(0.15), { maxZoom: 15, animate: false });
   }, [filtered, ready, filtersOn]);
+
+  // Repinta los pines al cambiar la selección (solo los afectados).
+  const prevPicked = useRef<string[]>([]);
+  useEffect(() => {
+    const r = ref.current;
+    if (!r || !ready) return;
+    const changed = new Set([...prevPicked.current, ...picked].filter((id) => prevPicked.current.includes(id) !== picked.includes(id)));
+    for (const id of changed) {
+      const s = byId.get(id);
+      const m = r.markers.get(id);
+      if (s && m) m.setIcon(r.L.divIcon({ className: "", iconSize: [34, 34], iconAnchor: [17, 17], html: pinHtml(s, picked.includes(id)) }));
+    }
+    prevPicked.current = picked;
+  }, [picked, ready, byId]);
 
   useEffect(() => {
     setContacts([]);
@@ -153,6 +178,7 @@ export function MapView({ stores }: { stores: MapStore[] }) {
       <div className="flex gap-2">
         <input className="input flex-1" placeholder="Buscar tienda o municipio…" aria-label="Buscar" value={q} onChange={(e) => setQ(e.target.value)} />
         <button className="btn-secondary md:hidden" aria-expanded={showFilters} onClick={() => setShowFilters(!showFilters)}>Filtros{filtersOn ? " •" : ""}</button>
+        <button className={picking ? "btn" : "btn-secondary"} aria-pressed={picking} onClick={() => { setPicking(!picking); setSel(null); }}>{picking ? "Seleccionando…" : "Seleccionar"}</button>
         <button className="btn-secondary" onClick={locate} aria-label="Mi ubicación">Mi ubicación</button>
         <button className="btn-secondary hidden md:inline-flex" onClick={fullscreen}>Pantalla completa</button>
       </div>
@@ -170,7 +196,6 @@ export function MapView({ stores }: { stores: MapStore[] }) {
           </div>
         </div>
       </div>
-      <MapRouteCard banners={banner} allBanners={banners.map(([b]) => b)} onChange={setBanner} />
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
         {(Object.keys(COLORS) as DueState[]).map((k) => <span key={k} className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-full" style={{ background: COLORS[k] }} />{STATE_LABEL[k]}</span>)}
         <span className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-full bg-white" style={{ boxShadow: "0 0 0 1.5px #94a3b8, 0 0 0 3px #111" }} />Audit (aro negro)</span>
@@ -180,6 +205,14 @@ export function MapView({ stores }: { stores: MapStore[] }) {
       <div className="relative isolate min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-200">
         <div ref={el} className="h-full w-full" />
         {!ready && <div className="skeleton absolute inset-0 z-[400] rounded-none" aria-label="Cargando mapa" />}
+        {picking && (
+          <MapSelectBar
+            picked={picked.map((id) => byId.get(id)).filter(Boolean).map((s) => ({ id: s!.id, name: s!.name }))}
+            onRemove={(id) => setPicked(picked.filter((x) => x !== id))}
+            onClear={() => setPicked([])}
+            onClose={() => { setPicking(false); setPicked([]); }}
+          />
+        )}
         {sel && (
           <aside className="map-panel absolute inset-x-0 bottom-0 z-[500] max-h-[60%] overflow-y-auto rounded-t-3xl bg-white p-4 shadow-card md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-80 md:rounded-none" aria-label={`Ficha de ${sel.name}`}>
             <div className="flex items-start justify-between gap-2">

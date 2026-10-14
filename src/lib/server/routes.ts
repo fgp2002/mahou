@@ -123,7 +123,7 @@ export async function generateRoute(
   sb: SupabaseClient,
   ownerId: string,
   date: string,
-  opts: { by: "auto" | "manual"; replaceExisting?: boolean; overrideProtected?: boolean; forcedStoreIds?: string[]; excludeStoreIds?: string[]; banners?: string[] } = { by: "manual" },
+  opts: { by: "auto" | "manual"; replaceExisting?: boolean; overrideProtected?: boolean; forcedStoreIds?: string[]; excludeStoreIds?: string[]; banners?: string[]; onlyStoreIds?: string[] } = { by: "manual" },
 ): Promise<GenerateOutcome> {
   const settings = await loadOwnerSettings(sb, ownerId);
   if (!settings) return { status: "skipped", reason: "El usuario no tiene ajustes" };
@@ -132,7 +132,7 @@ export async function generateRoute(
   const homeWarn = await ensureHome(sb, ownerId, settings);
   if (homeWarn) warnings.push(homeWarn);
 
-  const { data: existing } = await sb.from("routes").select("id,status,user_modified,banner_filter").eq("owner_id", ownerId).eq("route_date", date).maybeSingle();
+  const { data: existing } = await sb.from("routes").select("id,status,user_modified,banner_filter,selected_store_ids").eq("owner_id", ownerId).eq("route_date", date).maybeSingle();
   if (existing) {
     // Nunca se pisa una ruta aceptada, editada o completada salvo confirmación expresa del usuario
     // (overrideProtected). El cron (by: "auto") jamás reemplaza nada.
@@ -141,6 +141,7 @@ export async function generateRoute(
     if (blocked) return { status: "exists", routeId: existing.id, routeStatus: existing.status };
     // Al regenerar se mantiene el filtro de enseñas que tenía la ruta, salvo que se indique otro.
     if (!opts.banners && existing.banner_filter?.length) opts = { ...opts, banners: existing.banner_filter };
+    if (!opts.onlyStoreIds && existing.selected_store_ids?.length) opts = { ...opts, onlyStoreIds: existing.selected_store_ids };
     const { data: old } = await sb.from("route_stops").select("id").eq("route_id", existing.id).eq("owner_id", ownerId);
     const oldIds = (old ?? []).map((x) => x.id);
     if (oldIds.length) await sb.from("visits").delete().eq("owner_id", ownerId).eq("status", "planned").in("route_stop_id", oldIds);
@@ -160,6 +161,8 @@ export async function generateRoute(
   const doneToday = new Set((sameDay ?? []).map((v) => v.store_id));
   const exclude = new Set(opts.excludeStoreIds ?? []);
   const forced = new Set(opts.forcedStoreIds ?? []);
+  // Selección a mano en el mapa: la ruta lleva exactamente esas tiendas, en el orden más eficiente.
+  const only = opts.onlyStoreIds?.length ? new Set(opts.onlyStoreIds) : null;
   const bannerSet = opts.banners?.length ? new Set(opts.banners.map((b) => b.trim().toUpperCase())) : null;
 
   const scored = stores
@@ -167,14 +170,16 @@ export async function generateRoute(
       const ob = computeObligation(s.frequency as "semanal", date, dates.get(s.id) ?? [], { trackingStart: settings.tracking_start });
       return { s, ob, score: priorityScore(ob, s.audit && settings.audit_first) + (forced.has(s.id) ? 1000 : 0) };
     })
-    .filter((x) => !exclude.has(x.s.id) && !doneToday.has(x.s.id) && (!bannerSet || forced.has(x.s.id) || bannerSet.has((x.s.banner ?? "").replace(/\s+/g, " ").trim().toUpperCase())) && (forced.has(x.s.id) || (x.ob.pending > 0 && (!x.ob.eligibleFrom || x.ob.eligibleFrom <= date))))
+    .filter((x) => only ? only.has(x.s.id) : !exclude.has(x.s.id) && !doneToday.has(x.s.id) && (!bannerSet || forced.has(x.s.id) || bannerSet.has((x.s.banner ?? "").replace(/\s+/g, " ").trim().toUpperCase())) && (forced.has(x.s.id) || (x.ob.pending > 0 && (!x.ob.eligibleFrom || x.ob.eligibleFrom <= date))))
     .sort((a, b) => b.score - a.score);
 
   const unscheduled: { store_id: string; name: string; reason: string }[] = [];
   const located = scored.filter((x) => x.s.lat != null && x.s.lng != null);
   for (const x of scored) if (x.s.lat == null || x.s.lng == null) unscheduled.push({ store_id: x.s.id, name: x.s.name, reason: "sin_ubicacion" });
   // Zona del día: ancla (la más urgente) + pendientes cercanas, con tope de Audit por día.
-  const zone = pickZone(located.map((x) => ({
+  const zone = only
+    ? { picked: located.slice(0, MAX_CANDIDATES).map((x) => ({ id: x.s.id, priority: 0, distKm: 0 })), dropped: located.slice(MAX_CANDIDATES).map((x) => ({ id: x.s.id, reason: "fuera_candidatos" as const })) }
+    : pickZone(located.map((x) => ({
     id: x.s.id, lat: x.s.lat!, lng: x.s.lng!, score: x.score, audit: x.s.audit && settings.audit_first,
     overdue: x.ob.state === "atrasada", forced: forced.has(x.s.id),
   })), { ...ZONE_DEFAULTS, max: MAX_CANDIDATES, home: settings.home });
@@ -195,7 +200,7 @@ export async function generateRoute(
     const learned = await learnedMinutes(sb, ownerId, cand.map((x) => x.s.id));
     result = planRoute({
       stores: cand.map((x) => ({ id: x.s.id, minutes: learned.get(x.s.id) ?? settings.default_minutes, priority: prio.get(x.s.id) ?? x.score, forced: forced.has(x.s.id) })),
-      dur: matrix.dur, dist: matrix.dist, startMinutes: startMin, endMinutes: endMin,
+      dur: matrix.dur, dist: matrix.dist, startMinutes: startMin, endMinutes: only ? Number.POSITIVE_INFINITY : endMin,
       hasHome: !!settings.home, lunch: settings.lunch, kmWeight: KM_WEIGHT,
     });
     if (settings.max_stops && result.stops.length > settings.max_stops) {
@@ -207,6 +212,7 @@ export async function generateRoute(
   if (!cand.length) warnings.push(bannerSet ? "No hay tiendas pendientes de esas enseñas con ubicación para este día." : "No hay tiendas pendientes con ubicación para este día.");
   if (result) {
     const approx = result.stops.filter((st) => cand[st.index].s.geocode_status === "partial").length;
+    if (only && result.endMinutes > endMin) warnings.push(`Con las ${result.stops.length} tiendas elegidas la jornada acabaría a las ${fmtHM(result.endMinutes)}, después de tu hora de fin (${settings.work_end}).`);
     if (approx) warnings.push(`${approx} paradas tienen la ubicación aproximada: el orden puede no ser exacto. Corrígela en la ficha de la tienda.`);
     if (result.lunch && settings.lunch && result.lunch.start > settings.lunch.latest - settings.lunch.minutes)
       warnings.push(`La pausa para comer empieza a las ${fmtHM(result.lunch.start)}, más tarde de lo previsto.`);
@@ -217,7 +223,8 @@ export async function generateRoute(
     routing_provider: matrix ? matrix.provider : null, is_estimate: matrix?.estimated ?? false,
     est_distance_m: result ? Math.round(result.totalDistanceM) : 0, est_drive_seconds: result ? Math.round(result.totalDriveSeconds) : 0,
     est_visit_seconds: result ? result.totalVisitMinutes * 60 : 0, unscheduled, warnings,
-    banner_filter: bannerSet ? [...bannerSet] : null,
+    banner_filter: bannerSet && !only ? [...bannerSet] : null,
+    selected_store_ids: only ? [...only] : null,
     lunch_start: result?.lunch ? fmtHM(result.lunch.start) : null, lunch_after_position: result?.lunch ? result.lunch.afterStop + 1 : null,
   }).select("id").single();
   if (error) {
