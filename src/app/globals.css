@@ -107,3 +107,24 @@ input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-dat
 
 /* Leaflet en modo oscuro: baja el brillo del mapa sin cambiar los pines */
 @media (prefers-color-scheme: dark) { .leaflet-tile-pane { filter: brightness(0.75) contrast(1.05) saturate(0.8); } }
+
+/* Campos con etiqueta flotante: la etiqueta vive dentro del campo y sube al escribir. */
+.ff { position: relative; }
+.ff > .input { min-height: 3.4rem; padding-top: 1.35rem; padding-bottom: 0.35rem; padding-left: 0.95rem; }
+.ff > textarea.input { padding-top: 1.6rem; }
+.ff > label { position: absolute; left: 0.95rem; right: 0.95rem; top: 1.7rem; transform: translateY(-50%); font-size: 0.95rem; color: rgb(var(--slate-500)); pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: top 180ms var(--spring), font-size 180ms var(--ease), color 180ms ease; }
+.ff > .input:focus + label, .ff > .input:not(:placeholder-shown) + label, .ff > select.input + label, .ff > input[type="date"] + label, .ff > input[type="time"] + label {
+  top: 0.95rem; font-size: 0.72rem; font-weight: 700; color: rgb(var(--slate-600));
+}
+.ff > .input:focus + label { color: rgb(var(--slate-900)); }
+
+/* Secciones plegables */
+details > summary { list-style: none; }
+details > summary::-webkit-details-marker { display: none; }
+details[open] > .fold-body { animation: page-in 220ms var(--ease) both; }
+
+/* Gráficas que crecen al entrar */
+@keyframes bar-grow { from { transform: scaleY(0); } }
+@keyframes bar-grow-x { from { transform: scaleX(0); } }
+.bar-grow { transform-origin: bottom; animation: bar-grow 700ms var(--spring) both; }
+.bar-grow-x { transform-origin: left; animation: bar-grow-x 700ms var(--ease) both; }

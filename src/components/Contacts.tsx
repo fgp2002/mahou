@@ -37,9 +37,8 @@ export function Contacts({ storeId, contacts }: { storeId: string; contacts: Con
   }
 
   return (
-    <section className="card space-y-2">
-      <div className="flex items-center justify-between">
-        <h2 className="font-medium">Contactos</h2>
+    <section className="space-y-2">
+      <div className="flex items-center justify-end">
         <button className="btn-secondary" onClick={() => setEditing({})}>Añadir</button>
       </div>
       {contacts.length === 0 && !editing && <p className="text-sm text-slate-500">Sin contactos. Todos los campos son opcionales.</p>}

@@ -65,9 +65,8 @@ export function Payments({ storeId, concepts, records, types }: { storeId: strin
   const nameOf = (c: PConcept) => (c.payment_type_id ? byId.get(c.payment_type_id)?.name : null) ?? c.concept;
 
   return (
-    <section className="card space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="font-medium">Pagos y conceptos</h2>
+    <section className="space-y-3">
+      <div className="flex items-center justify-end gap-2">
         <button className="btn-secondary" onClick={demo} title="Crea importes de ejemplo marcados como DEMO">Cargar datos DEMO</button>
       </div>
       <p className="text-xs text-slate-500">

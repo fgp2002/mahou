@@ -67,3 +67,17 @@ export function EmptyState({ title, text, children }: { title: string; text?: st
     </div>
   );
 }
+
+/** Sección plegable con aspecto de tarjeta. */
+export function Collapsible({ title, hint, open, children }: { title: string; hint?: string; open?: boolean; children: React.ReactNode }) {
+  return (
+    <details open={open} className="card group !p-0">
+      <summary className="flex min-h-14 cursor-pointer select-none items-center gap-3 rounded-3xl px-4 md:px-5">
+        <span className="font-semibold">{title}</span>
+        {hint && <span className="truncate text-xs text-slate-500">{hint}</span>}
+        <svg viewBox="0 0 24 24" className="ml-auto h-5 w-5 shrink-0 text-slate-400 transition-transform duration-300 group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="m6 9 6 6 6-6" /></svg>
+      </summary>
+      <div className="fold-body border-t border-slate-100 p-4 md:p-5">{children}</div>
+    </details>
+  );
+}
