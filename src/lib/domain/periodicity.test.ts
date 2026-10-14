@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { computeObligation, currentWindow, priorityScore } from "./periodicity.ts";
+import { computeObligation, currentWindow, priorityScore, suggestNextVisit } from "./periodicity.ts";
 
 const opts = { trackingStart: "2026-01-01" };
 
@@ -102,4 +102,12 @@ test("cancelar o eliminar una visita recalcula el cumplimiento", () => {
   const sin = computeObligation("mensual", "2026-10-14", ["2026-09-20"], opts);
   assert.equal(con.state, "cumplida");
   assert.equal(sin.state, "pendiente");
+});
+
+test("próxima visita sugerida", () => {
+  assert.equal(suggestNextVisit("semanal", "2026-10-14"), "2026-10-19");
+  assert.equal(suggestNextVisit("quincenal", "2026-10-14"), "2026-10-21"); // el 16 queda a <7 días
+  assert.equal(suggestNextVisit("quincenal", "2026-10-02"), "2026-10-16");
+  assert.equal(suggestNextVisit("mensual", "2026-10-14"), "2026-11-01");
+  assert.equal(suggestNextVisit("ninguna", "2026-10-14"), null);
 });

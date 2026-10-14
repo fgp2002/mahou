@@ -2,7 +2,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { CONCEPTS, VISIT_TYPES, type Visit } from "@/lib/types";
+import { VISIT_TYPES, type Visit } from "@/lib/types";
+import { eur, type PaymentType } from "@/lib/payments";
+import { NewTypeInline } from "./NewTypeInline";
 import { madridDate } from "@/lib/domain/dates";
 import type { Contact } from "./Contacts";
 import type { PConcept } from "./Payments";
@@ -21,7 +23,9 @@ async function resize(file: File, max = 1600): Promise<Blob> {
 
 const fmt = (s: number) => `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
-export function VisitRunner({ visit, storeName, contacts, concepts, photos }: { visit: Visit; storeName: string; contacts: Contact[]; concepts: PConcept[]; photos: PhotoView[] }) {
+const NEW = "__new__";
+
+export function VisitRunner({ visit, storeName, contacts, concepts, photos, types, suggestedNext }: { visit: Visit; storeName: string; contacts: Contact[]; concepts: PConcept[]; photos: PhotoView[]; types: PaymentType[]; suggestedNext: string | null }) {
   const router = useRouter();
   const sb = supabaseBrowser();
   const running = visit.status === "in_progress";
@@ -30,6 +34,12 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos }: { 
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [next, setNext] = useState(visit.next_visit_recommended ?? suggestedNext ?? "");
+  const [extras, setExtras] = useState<{ typeId: string; amount: string }[]>([]);
+  const [localTypes, setLocalTypes] = useState(types);
+  const [creatingFor, setCreatingFor] = useState<number | null>(null);
+  const activeTypes = localTypes.filter((t) => t.active);
+  const typeById = new Map(localTypes.map((t) => [t.id, t]));
 
   useEffect(() => {
     if (!running || !visit.started_at) return;
@@ -79,13 +89,28 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos }: { 
     const { error } = await sb.from("visits").update({
       status: "completed", ended_at: new Date().toISOString(), duration_minutes: minutes,
       result: f.result || null, notes: f.notes || null, incidents: f.incidents || null, items_reviewed: f.items || null,
-      contact_id: c?.id ?? null, contact_name_snapshot: c?.full_name ?? null, contact_role_snapshot: c?.role ?? null,
+      next_visit_recommended: next || null, contact_id: c?.id ?? null, contact_name_snapshot: c?.full_name ?? null, contact_role_snapshot: c?.role ?? null,
     }).eq("id", visit.id);
     if (error) { setBusy(false); return setErr(error.message); }
-    const recs = concepts.filter((x) => checked[x.id] && x.default_amount != null).map((x) => ({
-      store_id: visit.store_id, concept_id: x.id, concept: x.concept, visit_id: visit.id, amount: x.default_amount, payment_date: madridDate(), status: "comprobado", is_demo: x.is_demo,
+    const recs: Record<string, unknown>[] = concepts.filter((x) => checked[x.id] && x.default_amount != null).map((x) => ({
+      store_id: visit.store_id, concept_id: x.id, concept: x.concept, concept_name: (x.payment_type_id && typeById.get(x.payment_type_id)?.name) || x.concept,
+      payment_type_id: x.payment_type_id, visit_id: visit.id, amount: x.default_amount, payment_date: madridDate(), status: "comprobado", is_demo: x.is_demo,
     }));
-    if (recs.length) await sb.from("payment_records").insert(recs);
+    for (const ex of extras) {
+      const t = typeById.get(ex.typeId);
+      const amt = Number(ex.amount.replace(",", "."));
+      if (!t || ex.amount.trim() === "" || !Number.isFinite(amt) || amt < 0) continue;
+      let conceptId = concepts.find((c) => c.payment_type_id === t.id)?.id;
+      if (!conceptId) {
+        const ins = await sb.from("payment_concepts").insert({ store_id: visit.store_id, concept: t.code, payment_type_id: t.id, default_amount: amt }).select("id").single();
+        conceptId = ins.data?.id;
+      }
+      recs.push({ store_id: visit.store_id, concept_id: conceptId ?? null, concept: t.code, concept_name: t.name, payment_type_id: t.id, visit_id: visit.id, amount: amt, payment_date: madridDate(), status: "comprobado", is_demo: false });
+    }
+    if (recs.length) {
+      const pr = await sb.from("payment_records").insert(recs);
+      if (pr.error) setErr("La visita se guardó, pero fallaron los pagos: " + pr.error.message);
+    }
     setBusy(false);
     router.refresh();
   }
@@ -122,11 +147,11 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos }: { 
 
       <div className="card space-y-3">
         <h2 className="font-medium">Fotos</h2>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {photos.map((p) => (
             <div key={p.id} className="relative">
-              {p.url ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={p.url} alt="" className="aspect-square w-full rounded-lg object-cover" /> : <div className="aspect-square rounded-lg bg-slate-100" />}
-              <button className="absolute right-1 top-1 rounded bg-white/90 px-1.5 text-xs text-red-600" onClick={() => removePhoto(p)}>✕</button>
+              {p.url ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={p.url} alt="Foto de la visita" loading="lazy" decoding="async" className="aspect-square w-full rounded-xl object-cover" /> : <div className="aspect-square rounded-lg bg-slate-100" />}
+              <button aria-label="Eliminar foto" className="absolute right-1 top-1 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-red-600" onClick={() => removePhoto(p)}>✕</button>
             </div>
           ))}
         </div>
@@ -150,15 +175,46 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos }: { 
         {([["result", "Resultado"], ["items", "Productos / elementos revisados"], ["incidents", "Incidencias"], ["notes", "Notas"]] as const).map(([k, l]) => (
           <div key={k}><label className="label">{l}</label><textarea className="input" rows={2} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} /></div>
         ))}
-        {running && concepts.length > 0 && (
-          <div>
-            <label className="label">Pagos comprobados en esta visita</label>
+        {running && (
+          <div className="space-y-2">
+            <label className="label">Cobros comprobados en esta visita</label>
             {concepts.map((c) => (
-              <label key={c.id} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={!!checked[c.id]} disabled={c.default_amount == null} onChange={(e) => setChecked({ ...checked, [c.id]: e.target.checked })} />
-                {CONCEPTS[c.concept]} {c.default_amount != null ? `· ${c.default_amount} €` : "(sin importe)"} {c.is_demo && <span className="badge bg-slate-200 text-slate-700">DEMO</span>}
+              <label key={c.id} className="flex min-h-11 items-center gap-3 text-sm">
+                <input type="checkbox" className="h-5 w-5" checked={!!checked[c.id]} disabled={c.default_amount == null} onChange={(e) => setChecked({ ...checked, [c.id]: e.target.checked })} />
+                {(c.payment_type_id && typeById.get(c.payment_type_id)?.name) || c.concept} {c.default_amount != null ? `· ${eur(c.default_amount)}` : "(sin importe)"} {c.is_demo && <span className="badge bg-slate-200 text-slate-700">DEMO</span>}
               </label>
             ))}
+            {extras.map((ex, i) => (
+              <div key={i} className="space-y-2">
+                <div className="flex gap-2">
+                  <select className="input" aria-label="Tipo de pago" value={creatingFor === i ? NEW : ex.typeId} onChange={(e) => {
+                    if (e.target.value === NEW) return setCreatingFor(i);
+                    const t = typeById.get(e.target.value);
+                    setExtras(extras.map((x, j) => (j === i ? { typeId: e.target.value, amount: x.amount || (t?.default_amount != null ? String(t.default_amount) : "") } : x)));
+                  }}>
+                    <option value="">Elige tipo…</option>
+                    {activeTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    <option value={NEW}>＋ Nuevo tipo de pago…</option>
+                  </select>
+                  <input className="input w-28" inputMode="decimal" placeholder="€" aria-label="Importe" value={ex.amount} onChange={(e) => setExtras(extras.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)))} />
+                  <button type="button" className="btn-secondary" aria-label="Quitar cobro" onClick={() => setExtras(extras.filter((_, j) => j !== i))}>✕</button>
+                </div>
+                {creatingFor === i && (
+                  <NewTypeInline onCancel={() => setCreatingFor(null)} onCreated={(t) => {
+                    setLocalTypes([...localTypes, t]);
+                    setExtras(extras.map((x, j) => (j === i ? { typeId: t.id, amount: t.default_amount != null ? String(t.default_amount) : x.amount } : x)));
+                    setCreatingFor(null);
+                  }} />
+                )}
+              </div>
+            ))}
+            <button type="button" className="btn-secondary" onClick={() => setExtras([...extras, { typeId: "", amount: "" }])}>＋ Añadir otro cobro</button>
+          </div>
+        )}
+        {running && (
+          <div>
+            <label className="label">Próxima visita recomendada{suggestedNext ? " (sugerida según la periodicidad)" : ""}</label>
+            <input type="date" className="input" value={next} onChange={(e) => setNext(e.target.value)} />
           </div>
         )}
         {err && <p className="text-sm text-red-600">{err}</p>}

@@ -1,7 +1,7 @@
 import { supabaseServer } from "@/lib/supabase/server";
 import { loadAllStores, loadCompletedDates, loadSettings, withObligations } from "@/lib/server/load";
 import { PageHeader, Kpi } from "@/components/ui";
-import { CONCEPTS, FREQ_LABEL, VISIT_TYPES } from "@/lib/types";
+import { FREQ_LABEL, VISIT_TYPES } from "@/lib/types";
 import { addDays, madridDate } from "@/lib/domain/dates";
 
 function Bars({ data, unit = "" }: { data: { label: string; value: number }[]; unit?: string }) {
@@ -29,7 +29,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
   const [settings, stores, dates, { data: vis }, { data: pays }] = await Promise.all([
     loadSettings(), loadAllStores(), loadCompletedDates(),
     sb.from("visits").select("visit_date,visit_type,duration_minutes,is_manual,stores(town)").eq("status", "completed").gte("visit_date", since).limit(5000),
-    sb.from("payment_records").select("concept,amount,status,is_demo").limit(5000),
+    sb.from("payment_records").select("concept,concept_name,amount,status,is_demo").limit(5000),
   ]);
   const visits = (vis ?? []) as unknown as { visit_date: string; visit_type: string; duration_minutes: number | null; is_manual: boolean; stores: { town: string | null } | null }[];
   const rows = withObligations(stores, dates, settings, today);
@@ -55,7 +55,8 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
   for (const p of pays ?? []) {
     if (p.is_demo && !includeDemo) continue;
     const m = payAgg.get(p.status) ?? new Map();
-    m.set(p.concept, (m.get(p.concept) ?? 0) + Number(p.amount));
+    const key = p.concept_name ?? p.concept;
+    m.set(key, (m.get(key) ?? 0) + Number(p.amount));
     payAgg.set(p.status, m);
   }
   const eur = (n: number) => n.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
@@ -83,8 +84,8 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
         <h2 className="mb-2 font-medium">Pagos por concepto y estado</h2>
         {payAgg.size === 0 ? <p className="text-sm text-slate-500">No hay pagos registrados{includeDemo ? "" : " (los datos DEMO están ocultos)"}.</p> : (
           <table className="w-full text-sm"><thead><tr className="text-left text-xs text-slate-500"><th>Concepto</th><th>Previsto</th><th>Comprobado</th><th>Abonado</th></tr></thead>
-            <tbody>{Object.entries(CONCEPTS).map(([k, l]) => (
-              <tr key={k} className="border-t border-slate-100"><td className="py-1">{l}</td>{["previsto", "comprobado", "abonado"].map((st) => <td key={st}>{eur(payAgg.get(st)?.get(k) ?? 0)}</td>)}</tr>
+            <tbody>{[...new Set([...payAgg.values()].flatMap((m) => [...m.keys()]))].sort().map((k) => (
+              <tr key={k} className="border-t border-slate-200"><td className="py-1">{k}</td>{["previsto", "comprobado", "abonado"].map((st) => <td key={st}>{eur(payAgg.get(st)?.get(k) ?? 0)}</td>)}</tr>
             ))}</tbody></table>
         )}
       </section>

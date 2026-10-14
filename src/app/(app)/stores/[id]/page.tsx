@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
-import { loadSettings } from "@/lib/server/load";
+import { loadPaymentTypes, loadSettings } from "@/lib/server/load";
 import { computeObligation } from "@/lib/domain/periodicity";
 import { madridDate } from "@/lib/domain/dates";
 import { googleMapsPlaceUrl } from "@/lib/domain/geo";
@@ -16,8 +16,9 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
   const sb = await supabaseServer();
   const { data: store } = await sb.from("stores").select("*").eq("id", id).maybeSingle();
   if (!store) notFound();
-  const [settings, { data: visits }, { data: contacts }, { data: concepts }, { data: records }] = await Promise.all([
+  const [settings, types, { data: visits }, { data: contacts }, { data: concepts }, { data: records }] = await Promise.all([
     loadSettings(),
+    loadPaymentTypes(),
     sb.from("visits").select("*").eq("store_id", id).order("visit_date", { ascending: false }).limit(50),
     sb.from("store_contacts").select("*").eq("store_id", id).order("created_at"),
     sb.from("payment_concepts").select("*").eq("store_id", id).order("created_at"),
@@ -45,7 +46,7 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
       </div>
       <StoreForm store={s} />
       <Contacts storeId={s.id} contacts={contacts ?? []} />
-      <Payments storeId={s.id} concepts={concepts ?? []} records={records ?? []} />
+      <Payments storeId={s.id} concepts={concepts ?? []} records={records ?? []} types={types} />
       <section className="card">
         <h2 className="mb-2 font-medium">Historial de visitas</h2>
         {(visits ?? []).length === 0 ? (

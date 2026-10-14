@@ -168,3 +168,12 @@ export const STATE_LABEL: Record<DueState, string> = {
   proxima: "Vence pronto",
   atrasada: "Atrasada",
 };
+
+/** Fecha sugerida para la próxima visita: inicio de la siguiente ventana (quincenal respeta ≥7 días). */
+export function suggestNextVisit(freq: Frequency, today: string): string | null {
+  const w = currentWindow(freq, today);
+  if (!w) return null;
+  let next = addDays(w.end, 1);
+  if (freq === "quincenal" && diffDays(next, today) < 7) next = addDays(today, 7);
+  return next;
+}

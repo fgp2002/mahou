@@ -69,3 +69,13 @@ export function withObligations(stores: Store[], dates: Map<string, string[]>, s
     return { ...s, ob, score: priorityScore(ob, s.audit) };
   });
 }
+
+export async function loadPaymentTypes(): Promise<import("../payments").PaymentType[]> {
+  const sb = await supabaseServer();
+  let { data } = await sb.from("payment_types").select("*").order("sort_order").order("name");
+  if (!data?.length) {
+    await sb.rpc("ensure_payment_types");
+    ({ data } = await sb.from("payment_types").select("*").order("sort_order").order("name"));
+  }
+  return (data ?? []) as import("../payments").PaymentType[];
+}

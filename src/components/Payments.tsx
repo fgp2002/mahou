@@ -2,21 +2,25 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { CONCEPTS } from "@/lib/types";
+import { eur, type PaymentType } from "@/lib/payments";
 import { madridDate } from "@/lib/domain/dates";
+import { NewTypeInline } from "./NewTypeInline";
 
-export interface PConcept { id: string; concept: string; default_amount: number | null; status: string; is_demo: boolean; notes: string | null; last_checked_at: string | null }
-export interface PRecord { id: string; concept: string; amount: number; payment_date: string; status: string; is_demo: boolean; notes: string | null }
+export interface PConcept { id: string; concept: string; payment_type_id: string | null; default_amount: number | null; status: string; is_demo: boolean; notes: string | null; last_checked_at: string | null }
+export interface PRecord { id: string; concept: string; concept_name: string | null; amount: number; payment_date: string; status: string; is_demo: boolean; notes: string | null }
 
 const REC_LABEL: Record<string, string> = { previsto: "Previsto", comprobado: "Comprobado", abonado: "Abonado" };
-const eur = (n: number) => n.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
+const NEW = "__new__";
 
-export function Payments({ storeId, concepts, records }: { storeId: string; concepts: PConcept[]; records: PRecord[] }) {
+export function Payments({ storeId, concepts, records, types }: { storeId: string; concepts: PConcept[]; records: PRecord[]; types: PaymentType[] }) {
   const router = useRouter();
-  const [concept, setConcept] = useState("expositor");
-  const [amount, setAmount] = useState("");
-  const [err, setErr] = useState<string | null>(null);
   const sb = supabaseBrowser();
+  const active = types.filter((t) => t.active);
+  const byId = new Map(types.map((t) => [t.id, t]));
+  const [typeId, setTypeId] = useState(active[0]?.id ?? "");
+  const [amount, setAmount] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   async function run(p: PromiseLike<{ error: { message: string } | null }>) {
     const { error } = await p;
@@ -24,80 +28,99 @@ export function Payments({ storeId, concepts, records }: { storeId: string; conc
     router.refresh();
   }
 
-  const addConcept = () =>
-    run(sb.from("payment_concepts").insert({ store_id: storeId, concept, default_amount: amount === "" ? null : Number(amount.replace(",", ".")) }));
+  function pickType(v: string) {
+    if (v === NEW) return setCreating(true);
+    setTypeId(v);
+    const t = byId.get(v);
+    if (t?.default_amount != null && amount === "") setAmount(String(t.default_amount));
+  }
+
+  const addConcept = () => {
+    const t = byId.get(typeId);
+    if (!t) return setErr("Elige un tipo de pago.");
+    if (concepts.some((c) => c.payment_type_id === t.id && c.status === "activo")) return setErr(`«${t.name}» ya está configurado en esta tienda.`);
+    const amt = amount.trim() === "" ? t.default_amount : Number(amount.replace(",", "."));
+    if (amt != null && (!Number.isFinite(amt) || amt < 0)) return setErr("El importe no es válido.");
+    return run(sb.from("payment_concepts").insert({ store_id: storeId, concept: t.code, payment_type_id: t.id, default_amount: amt }));
+  };
 
   const addRecord = (c: PConcept, status: string) => {
     if (c.default_amount == null) return setErr("Configura primero un importe para este concepto.");
+    const t = c.payment_type_id ? byId.get(c.payment_type_id) : undefined;
     return run(sb.from("payment_records").insert({
-      store_id: storeId, concept_id: c.id, concept: c.concept, amount: c.default_amount,
-      payment_date: madridDate(), status, is_demo: c.is_demo,
+      store_id: storeId, concept_id: c.id, concept: c.concept, concept_name: t?.name ?? c.concept, payment_type_id: c.payment_type_id,
+      amount: c.default_amount, payment_date: madridDate(), status, is_demo: c.is_demo,
     }));
   };
 
-  const demo = () =>
-    run(sb.from("payment_concepts").insert([
-      { store_id: storeId, concept: "expositor", default_amount: 120, is_demo: true, notes: "DATO DE DEMOSTRACIÓN" },
-      { store_id: storeId, concept: "nevera", default_amount: 60, is_demo: true, notes: "DATO DE DEMOSTRACIÓN" },
+  const demo = () => {
+    const ex = types.find((t) => t.code === "expositor"), ne = types.find((t) => t.code === "nevera");
+    if (!ex || !ne) return setErr("Faltan los tipos Expositor y Nevera.");
+    return run(sb.from("payment_concepts").insert([
+      { store_id: storeId, concept: ex.code, payment_type_id: ex.id, default_amount: 120, is_demo: true, notes: "DATO DE DEMOSTRACIÓN" },
+      { store_id: storeId, concept: ne.code, payment_type_id: ne.id, default_amount: 60, is_demo: true, notes: "DATO DE DEMOSTRACIÓN" },
     ]));
+  };
+
+  const nameOf = (c: PConcept) => (c.payment_type_id ? byId.get(c.payment_type_id)?.name : null) ?? c.concept;
 
   return (
     <section className="card space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h2 className="font-medium">Pagos y conceptos</h2>
         <button className="btn-secondary" onClick={demo} title="Crea importes de ejemplo marcados como DEMO">Cargar datos DEMO</button>
       </div>
       <p className="text-xs text-slate-500">
-        «Configurado» = concepto y importe definidos. Cada cobro pasa de <b>Previsto</b> a <b>Comprobado</b> (lo has verificado en tienda) y a <b>Abonado</b> (cobrado). Los importes DEMO no son reales.
+        Cada cobro pasa de <b>Previsto</b> a <b>Comprobado</b> (verificado en tienda) y a <b>Abonado</b> (cobrado). Los importes DEMO no son reales.
       </p>
-      <ul className="divide-y divide-slate-100">
+      <ul className="divide-y divide-slate-200">
         {concepts.map((c) => (
-          <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+          <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
             <div>
-              {CONCEPTS[c.concept]} · {c.default_amount != null ? eur(c.default_amount) : "importe sin definir"}
+              {nameOf(c)} · {c.default_amount != null ? eur(c.default_amount) : "importe sin definir"}
               {c.is_demo && <span className="badge ml-2 bg-slate-200 text-slate-700">DEMO</span>}
-              <span className="badge ml-2 bg-slate-100 text-slate-600">{c.status}</span>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button className="btn-secondary" onClick={() => addRecord(c, "previsto")}>+ Previsto</button>
               <button className="btn-secondary" onClick={() => addRecord(c, "comprobado")}>+ Comprobado</button>
-              <button className="text-red-600 underline" onClick={() => confirm("¿Eliminar concepto?") && run(sb.from("payment_concepts").delete().eq("id", c.id))}>Borrar</button>
+              <button className="btn-secondary text-red-600" onClick={() => confirm("¿Quitar este concepto de la tienda? Los registros ya hechos se conservan.") && run(sb.from("payment_concepts").delete().eq("id", c.id))}>Quitar</button>
             </div>
           </li>
         ))}
+        {concepts.length === 0 && <li className="py-3 text-sm text-slate-500">Esta tienda no tiene conceptos de pago configurados.</li>}
       </ul>
       <div className="flex flex-wrap items-end gap-2">
-        <div>
-          <label className="label">Concepto</label>
-          <select className="input" value={concept} onChange={(e) => setConcept(e.target.value)}>
-            {Object.entries(CONCEPTS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+        <div className="min-w-40 flex-1">
+          <label className="label">Tipo de pago</label>
+          <select className="input" value={creating ? NEW : typeId} onChange={(e) => pickType(e.target.value)}>
+            {active.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            <option value={NEW}>＋ Nuevo tipo de pago…</option>
           </select>
         </div>
-        <div>
-          <label className="label">Importe (€)</label>
-          <input className="input w-28" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
-        </div>
-        <button className="btn" onClick={addConcept}>Añadir concepto</button>
+        <div className="w-28"><label className="label">Importe (€)</label><input className="input" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
+        <button className="btn" onClick={addConcept}>Añadir a la tienda</button>
       </div>
+      {creating && <NewTypeInline onCancel={() => setCreating(false)} onCreated={(t) => { setCreating(false); setTypeId(t.id); if (t.default_amount != null) setAmount(String(t.default_amount)); router.refresh(); }} />}
+
       <h3 className="pt-2 text-sm font-medium">Registros</h3>
       {records.length === 0 && <p className="text-sm text-slate-500">Sin registros de pago.</p>}
-      <ul className="divide-y divide-slate-100">
+      <ul className="divide-y divide-slate-200">
         {records.map((r) => (
-          <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+          <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
             <div>
-              {r.payment_date} · {CONCEPTS[r.concept]} · {eur(r.amount)}
+              {r.payment_date} · {r.concept_name ?? r.concept} · {eur(r.amount)}
               {r.is_demo && <span className="badge ml-2 bg-slate-200 text-slate-700">DEMO</span>}
             </div>
             <div className="flex items-center gap-2">
-              <select className="input w-auto" value={r.status} onChange={(e) => run(sb.from("payment_records").update({ status: e.target.value }).eq("id", r.id))}>
+              <select className="input w-auto" aria-label="Estado del pago" value={r.status} onChange={(e) => run(sb.from("payment_records").update({ status: e.target.value }).eq("id", r.id))}>
                 {Object.entries(REC_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
               </select>
-              <button className="text-red-600 underline" onClick={() => confirm("¿Eliminar registro?") && run(sb.from("payment_records").delete().eq("id", r.id))}>Borrar</button>
+              <button className="btn-secondary text-red-600" onClick={() => confirm("¿Eliminar registro?") && run(sb.from("payment_records").delete().eq("id", r.id))}>Borrar</button>
             </div>
           </li>
         ))}
       </ul>
-      {err && <p className="text-sm text-red-600">{err}</p>}
+      {err && <p className="text-sm text-red-600" role="alert">{err}</p>}
     </section>
   );
 }

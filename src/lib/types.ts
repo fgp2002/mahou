@@ -42,6 +42,7 @@ export interface Visit {
   notes: string | null;
   incidents: string | null;
   items_reviewed: string | null;
+  next_visit_recommended: string | null;
 }
 
 export const VISIT_TYPES: Record<string, string> = {
