@@ -73,7 +73,7 @@ export function MapView({ stores }: { stores: MapStore[] }) {
       await import("leaflet.markercluster");
       if (dead || !el.current || ref.current) return;
       const map = L.map(el.current, { preferCanvas: true, zoomControl: true }).setView([36.72, -4.42], 9);
-      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" }).addTo(map);
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { maxZoom: 19, subdomains: "abcd", attribution: "© OpenStreetMap © CARTO" }).addTo(map);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cluster = (L as any).markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 50, chunkedLoading: true, animate: false });
       map.addLayer(cluster);
