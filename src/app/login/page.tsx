@@ -25,7 +25,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm items-center px-4">
+    <main className="mx-auto flex min-h-dvh max-w-sm items-center px-4">
       <form onSubmit={onSubmit} className="card w-full space-y-4">
         <h1 className="text-xl font-semibold">Iniciar sesión</h1>
         <div>

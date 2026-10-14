@@ -55,7 +55,7 @@ export function Payments({ storeId, concepts, records }: { storeId: string; conc
           <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
             <div>
               {CONCEPTS[c.concept]} · {c.default_amount != null ? eur(c.default_amount) : "importe sin definir"}
-              {c.is_demo && <span className="badge ml-2 bg-purple-100 text-purple-700">DEMO</span>}
+              {c.is_demo && <span className="badge ml-2 bg-slate-200 text-slate-700">DEMO</span>}
               <span className="badge ml-2 bg-slate-100 text-slate-600">{c.status}</span>
             </div>
             <div className="flex gap-2">
@@ -86,7 +86,7 @@ export function Payments({ storeId, concepts, records }: { storeId: string; conc
           <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
             <div>
               {r.payment_date} · {CONCEPTS[r.concept]} · {eur(r.amount)}
-              {r.is_demo && <span className="badge ml-2 bg-purple-100 text-purple-700">DEMO</span>}
+              {r.is_demo && <span className="badge ml-2 bg-slate-200 text-slate-700">DEMO</span>}
             </div>
             <div className="flex items-center gap-2">
               <select className="input w-auto" value={r.status} onChange={(e) => run(sb.from("payment_records").update({ status: e.target.value }).eq("id", r.id))}>

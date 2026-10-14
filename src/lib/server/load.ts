@@ -3,6 +3,8 @@ import { madridDate } from "../domain/dates.ts";
 import type { Store } from "../types.ts";
 import { supabaseServer } from "../supabase/server";
 
+const STORE_COLS = "id,source_id,name,banner,chain,macro_chain,store_type,area,kam,address,town,postal_code,province,lat,lng,geocode_status,geocode_formatted,gpv,frequency,audit,notes,active,manual_overrides";
+
 export interface Settings {
   tracking_start: string;
   work_start: string;
@@ -48,7 +50,7 @@ export async function loadAllStores(): Promise<Store[]> {
   const sb = await supabaseServer();
   const out: Store[] = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await sb.from("stores").select("*").eq("active", true).order("name").range(from, from + 999);
+    const { data, error } = await sb.from("stores").select(STORE_COLS).eq("active", true).order("name").range(from, from + 999);
     if (error || !data) break;
     out.push(...(data as Store[]));
     if (data.length < 1000) break;

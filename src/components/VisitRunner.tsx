@@ -156,7 +156,7 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos }: { 
             {concepts.map((c) => (
               <label key={c.id} className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={!!checked[c.id]} disabled={c.default_amount == null} onChange={(e) => setChecked({ ...checked, [c.id]: e.target.checked })} />
-                {CONCEPTS[c.concept]} {c.default_amount != null ? `· ${c.default_amount} €` : "(sin importe)"} {c.is_demo && <span className="badge bg-purple-100 text-purple-700">DEMO</span>}
+                {CONCEPTS[c.concept]} {c.default_amount != null ? `· ${c.default_amount} €` : "(sin importe)"} {c.is_demo && <span className="badge bg-slate-200 text-slate-700">DEMO</span>}
               </label>
             ))}
           </div>

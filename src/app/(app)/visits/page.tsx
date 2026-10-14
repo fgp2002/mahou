@@ -18,7 +18,7 @@ export default async function VisitsPage() {
         <Link href="/visits/new" className="btn">Nueva visita</Link>
       </PageHeader>
       {open && (
-        <Link href={`/visits/${open.id}`} className="card block border-brand-300 bg-brand-50 text-sm">
+        <Link href={`/visits/${open.id}`} className="card block border-slate-300 bg-slate-100 text-sm">
           Visita en curso: <b>{open.stores?.name}</b> — pulsa para continuar.
         </Link>
       )}

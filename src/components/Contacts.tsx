@@ -55,7 +55,7 @@ export function Contacts({ storeId, contacts }: { storeId: string; contacts: Con
               {c.notes && <div className="text-xs text-slate-400">{c.notes}</div>}
             </div>
             <div className="flex gap-2">
-              <button className="text-brand-700 underline" onClick={() => setEditing(c)}>Editar</button>
+              <button className="underline" onClick={() => setEditing(c)}>Editar</button>
               <button className="text-red-600 underline" onClick={() => remove(c)}>Borrar</button>
             </div>
           </li>

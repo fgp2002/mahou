@@ -98,7 +98,7 @@ export function MapView({ stores }: { stores: MapStore[] }) {
   }
 
   return (
-    <div ref={wrap} className="flex h-[calc(100vh-7rem)] flex-col gap-2 bg-slate-50 md:h-[calc(100vh-3rem)]">
+    <div ref={wrap} className="flex h-[calc(100dvh-6.5rem-env(safe-area-inset-bottom))] flex-col gap-2 bg-slate-50 md:h-[calc(100dvh-3.5rem)]">
       <div className="grid grid-cols-2 gap-2 md:grid-cols-7">
         <input className="input col-span-2" placeholder="Buscar tienda o municipio…" value={q} onChange={(e) => setQ(e.target.value)} />
         <select className="input" value={state} onChange={(e) => setState(e.target.value)}>
@@ -121,7 +121,7 @@ export function MapView({ stores }: { stores: MapStore[] }) {
       </div>
       <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
         {Object.entries(COLORS).map(([k, c]) => <span key={k} className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-full" style={{ background: c }} />{STATE_LABEL[k as DueState]}</span>)}
-        <span className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-full border-2 border-indigo-600" />Audit</span>
+        <span className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-full border-2 border-slate-900" />Audit</span>
         <span>{filtered.length} de {stores.length} tiendas con ubicación</span>
         {msg && <span className="text-red-600">{msg}</span>}
       </div>
@@ -134,7 +134,7 @@ export function MapView({ stores }: { stores: MapStore[] }) {
             <p className="text-sm text-slate-500">{sel.address}{sel.postal_code ? `, ${sel.postal_code}` : ""} {sel.town}</p>
             <dl className="my-2 space-y-1 text-sm">
               <div>Estado: <b>{STATE_LABEL[sel.state]}</b></div>
-              <div>Periodicidad: {FREQ_LABEL[sel.frequency]} {sel.audit && <span className="badge bg-indigo-100 text-indigo-700">Audit</span>}</div>
+              <div>Periodicidad: {FREQ_LABEL[sel.frequency]} {sel.audit && <span className="badge bg-slate-900 text-white">Audit</span>}</div>
               <div>Última visita: {sel.lastVisit ?? "ninguna"}</div>
               {sel.deadline && sel.state !== "cumplida" && <div>Vence: {sel.deadline}</div>}
               {sel.approx && <div className="text-amber-700">Ubicación aproximada: revísala en la ficha.</div>}

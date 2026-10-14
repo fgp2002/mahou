@@ -27,7 +27,7 @@ export function StorePicker({ value, onChange }: { value: PickedStore | null; on
     return (
       <div className="flex items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
         <span>{value.name} <span className="text-slate-400">· {value.town}</span></span>
-        <button type="button" className="text-brand-700 underline" onClick={() => onChange(null)}>Cambiar</button>
+        <button type="button" className="underline" onClick={() => onChange(null)}>Cambiar</button>
       </div>
     );
   return (
