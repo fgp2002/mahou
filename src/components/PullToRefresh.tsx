@@ -15,9 +15,14 @@ export function PullToRefresh() {
   useEffect(() => {
     const root = document.querySelector(".scroll-root");
     if (!root) return;
-    const ts = (e: Event) => { y0.current = (root as HTMLElement).scrollTop <= 0 ? (e as TouchEvent).touches[0].clientY : null; };
+    const ts = (e: Event) => {
+      // Dentro de un mapa (o de cualquier zona marcada) el gesto es del mapa: no se actualiza la página.
+      const t = e.target as Element | null;
+      if (t?.closest?.(".leaflet-container, .map-touch, [data-no-ptr]") || (e as TouchEvent).touches.length > 1) { y0.current = null; return; }
+      y0.current = (root as HTMLElement).scrollTop <= 0 ? (e as TouchEvent).touches[0].clientY : null;
+    };
     const tm = (e: Event) => {
-      if (y0.current == null) return;
+      if (y0.current == null || (e as TouchEvent).touches.length > 1) { if (pullRef.current) { pullRef.current = 0; setPull(0); } y0.current = null; return; }
       const d = (e as TouchEvent).touches[0].clientY - y0.current;
       if (d <= 0) { pullRef.current = 0; setPull(0); return; }
       pullRef.current = Math.min(90, d * 0.5);
