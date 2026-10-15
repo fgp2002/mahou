@@ -3,7 +3,7 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import clsx from "clsx";
-import { Sun, Store, Map, ClipboardList, Route, BarChart3, Settings, LogOut, Ellipsis, X, Plus, ChevronDown } from "lucide-react";
+import { Sun, Store, Map, ClipboardList, Route, BarChart3, Settings, LogOut, Ellipsis, X, Plus, ChevronDown, Wallet } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Ico = typeof Sun;
@@ -15,6 +15,7 @@ const GROUPS: Group[] = [
   { label: "Planificación", icon: Route, items: [{ href: "/map", label: "Mapa" }, { href: "/routes", label: "Rutas" }] },
   { label: "Tiendas", icon: Store, items: [{ href: "/stores", label: "Listado" }, { href: "/stores/new", label: "Nueva tienda" }] },
   { label: "Visitas", icon: ClipboardList, items: [{ href: "/visits", label: "Historial" }, { href: "/visits/new", label: "Nueva visita" }, { href: "/gallery", label: "Galería" }] },
+  { label: "Pagos", icon: Wallet, items: [{ href: "/payments", label: "Desglose por tipo" }] },
   { label: "Informes", icon: BarChart3, items: [{ href: "/stats", label: "Estadísticas" }] },
   { label: "Ajustes", icon: Settings, items: [{ href: "/settings?tab=jornada", label: "Jornada" }, { href: "/settings?tab=catalogo", label: "Catálogo" }, { href: "/settings?tab=app", label: "App y cuenta" }] },
 ];

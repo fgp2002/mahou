@@ -9,7 +9,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 export interface AlertItem { id: string; message: string; severity: string }
 interface Hit { id: string; name: string; town: string | null; banner: string | null }
 
-const TITLES: [string, string][] = [["/map", "Mapa"], ["/stores", "Tiendas"], ["/visits", "Visitas"], ["/gallery", "Galería"], ["/routes", "Rutas"], ["/stats", "Estadísticas"], ["/settings", "Ajustes"]];
+const TITLES: [string, string][] = [["/map", "Mapa"], ["/stores", "Tiendas"], ["/visits", "Visitas"], ["/gallery", "Galería"], ["/payments", "Pagos"], ["/routes", "Rutas"], ["/stats", "Estadísticas"], ["/settings", "Ajustes"]];
 
 /** Barra superior fija: título que aparece al bajar, búsqueda global y campana de alertas. */
 export function TopBar({ unread, alerts }: { unread: number; alerts: AlertItem[] }) {

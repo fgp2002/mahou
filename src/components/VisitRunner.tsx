@@ -6,6 +6,8 @@ import { VISIT_TYPES, type Visit } from "@/lib/types";
 import { eur, type PaymentType } from "@/lib/payments";
 import { NewTypeInline } from "./NewTypeInline";
 import { toast } from "./Toast";
+import { VisitPayments, type VisitPayment } from "./VisitPayments";
+import { Pencil } from "lucide-react";
 import { PhotoTags, type PhotoTag } from "./PhotoTags";
 import { madridDate } from "@/lib/domain/dates";
 import type { Contact } from "./Contacts";
@@ -31,7 +33,7 @@ function activeTypesDefaults(ts: PaymentType[]): number[] {
   return ts.filter((t) => t.active && t.default_amount != null).map((t) => Number(t.default_amount)).sort((a, b) => a - b);
 }
 
-export function VisitRunner({ visit, storeName, contacts, concepts, photos, types, suggestedNext, tags }: { visit: Visit; storeName: string; contacts: Contact[]; concepts: PConcept[]; photos: PhotoView[]; types: PaymentType[]; suggestedNext: string | null; tags: PhotoTag[] }) {
+export function VisitRunner({ visit, storeName, contacts, concepts, photos, types, suggestedNext, tags, payments = [] }: { visit: Visit; storeName: string; contacts: Contact[]; concepts: PConcept[]; photos: PhotoView[]; types: PaymentType[]; suggestedNext: string | null; tags: PhotoTag[]; payments?: VisitPayment[] }) {
   const router = useRouter();
   const sb = supabaseBrowser();
   const running = visit.status === "in_progress";
@@ -44,7 +46,9 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
   const [extras, setExtras] = useState<{ typeId: string; amount: string }[]>([]);
   const [localTypes, setLocalTypes] = useState(types);
   const [step, setStep] = useState(0);
-  const vis = (n: number) => !running || step === n;
+  const [editing, setEditing] = useState(false);
+  const [meta, setMeta] = useState({ date: visit.visit_date, minutes: visit.duration_minutes != null ? String(visit.duration_minutes) : "" });
+  const vis = (n: number) => (running ? step === n : editing);
   const chips = [...new Set(activeTypesDefaults(types))].slice(0, 5);
   const [allTags, setAllTags] = useState(tags);
   const [photoTagIds, setPhotoTagIds] = useState<Record<string, string[]>>(() => Object.fromEntries(photos.map((p) => [p.id, p.tagIds])));
@@ -135,11 +139,19 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
   }
 
   async function saveEdits() {
+    const mins = meta.minutes.trim() === "" ? null : Number(meta.minutes);
+    if (mins != null && (!Number.isInteger(mins) || mins < 0 || mins > 1440)) return setErr("La duración debe ser un número de minutos.");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(meta.date)) return setErr("La fecha no es válida.");
     setBusy(true);
-    const { error } = await sb.from("visits").update({ result: f.result || null, notes: f.notes || null, incidents: f.incidents || null, items_reviewed: f.items || null }).eq("id", visit.id);
+    const { error } = await sb.from("visits").update({
+      result: f.result || null, notes: f.notes || null, incidents: f.incidents || null, items_reviewed: f.items || null,
+      visit_date: meta.date, duration_minutes: mins,
+    }).eq("id", visit.id);
     setBusy(false);
     setErr(error?.message ?? null);
-    if (error) toast("No se pudo guardar", "error"); else toast("Cambios guardados");
+    if (error) return toast("No se pudo guardar", "error");
+    toast("Visita actualizada");
+    setEditing(false);
     router.refresh();
   }
 
@@ -157,6 +169,54 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
         )}
         <div className="text-xs text-slate-400">{visit.visit_date}{visit.is_manual ? " · registro manual" : ""}</div>
       </div>
+
+      {!running && !editing && (
+        <>
+          <div className="card space-y-4 fade-in">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="font-semibold">Resumen de la visita</h2>
+              <button className="btn-secondary" onClick={() => setEditing(true)}><Pencil size={15} /> Editar visita</button>
+            </div>
+            <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+              <div><dt className="text-xs text-slate-500">Fecha</dt><dd className="font-semibold">{visit.visit_date.slice(8, 10)}/{visit.visit_date.slice(5, 7)}/{visit.visit_date.slice(0, 4)}</dd></div>
+              <div><dt className="text-xs text-slate-500">Duración</dt><dd className="font-semibold">{visit.duration_minutes != null ? `${visit.duration_minutes} min` : "—"}</dd></div>
+              <div><dt className="text-xs text-slate-500">Atendió</dt><dd className="font-semibold">{visit.contact_name_snapshot ?? "—"}</dd></div>
+            </dl>
+            {([["Resultado", visit.result], ["Productos / elementos revisados", visit.items_reviewed], ["Incidencias", visit.incidents], ["Notas", visit.notes]] as const).filter(([, v]) => v).map(([l, v]) => (
+              <div key={l}><div className="text-xs font-semibold text-slate-500">{l}</div><p className="whitespace-pre-line text-sm">{v}</p></div>
+            ))}
+            {!visit.result && !visit.items_reviewed && !visit.incidents && !visit.notes && <p className="text-sm text-slate-500">Sin notas.</p>}
+          </div>
+          <VisitPayments visitId={visit.id} storeId={visit.store_id} payments={payments} types={localTypes} editable={false} />
+          <div className="card space-y-3">
+            <h2 className="font-semibold">Fotos ({photos.length})</h2>
+            {photos.length === 0 ? <p className="text-sm text-slate-500">Sin fotos.</p> : (
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {photos.map((p) => (
+                  <div key={p.id}>
+                    {p.url ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={p.url} alt="Foto de la visita" loading="lazy" className="aspect-square w-full rounded-lg object-cover" /> : <div className="aspect-square rounded-lg bg-slate-100" />}
+                    <div className="mt-1 truncate text-[11px] text-slate-500">{(photoTagIds[p.id] ?? []).map((id) => allTags.find((t) => t.id === id)?.name).filter(Boolean).join(" · ")}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {editing && (
+        <div className="card space-y-3 fade-in">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-semibold">Editando visita</h2>
+            <button className="btn-secondary" onClick={() => setEditing(false)} disabled={busy}>Cancelar</button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="label" htmlFor="ev-date">Fecha</label><input id="ev-date" type="date" className="input" value={meta.date} onChange={(e) => setMeta({ ...meta, date: e.target.value })} /></div>
+            <div><label className="label" htmlFor="ev-min">Duración (min)</label><input id="ev-min" className="input" inputMode="numeric" value={meta.minutes} onChange={(e) => setMeta({ ...meta, minutes: e.target.value.replace(/\D/g, "") })} /></div>
+          </div>
+        </div>
+      )}
+      {editing && <VisitPayments visitId={visit.id} storeId={visit.store_id} payments={payments} types={localTypes} editable />}
 
       {running && (
         <ol className="flex items-center gap-2" aria-label="Pasos de la visita">
@@ -198,7 +258,7 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
       </div>
       )}
 
-      {(!running || step > 0) && (
+      {(running ? step > 0 : editing) && (
       <div className="card space-y-3 fade-in">
         <h2 className="font-medium">{running ? STEPS[step] : "Datos de la visita"}</h2>
         {vis(2) && running && contacts.length > 0 && (
@@ -269,7 +329,7 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
             <input type="date" className="input" value={next} onChange={(e) => setNext(e.target.value)} />
           </div>
         )}
-        {err && (!running || step > 0) && <p className="text-sm text-red-600">{err}</p>}
+        {err && (running ? step > 0 : editing) && <p className="text-sm text-red-600">{err}</p>}
         {running && step === 2 ? (
           <div className="flex gap-2">
             <button className="btn-secondary" onClick={() => setStep(1)}>Atrás</button>
