@@ -4,10 +4,10 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { loadPaymentTypes } from "@/lib/server/load";
 import { PageHeader, EmptyState } from "@/components/ui";
 import { PaymentTypeDetail, type InstallRow } from "@/components/PaymentTypeDetail";
+import { eur } from "@/lib/format";
 
 export const metadata = { title: "Pagos · Mahou" };
 
-const eur = (n: number) => n.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
 async function fetchAll<T>(q: (from: number, to: number) => PromiseLike<{ data: T[] | null }>): Promise<T[]> {
   const out: T[] = [];

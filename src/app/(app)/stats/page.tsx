@@ -6,12 +6,12 @@ import { PageHeader, Kpi, EmptyState } from "@/components/ui";
 import { FREQ_LABEL } from "@/lib/types";
 import { addDays, madridDate, weekStart } from "@/lib/domain/dates";
 import { STATE_LABEL, type DueState } from "@/lib/domain/periodicity";
+import { eur, MONTHS_SHORT as MONTHS } from "@/lib/format";
 
 const STATE_COLOR: Record<DueState, string> = {
   cumplida: "bg-st-ok", pendiente: "bg-st-pend", proxima: "bg-st-soon", atrasada: "bg-st-late", sin_obligacion: "bg-st-none",
 };
 const ORDER: DueState[] = ["cumplida", "pendiente", "proxima", "atrasada", "sin_obligacion"];
-const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
 function Columns({ data }: { data: { label: string; value: number; current?: boolean }[] }) {
   const max = Math.max(1, ...data.map((d) => d.value));
@@ -98,7 +98,6 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
     m.set(key, (m.get(key) ?? 0) + Number(p.amount));
     payAgg.set(p.status, m);
   }
-  const eur = (n: number) => n.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
   const tot = (st: string) => [...(payAgg.get(st)?.values() ?? [])].reduce((a, b) => a + b, 0);
   const qs = (o: Record<string, string | undefined>) => {
     const u = new URLSearchParams();

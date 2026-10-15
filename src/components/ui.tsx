@@ -10,7 +10,7 @@ export const STATE_STYLE: Record<DueState, string> = {
 };
 
 export function StateBadge({ state }: { state: DueState }) {
-  return <span className={clsx("badge font-bold", STATE_STYLE[state])}>{STATE_LABEL[state]}</span>;
+  return <span className={clsx("badge font-bold", STATE_STYLE[state])}>{state === "atrasada" && <span aria-hidden className="mr-0.5">⚠</span>}{STATE_LABEL[state]}</span>;
 }
 
 export function Kpi({ label, value, hint, tone }: { label: string; value: React.ReactNode; hint?: string; tone?: "red" | "green" | "amber" }) {

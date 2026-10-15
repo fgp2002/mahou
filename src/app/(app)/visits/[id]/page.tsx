@@ -20,7 +20,7 @@ export default async function VisitPage({ params }: { params: Promise<{ id: stri
     sb.from("stores").select("id,name,frequency").eq("id", visit.store_id).single(),
     sb.from("store_contacts").select("*").eq("store_id", visit.store_id),
     sb.from("payment_concepts").select("*").eq("store_id", visit.store_id).eq("status", "activo"),
-    sb.from("visit_photos").select("id,storage_path,caption").eq("visit_id", id).order("created_at"),
+    sb.from("visit_photos").select("id,storage_path,thumb_path,caption").eq("visit_id", id).order("created_at"),
     sb.from("photo_tags").select("id,kind,name").order("name"),
   ]);
   const { data: pays } = await sb.from("payment_records").select("id,payment_type_id,concept,concept_name,amount,status,payment_date,is_demo,brand_id,brand_name").eq("visit_id", id).order("created_at");
@@ -28,10 +28,10 @@ export default async function VisitPage({ params }: { params: Promise<{ id: stri
   const { data: links } = photoIds.length ? await sb.from("visit_photo_tags").select("photo_id,tag_id").in("photo_id", photoIds) : { data: [] };
   const tagsByPhoto = new Map<string, string[]>();
   for (const l of links ?? []) tagsByPhoto.set(l.photo_id, [...(tagsByPhoto.get(l.photo_id) ?? []), l.tag_id]);
-  const paths = (ph ?? []).map((p) => p.storage_path);
+  const paths = (ph ?? []).flatMap((p) => [p.storage_path, p.thumb_path].filter(Boolean) as string[]);
   const { data: signed } = paths.length ? await sb.storage.from("visit-photos").createSignedUrls(paths, 3600) : { data: [] };
   const urlByPath = new Map((signed ?? []).map((x) => [x.path, x.signedUrl]));
-  const photos: PhotoView[] = (ph ?? []).map((p) => ({ id: p.id, url: urlByPath.get(p.storage_path) ?? null, caption: p.caption, tagIds: tagsByPhoto.get(p.id) ?? [] }));
+  const photos: PhotoView[] = (ph ?? []).map((p) => ({ id: p.id, url: urlByPath.get(p.storage_path) ?? null, thumb: p.thumb_path ? urlByPath.get(p.thumb_path) ?? null : null, caption: p.caption, tagIds: tagsByPhoto.get(p.id) ?? [] }));
   return (
     <div>
       <PageHeader title="Visita">

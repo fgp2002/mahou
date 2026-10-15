@@ -9,7 +9,7 @@ export function slugify(name: string): string {
   return name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40) || "tipo";
 }
 
-export const eur = (n: number) => n.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
+export { eur } from "./format";
 
 /** Crea un tipo de pago evitando duplicados por nombre (sin distinguir mayúsculas ni espacios extra). */
 export async function createPaymentType(sb: SupabaseClient, input: { name: string; default_amount?: number | null; category?: string | null }) {

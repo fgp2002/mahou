@@ -5,13 +5,12 @@ import clsx from "clsx";
 import { ChevronRight, Search } from "lucide-react";
 import { MultiFilter } from "./MultiFilter";
 import { EmptyState } from "./ui";
+import { eur, dmy } from "@/lib/format";
 
 export interface InstallRow {
   key: string; storeId: string; store: string; town: string | null; banner: string | null; brand: string | null;
   installed: boolean; amount: number | null; paid: number; payments: number; last: string | null;
 }
-const eur = (n: number) => n.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
-const dmy = (d: string | null) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : "—");
 const NO_BRAND = "Sin marca";
 const opts = (xs: (string | null)[], fallback?: string): [string, string][] =>
   [...new Set(xs.map((x) => x ?? fallback ?? "").filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")).map((x) => [x, x]);

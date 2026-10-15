@@ -27,11 +27,11 @@ const STORE_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" s
 function escapeAttr(s: string) { return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!)); }
 
 function pinHtml(s: MapStore, picked = false): string {
-  const ring = picked ? "0 0 0 3px #fff, 0 0 0 7px rgb(91 79 233), 0 4px 14px rgb(0 0 0 / .5)" : s.audit ? `0 0 0 3px ${COLORS[s.state]}, 0 0 0 5.5px #111` : `0 0 0 3px ${COLORS[s.state]}`;
+  const ring = picked ? "0 0 0 3px #fff, 0 0 0 7px #CE1A2B, 0 4px 14px rgb(0 0 0 / .5)" : s.audit ? `0 0 0 3px ${COLORS[s.state]}, 0 0 0 5.5px #111` : `0 0 0 3px ${COLORS[s.state]}`;
   const inner = s.logo
     ? `<img src="${escapeAttr(s.logo)}" alt="" decoding="async" draggable="false" style="width:24px;height:24px;object-fit:contain;pointer-events:none" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/><span style="display:none">${STORE_SVG}</span>`
     : STORE_SVG;
-  const badge = picked ? '<span style="position:absolute;top:-8px;right:-8px;width:18px;height:18px;border-radius:50%;background:rgb(91 79 233);color:#fff;font:800 11px/18px system-ui;text-align:center;border:2px solid #fff">✓</span>' : "";
+  const badge = picked ? '<span style="position:absolute;top:-8px;right:-8px;width:18px;height:18px;border-radius:50%;background:#CE1A2B;color:#fff;font:800 11px/18px system-ui;text-align:center;border:2px solid #fff">✓</span>' : "";
   return `<div style="position:relative;width:34px;height:34px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:${ring}${s.approx && !picked ? ";opacity:.8" : ""}">${inner}${badge}</div>`;
 }
 

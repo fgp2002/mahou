@@ -6,6 +6,7 @@ import { Camera, Search } from "lucide-react";
 import { VISIT_TYPES } from "@/lib/types";
 import { MultiFilter } from "./MultiFilter";
 import { EmptyState } from "./ui";
+import { MONTHS } from "@/lib/format";
 
 export interface VisitRow {
   id: string; date: string; status: string; type: string; minutes: number | null; manual: boolean; note: string | null;
@@ -16,7 +17,6 @@ const ST: Record<string, string> = { planned: "Planificada", in_progress: "En cu
 const ST_STYLE: Record<string, string> = {
   completed: "bg-st-ok text-[#fff]", in_progress: "bg-brand-600 text-[rgb(var(--on-accent))]", cancelled: "bg-st-none text-[#fff]", planned: "bg-slate-200 text-slate-700",
 };
-const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 const uniq = (xs: (string | null)[]): [string, string][] => [...new Set(xs.filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, "es")).map((x) => [x, x]);
 
 /** Historial de visitas de todas las tiendas, agrupado por mes, con búsqueda y filtros. */

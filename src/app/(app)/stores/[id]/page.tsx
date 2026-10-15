@@ -13,8 +13,8 @@ import { Contacts } from "@/components/Contacts";
 import { Payments } from "@/components/Payments";
 import { QuickNote } from "@/components/QuickNote";
 import { FREQ_LABEL, VISIT_TYPES, type Store, type Visit } from "@/lib/types";
+import { eur, dmy } from "@/lib/format";
 
-const dmy = (d: string | null) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : "—");
 
 export default async function StorePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -37,7 +37,6 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
   const ob = computeObligation(s.frequency, madridDate(), done, { trackingStart: settings.tracking_start });
   const logoSrc = logo?.storage_path ? logoUrl(logo.storage_path) : null;
   const totalPaid = (records ?? []).reduce((a, r) => a + (r.status === "abonado" ? Number(r.amount) : 0), 0);
-  const eur = (n: number) => n.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">

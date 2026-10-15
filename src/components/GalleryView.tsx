@@ -3,8 +3,9 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Images, X } from "lucide-react";
 import { MultiFilter } from "./MultiFilter";
+import { supabaseBrowser } from "@/lib/supabase/client";
 
-export interface GalleryPhoto { id: string; url: string | null; date: string; visitId: string; storeId: string; store: string; town: string; banner: string; tagIds: string[] }
+export interface GalleryPhoto { id: string; url: string | null; path: string; date: string; visitId: string; storeId: string; store: string; town: string; banner: string; tagIds: string[] }
 interface Tag { id: string; kind: "product" | "promo"; name: string }
 
 const uniq = (a: string[]) => [...new Set(a.filter(Boolean))].sort((x, y) => x.localeCompare(y, "es"));
@@ -12,7 +13,16 @@ const uniq = (a: string[]) => [...new Set(a.filter(Boolean))].sort((x, y) => x.l
 export function GalleryView({ photos, tags }: { photos: GalleryPhoto[]; tags: Tag[] }) {
   const empty = { store: [] as string[], banner: [] as string[], product: [] as string[], promo: [] as string[], from: "", to: "" };
   const [f, setF] = useState(empty);
-  const [open, setOpen] = useState<GalleryPhoto | null>(null);
+  const [open, setOpenRaw] = useState<GalleryPhoto | null>(null);
+  const [full, setFull] = useState<string | null>(null);
+  // La cuadrícula usa miniaturas; la foto completa solo se pide al abrirla.
+  async function setOpen(p: GalleryPhoto | null) {
+    setOpenRaw(p);
+    setFull(null);
+    if (!p) return;
+    const { data } = await supabaseBrowser().storage.from("visit-photos").createSignedUrl(p.path, 3600);
+    setFull(data?.signedUrl ?? null);
+  }
   const tagById = new Map(tags.map((t) => [t.id, t]));
   const stores = useMemo(() => [...new Map(photos.filter((p) => p.storeId).map((p) => [p.storeId, `${p.store}${p.town ? " · " + p.town : ""}`])).entries()].sort((a, b) => a[1].localeCompare(b[1], "es")), [photos]);
   const banners = useMemo(() => uniq(photos.map((p) => p.banner)), [photos]);
@@ -68,7 +78,7 @@ export function GalleryView({ photos, tags }: { photos: GalleryPhoto[]; tags: Ta
         <div className="fixed inset-0 z-[60] flex flex-col bg-black/90 p-4 pt-[max(1rem,env(safe-area-inset-top))]" role="dialog" aria-label="Foto" onClick={() => setOpen(null)}>
           <button aria-label="Cerrar" className="self-end rounded-full bg-white/15 p-2 text-white" onClick={() => setOpen(null)}><X size={22} /></button>
           <div className="flex min-h-0 flex-1 items-center justify-center" onClick={(e) => e.stopPropagation()}>
-            {open.url && /* eslint-disable-next-line @next/next/no-img-element */ <img src={open.url} alt={open.store} className="max-h-full max-w-full rounded-xl object-contain" />}
+            {(full ?? open.url) && /* eslint-disable-next-line @next/next/no-img-element */ <img src={(full ?? open.url)!} alt={open.store} className="max-h-full max-w-full rounded-xl object-contain" />}
           </div>
           <div className="space-y-2 pt-3 text-center text-sm text-white" onClick={(e) => e.stopPropagation()}>
             <div><b>{open.store}</b> {open.town && `· ${open.town}`} · {open.date}</div>
