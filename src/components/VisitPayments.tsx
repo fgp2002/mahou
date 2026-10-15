@@ -91,20 +91,20 @@ export function VisitPayments({ visitId, storeId, payments, types, editable }: {
         ))}
       </ul>
       {editable && (
-        <div className="flex flex-wrap items-end gap-2 border-t border-slate-100 pt-3">
-          <div className="min-w-0 flex-1 basis-40">
+        <div className="grid grid-cols-2 items-end gap-3 border-t border-slate-100 pt-3 sm:grid-cols-[1fr_1fr_6rem_8rem_auto]">
+          <div className="col-span-2 min-w-0 sm:col-span-1">
             <label className="label" htmlFor="vp-type">Añadir pago</label>
             <select id="vp-type" className="input" value={add.typeId} onChange={(e) => { const t = byId.get(e.target.value); setAdd({ ...add, typeId: e.target.value, amount: add.amount || (t?.default_amount != null ? String(t.default_amount) : "") }); }}>
               <option value="">Elige tipo…</option>
               {types.filter((t) => t.active).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </div>
-          <div className="min-w-0 flex-1 basis-36"><BrandSelect label="Marca" value={brand?.id ?? null} onChange={setBrand} /></div>
-          <input className="input w-24" inputMode="decimal" placeholder="€" aria-label="Importe" value={add.amount} onChange={(e) => setAdd({ ...add, amount: e.target.value })} />
-          <select className="input w-36" value={add.status} onChange={(e) => setAdd({ ...add, status: e.target.value })} aria-label="Estado">
+          <div className="col-span-2 min-w-0 sm:col-span-1"><BrandSelect label="Marca" value={brand?.id ?? null} onChange={setBrand} /></div>
+          <div className="min-w-0"><label className="label" htmlFor="vp-amt">Importe (€)</label><input id="vp-amt" className="input" inputMode="decimal" placeholder="0,00" value={add.amount} onChange={(e) => setAdd({ ...add, amount: e.target.value })} /></div>
+          <div className="min-w-0"><label className="label" htmlFor="vp-st">Estado</label><select id="vp-st" className="input" value={add.status} onChange={(e) => setAdd({ ...add, status: e.target.value })} aria-label="Estado">
             {Object.entries(ST).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-          </select>
-          <button className="btn" disabled={busy || !add.typeId} onClick={addPayment}><Plus size={16} /> Añadir</button>
+          </select></div>
+          <button className="btn col-span-2 sm:col-span-1" disabled={busy || !add.typeId} onClick={addPayment}><Plus size={16} /> Añadir</button>
         </div>
       )}
     </section>

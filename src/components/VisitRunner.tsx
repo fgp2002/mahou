@@ -340,10 +340,15 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
             <button className="btn flex-1" onClick={finish} disabled={busy}>Finalizar visita</button>
             <button className="btn-secondary" onClick={cancel}>Cancelar</button>
           </div>
-        ) : !running ? (
-          <button className="btn" onClick={saveEdits} disabled={busy}>Guardar cambios</button>
         ) : null}
       </div>
+      )}
+
+      {editing && (
+        <div className="sticky bottom-[calc(6rem+env(safe-area-inset-bottom))] z-30 flex gap-2 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-pop backdrop-blur md:bottom-4">
+          <button className="btn-secondary" onClick={() => setEditing(false)} disabled={busy}>Cancelar</button>
+          <button className="btn flex-1" onClick={saveEdits} disabled={busy}>{busy ? "Guardando…" : "Guardar cambios"}</button>
+        </div>
       )}
     </div>
   );

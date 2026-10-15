@@ -90,17 +90,17 @@ export function Payments({ storeId, concepts, records, types }: { storeId: strin
         ))}
         {concepts.length === 0 && <li className="py-3 text-sm text-slate-500">Esta tienda no tiene conceptos de pago configurados.</li>}
       </ul>
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="min-w-40 flex-1">
+      <div className="grid grid-cols-2 items-end gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-[1fr_1fr_7rem_auto]">
+        <div className="col-span-2 min-w-0 sm:col-span-1">
           <label className="label">Tipo de pago</label>
           <select className="input" value={creating ? NEW : typeId} onChange={(e) => pickType(e.target.value)}>
             {active.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             <option value={NEW}>＋ Nuevo tipo de pago…</option>
           </select>
         </div>
-        <div className="min-w-36 flex-1"><BrandSelect value={brand?.id ?? null} onChange={setBrand} label="Marca" /></div>
-        <div className="w-28"><label className="label">Importe (€)</label><input className="input" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
-        <button className="btn" onClick={addConcept}>Añadir a la tienda</button>
+        <BrandSelect value={brand?.id ?? null} onChange={setBrand} label="Marca" />
+        <div className="min-w-0"><label className="label">Importe (€)</label><input className="input" inputMode="decimal" placeholder="0,00" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
+        <button className="btn col-span-2 sm:col-span-1" onClick={addConcept}>Añadir a la tienda</button>
       </div>
       {creating && <NewTypeInline onCancel={() => setCreating(false)} onCreated={(t) => { setCreating(false); setTypeId(t.id); if (t.default_amount != null) setAmount(String(t.default_amount)); router.refresh(); }} />}
 

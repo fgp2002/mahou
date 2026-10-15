@@ -50,7 +50,7 @@ body { @apply bg-slate-50 text-slate-900 antialiased; touch-action: pan-y pinch-
 /* Lo único que puede desplazarse en horizontal son las tablas, y solo dentro de su caja. */
 .h-scroll { overflow-x: auto; overscroll-behavior-x: contain; touch-action: pan-x pan-y pinch-zoom; }
 /* Los hijos de rejillas y filas pueden encogerse: evita que un campo ensanche la pantalla. */
-.grid > *, .flex > * { min-width: 0; }
+:where(.grid, .flex) > * { min-width: 0; }
 input, select, textarea { max-width: 100%; }
 /* iOS dibuja fecha/hora con un ancho propio: se fuerza a ocupar solo su celda. */
 input[type="date"], input[type="time"] { -webkit-appearance: none; appearance: none; min-width: 0; width: 100%; display: block; text-align: left; }
