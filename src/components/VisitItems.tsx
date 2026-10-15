@@ -17,8 +17,13 @@ export function VisitItems({ visitId, initial, editable }: { visitId: string; in
 
   useEffect(() => {
     if (!editable) return;
-    sb.from("products").select("id,name,reference").eq("active", true).order("name").then(({ data }) => setProducts((data ?? []) as Prod[]));
-  }, [editable, sb]);
+    let live = true;
+    (async () => {
+      const res = await supabaseBrowser().from("products").select("id,name,reference").eq("active", true).order("name");
+      if (live) setProducts((res.data ?? []) as Prod[]);
+    })();
+    return () => { live = false; };
+  }, [editable]);
 
   async function add() {
     const p = products.find((x) => x.id === pick);
