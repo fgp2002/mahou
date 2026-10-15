@@ -7,6 +7,7 @@ import { StateBadge, Ring, FeasibilityCard } from "@/components/ui";
 import { loadFeasibility } from "@/lib/server/feasibility";
 import { StartVisitButton } from "@/components/StartVisitButton";
 import { GenerateRoute } from "@/components/GenerateRoute";
+import { OfflineWarmup } from "@/components/OfflineWarmup";
 
 interface Stop {
   id: string; store_id: string; position: number; planned_arrival: string | null; planned_minutes: number;
@@ -60,6 +61,7 @@ export default async function Today() {
       </header>
 
       <FeasibilityCard f={feas} compact />
+      {route && <OfflineWarmup urls={[`/routes/${today}`, ...stops.map((s) => `/stores/${s.store_id}`)]} />}
 
       {open && (
         <Link href={`/visits/${open.id}`} className="card tap flex items-center justify-between gap-3 !bg-slate-900 !text-white">

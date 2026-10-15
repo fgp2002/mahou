@@ -6,6 +6,8 @@ import { VISIT_TYPES, type Visit } from "@/lib/types";
 import { eur, type PaymentType } from "@/lib/payments";
 import { NewTypeInline } from "./NewTypeInline";
 import { BrandSelect } from "./BrandSelect";
+import { enqueue, isNetworkError } from "@/lib/offline/outbox";
+import { savePhotoOffline } from "@/lib/offline/visit";
 import { toast } from "./Toast";
 import { VisitPayments, type VisitPayment } from "./VisitPayments";
 import { VisitItems, type VisitItem } from "./VisitItems";
@@ -91,7 +93,13 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
       }
       router.refresh();
     } catch (e) {
-      setErr("No se pudo subir la foto: " + (e as Error).message);
+      if (isNetworkError(e)) {
+        // Sin red: las fotos se guardan en el móvil y se suben solas al volver la conexión.
+        try {
+          for (const file of Array.from(files)) await savePhotoOffline(visit.id, file);
+          toast(`Sin conexión: ${files.length} foto${files.length === 1 ? "" : "s"} guardada${files.length === 1 ? "" : "s"} en el móvil`);
+        } catch (e2) { setErr((e2 as Error).message); }
+      } else setErr("No se pudo subir la foto: " + (e as Error).message);
     }
     setBusy(false);
   }
@@ -110,12 +118,15 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
     const started = visit.started_at ? new Date(visit.started_at).getTime() : Date.now();
     const minutes = Math.max(0, Math.round((Date.now() - started) / 60000));
     const c = contacts.find((x) => x.id === f.contact);
-    const { error } = await sb.from("visits").update({
+    const finishValues = {
       status: "completed", ended_at: new Date().toISOString(), duration_minutes: minutes,
       result: f.result || null, notes: f.notes || null, incidents: f.incidents || null, items_reviewed: f.items || null,
       next_visit_recommended: next || null, contact_id: c?.id ?? null, contact_name_snapshot: c?.full_name ?? null, contact_role_snapshot: c?.role ?? null,
-    }).eq("id", visit.id);
-    if (error) { setBusy(false); return setErr(error.message); }
+    };
+    const { error } = navigator.onLine ? await sb.from("visits").update(finishValues).eq("id", visit.id) : { error: new Error("offline") };
+    const offline = !!error && isNetworkError(error);
+    if (error && !offline) { setBusy(false); return setErr(error.message); }
+    if (offline) await enqueue({ kind: "update", table: "visits", id: visit.id, values: finishValues, label: "Fin de visita" });
     const priceOf = (x: (typeof concepts)[number]) => {
       const raw = amounts[x.id] ?? String((x.payment_type_id && typeById.get(x.payment_type_id)?.default_amount) ?? x.default_amount ?? "");
       const n = Number(raw.replace(",", "."));
@@ -132,11 +143,18 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
       if (!t || ex.amount.trim() === "" || !Number.isFinite(amt) || amt < 0) continue;
       const bId = ex.brandId ?? null, bName = ex.brandName ?? null;
       let conceptId = concepts.find((c) => c.payment_type_id === t.id && (c.brand_id ?? null) === bId && c.status === "activo")?.id;
-      if (!conceptId) {
+      if (!conceptId && !offline) {
         const ins = await sb.from("payment_concepts").insert({ store_id: visit.store_id, concept: t.code, payment_type_id: t.id, default_amount: amt, brand_id: bId, brand_name: bName }).select("id").single();
         conceptId = ins.data?.id;
       }
       recs.push({ store_id: visit.store_id, concept_id: conceptId ?? null, concept: t.code, concept_name: t.name, payment_type_id: t.id, visit_id: visit.id, amount: amt, payment_date: madridDate(), status: "comprobado", is_demo: false, brand_id: bId, brand_name: bName });
+    }
+    if (offline) {
+      for (const r of recs) await enqueue({ kind: "insert", table: "payment_records", values: { id: crypto.randomUUID(), ...r }, label: `Pago ${r.concept_name}` });
+      setBusy(false);
+      toast("Sin conexión: visita guardada en el móvil. Se enviará al volver la red.");
+      router.push("/");
+      return;
     }
     if (recs.length) {
       const pr = await sb.from("payment_records").insert(recs);

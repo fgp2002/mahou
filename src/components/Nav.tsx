@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { Sun, Store, Map, ClipboardList, Route, BarChart3, Settings, LogOut, Ellipsis, X, Plus, ChevronDown, Wallet } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { clearOfflineData } from "@/lib/offline/db";
 
 type Ico = typeof Sun;
 interface Item { href: string; label: string }
@@ -55,6 +56,8 @@ export function Nav({ unread }: { unread: number }) {
   useEffect(() => setMore(false), [path]);
 
   async function logout() {
+    // Al salir se borra todo lo guardado en el dispositivo (páginas, cola y datos).
+    await clearOfflineData();
     await supabaseBrowser().auth.signOut();
     router.replace("/login");
     router.refresh();

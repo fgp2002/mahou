@@ -6,6 +6,9 @@ import { StorePicker, type PickedStore } from "./StorePicker";
 import { NearbyStores } from "./NearbyStores";
 import { VISIT_TYPES } from "@/lib/types";
 import { madridDate } from "@/lib/domain/dates";
+import { enqueue, isNetworkError } from "@/lib/offline/outbox";
+import { startOfflineVisit } from "@/lib/offline/visit";
+import { toast } from "./Toast";
 
 export function NewVisit({ initialStore, durations }: { initialStore: PickedStore | null; durations: Record<string, number> }) {
   const router = useRouter();
@@ -26,18 +29,33 @@ export function NewVisit({ initialStore, durations }: { initialStore: PickedStor
     setBusy(true);
     setErr(null);
     const sb = supabaseBrowser();
-    let row: Record<string, unknown>;
+    const offline = async () => {
+      // Sin red: se guarda en el móvil y se envía al volver la conexión.
+      if (manual) {
+        await enqueue({ kind: "insert", table: "visits", label: "Visita manual", values: { id: crypto.randomUUID(), ...row } });
+        toast("Sin conexión: visita guardada en el móvil");
+        router.replace("/");
+      } else {
+        const id = await startOfflineVisit({ storeId: store!.id, storeName: store!.name, minutes: planned });
+        window.location.assign(`/offline/visit?id=${id}`);
+      }
+    };
+    let row: Record<string, unknown> = {};
     if (manual) {
       const m = Number(minutes);
       if (!Number.isFinite(m) || m < 0) { setBusy(false); return setErr("Duración no válida."); }
       if (date > madridDate()) { setBusy(false); return setErr("La fecha no puede ser futura."); }
       row = { store_id: store.id, visit_type: type, visit_date: date, status: "completed", is_manual: true, duration_minutes: Math.round(m), planned_minutes: planned, notes: notes || null };
     } else {
-      const { data: open } = await sb.from("visits").select("id").eq("status", "in_progress").limit(1);
+      if (!navigator.onLine) return offline();
+      const { data: open, error: e0 } = await sb.from("visits").select("id").eq("status", "in_progress").limit(1);
+      if (e0 && isNetworkError(e0)) return offline();
       if (open && open.length) { setBusy(false); setErr("Ya tienes una visita en curso. Termínala antes de iniciar otra."); return; }
       row = { store_id: store.id, visit_type: type, visit_date: madridDate(), status: "in_progress", started_at: new Date().toISOString(), planned_minutes: planned };
     }
+    if (!navigator.onLine) return offline();
     const { data, error } = await sb.from("visits").insert(row).select("id").single();
+    if (error && isNetworkError(error)) return offline();
     setBusy(false);
     if (error) return setErr(error.message);
     router.replace(`/visits/${data.id}`);

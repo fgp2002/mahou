@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { LogOut, Monitor, Moon, Sun } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { clearOfflineData } from "@/lib/offline/db";
 import { Field } from "./Field";
 import { toast } from "./Toast";
 
@@ -64,6 +65,8 @@ export function AccountPanel({ email }: { email: string }) {
   }
 
   async function logout() {
+    // Al salir se borra todo lo guardado en el dispositivo (páginas, cola y datos).
+    await clearOfflineData();
     await supabaseBrowser().auth.signOut();
     router.replace("/login");
     router.refresh();
