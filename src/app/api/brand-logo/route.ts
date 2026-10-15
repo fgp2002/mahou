@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { lookup } from "node:dns/promises";
 import { z } from "zod";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -13,6 +14,13 @@ function blockedHost(h: string): boolean {
   return false;
 }
 
+/** IPs privadas, de bucle local o de enlace local: nunca se descargan (evita SSRF). */
+function privateIp(ip: string): boolean {
+  if (ip.includes(":")) return ip === "::1" || /^f[cd]/i.test(ip) || /^fe80/i.test(ip) || ip.startsWith("::ffff:");
+  const [a, b] = ip.split(".").map(Number);
+  return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
+}
+
 /** Descarga un logotipo desde una URL que el usuario indica y lo guarda una sola vez para esa enseña. */
 export async function POST(req: Request) {
   const p = Body.safeParse(await req.json().catch(() => null));
@@ -23,6 +31,13 @@ export async function POST(req: Request) {
 
   const url = new URL(p.data.url);
   if (url.protocol !== "https:" || blockedHost(url.hostname)) return NextResponse.json({ error: "Solo se admiten direcciones https públicas." }, { status: 400 });
+
+  try {
+    const ips = await lookup(url.hostname, { all: true });
+    if (!ips.length || ips.some((x) => privateIp(x.address))) return NextResponse.json({ error: "Solo se admiten direcciones https públicas." }, { status: 400 });
+  } catch {
+    return NextResponse.json({ error: "No se encontró esa dirección." }, { status: 400 });
+  }
 
   let res: Response;
   try {

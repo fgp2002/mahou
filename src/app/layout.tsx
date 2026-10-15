@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   title: "Mahou · Gestión de visitas",
   description: "Gestión comercial de visitas a supermercados",
   appleWebApp: { capable: true, title: "Mahou", statusBarStyle: "default" },
+  robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } },
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: [{ media: "(prefers-color-scheme: light)", color: "#ffffff" }, { media: "(prefers-color-scheme: dark)", color: "#0c0c0d" }] };
 
