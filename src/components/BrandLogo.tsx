@@ -18,7 +18,8 @@ function load(): Promise<Map<string, string>> {
   if (cache) return Promise.resolve(cache);
   loading ??= (async () => {
     const { data } = await supabaseBrowser().from("payment_brands").select("name,logo_path").not("logo_path", "is", null);
-    cache = new Map((data ?? []).map((b) => [b.name.toLowerCase(), logoUrl(b.logo_path as string)]));
+    const rows = (data ?? []) as { name: string; logo_path: string }[];
+    cache = new Map(rows.map((r) => [r.name.toLowerCase(), logoUrl(r.logo_path)] as [string, string]));
     return cache;
   })();
   return loading;
