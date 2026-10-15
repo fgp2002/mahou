@@ -32,7 +32,9 @@ export default function LoginPage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/mahou-m.png" alt="Mahou" width={96} height={96} className="h-24 w-24 object-contain" />
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Mahou</h1>
+            <h1 className="sr-only">Mahou</h1>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/mahou-wordmark.png" alt="" width={180} height={44} className="mx-auto mb-2 h-11 w-auto" />
             <p className="text-sm text-slate-500">Tus visitas, rutas y tiendas en un sitio.</p>
           </div>
         </div>

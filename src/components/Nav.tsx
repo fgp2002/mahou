@@ -68,7 +68,8 @@ export function Nav({ unread }: { unread: number }) {
         <div className="flex h-16 items-center gap-2.5 px-5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/mahou-m.png" alt="" width={32} height={32} className="h-8 w-8 object-contain" />
-          <span className="text-[15px] font-bold tracking-tight">Mahou</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/mahou-wordmark.png" alt="Mahou" width={90} height={22} className="h-[22px] w-auto" />
         </div>
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-3" aria-label="Principal">
           {GROUPS.map((g) => {
