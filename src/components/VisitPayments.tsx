@@ -1,4 +1,5 @@
 "use client";
+import { BrandBadge } from "./BrandLogo";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
@@ -71,7 +72,7 @@ export function VisitPayments({ visitId, storeId, payments, types, editable }: {
       <ul className="divide-y divide-slate-100">
         {payments.map((p) => (
           <li key={p.id} className="flex flex-wrap items-center gap-2 py-2.5 text-sm">
-            <span className="min-w-0 flex-1 font-semibold">{name(p)}{p.brand_name && <span className="badge ml-1.5 bg-brand-50 text-brand-700">{p.brand_name}</span>}{p.is_demo && <span className="badge ml-2 bg-slate-200 text-slate-700">DEMO</span>}</span>
+            <span className="min-w-0 flex-1 font-semibold">{name(p)}{p.brand_name && <BrandBadge name={p.brand_name} className="ml-1.5" />}{p.is_demo && <span className="badge ml-2 bg-slate-200 text-slate-700">DEMO</span>}</span>
             {editable ? (
               <>
                 <input className="input !min-h-9 w-24" inputMode="decimal" defaultValue={String(p.amount).replace(".", ",")} aria-label="Importe"

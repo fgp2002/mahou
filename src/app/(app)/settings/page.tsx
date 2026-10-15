@@ -138,11 +138,11 @@ async function App() {
 async function Marcas() {
   const sb = await supabaseServer();
   const [{ data: brands }, { data: uc }, { data: ur }] = await Promise.all([
-    sb.from("payment_brands").select("id,name").order("name"),
+    sb.from("payment_brands").select("id,name,logo_path").order("name"),
     sb.from("payment_concepts").select("brand_id").not("brand_id", "is", null).limit(5000),
     sb.from("payment_records").select("brand_id").not("brand_id", "is", null).limit(10000),
   ]);
   const uses = new Map<string, number>();
   for (const r of [...(uc ?? []), ...(ur ?? [])]) if (r.brand_id) uses.set(r.brand_id, (uses.get(r.brand_id) ?? 0) + 1);
-  return <BrandsManager brands={(brands ?? []).map((b) => ({ id: b.id, name: b.name, uses: uses.get(b.id) ?? 0 }))} />;
+  return <BrandsManager brands={(brands ?? []).map((b) => ({ id: b.id, name: b.name, logo_path: b.logo_path, uses: uses.get(b.id) ?? 0 }))} />;
 }

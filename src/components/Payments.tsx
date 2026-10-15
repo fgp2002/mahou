@@ -1,4 +1,5 @@
 "use client";
+import { BrandBadge } from "./BrandLogo";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -87,7 +88,7 @@ export function Payments({ storeId, concepts, records, types }: { storeId: strin
           {concepts.map((c) => (
             <li key={c.id} className="py-2.5 text-sm">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="min-w-0 flex-1"><b>{typeName(c.payment_type_id, c.concept)}</b>{c.brand_name && <span className="badge ml-1.5 bg-brand-50 text-brand-700">{c.brand_name}</span>}{c.is_demo && <span className="badge ml-1.5 bg-slate-200 text-slate-700">DEMO</span>}</span>
+                <span className="min-w-0 flex-1"><b>{typeName(c.payment_type_id, c.concept)}</b>{c.brand_name && <BrandBadge name={c.brand_name} className="ml-1.5" />}{c.is_demo && <span className="badge ml-1.5 bg-slate-200 text-slate-700">DEMO</span>}</span>
                 <button className="btn-secondary !min-h-9" onClick={() => {
                   const def = (c.payment_type_id && byId.get(c.payment_type_id)?.default_amount) ?? c.default_amount;
                   setRecFor({ c, amount: def != null ? String(def).replace(".", ",") : "", status: "comprobado", date: madridDate() });
