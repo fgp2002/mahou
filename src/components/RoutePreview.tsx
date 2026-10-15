@@ -32,7 +32,7 @@ export function RoutePreview({ stops, start, polyline }: { stops: PreviewStop[];
         : [...(start ? [[start.lat, start.lng] as [number, number]] : []), ...stops.map((s) => [s.lat, s.lng] as [number, number])];
       if (line.length > 1) {
         L.polyline(line, { renderer: svg, color: "#fff", weight: 8, opacity: 0.9, lineCap: "round", lineJoin: "round" }).addTo(map);
-        L.polyline(line, { renderer: svg, color: "#CE1A2B", weight: 4.5, lineCap: "round", lineJoin: "round", className: "rp-line" }).addTo(map);
+        L.polyline(line, { renderer: svg, color: "#DE1F26", weight: 4.5, lineCap: "round", lineJoin: "round", className: "rp-line" }).addTo(map);
         L.polyline(line, { renderer: svg, color: "#fff", weight: 2, dashArray: "1 14", lineCap: "round", className: "rp-flow" }).addTo(map);
       }
       if (start) {
