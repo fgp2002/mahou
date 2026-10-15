@@ -12,6 +12,7 @@ import { StoreForm } from "@/components/StoreForm";
 import { Contacts } from "@/components/Contacts";
 import { Payments } from "@/components/Payments";
 import { QuickNote } from "@/components/QuickNote";
+import { StoreLineal } from "@/components/StoreLineal";
 import { FREQ_LABEL, VISIT_TYPES, type Store, type Visit } from "@/lib/types";
 import { eur, dmy, MONTHS_SHORT } from "@/lib/format";
 
@@ -53,6 +54,9 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
   const { data: ph } = await sb.from("visit_photos").select("id,storage_path,thumb_path,visit_id,visits!inner(store_id)").eq("visits.store_id", id).order("created_at", { ascending: false }).limit(8);
   const phPaths = (ph ?? []).map((p) => p.thumb_path ?? p.storage_path);
   const { data: phSigned } = phPaths.length ? await sb.storage.from("visit-photos").createSignedUrls(phPaths, 3600) : { data: [] };
+  const linealPath = (store as { lineal_path?: string | null }).lineal_path ?? null;
+  const linealAt = (store as { lineal_updated_at?: string | null }).lineal_updated_at ?? null;
+  const { data: linealSigned } = linealPath ? await sb.storage.from("visit-photos").createSignedUrl(linealPath, 3600) : { data: null };
   const recentPhotos = (ph ?? []).map((p, i) => ({ id: p.id, visit: p.visit_id, url: phSigned?.[i]?.signedUrl ?? null }));
 
   return (
@@ -94,6 +98,10 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
           <p className="whitespace-pre-line text-sm">{s.notes}</p>
         </section>
       )}
+
+      <Collapsible title="Lineal" hint={linealAt ? "con foto" : "sin foto"} open>
+        <StoreLineal storeId={id} path={linealPath} url={linealSigned?.signedUrl ?? null} updatedAt={linealAt} />
+      </Collapsible>
 
       <Collapsible title="Análisis" hint={`${done.length} visitas`} open>
         <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
