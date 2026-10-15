@@ -13,7 +13,7 @@ import { Contacts } from "@/components/Contacts";
 import { Payments } from "@/components/Payments";
 import { QuickNote } from "@/components/QuickNote";
 import { FREQ_LABEL, VISIT_TYPES, type Store, type Visit } from "@/lib/types";
-import { eur, dmy } from "@/lib/format";
+import { eur, dmy, MONTHS_SHORT } from "@/lib/format";
 
 
 export default async function StorePage({ params }: { params: Promise<{ id: string }> }) {
@@ -37,6 +37,23 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
   const ob = computeObligation(effectiveFrequency(s.frequency, s.audit), madridDate(), done, { trackingStart: settings.tracking_start });
   const logoSrc = logo?.storage_path ? logoUrl(logo.storage_path) : null;
   const totalPaid = (records ?? []).reduce((a, r) => a + (r.status === "abonado" ? Number(r.amount) : 0), 0);
+
+  // Análisis de la tienda: visitas por mes (6 meses), elementos instalados y fotos recientes (miniaturas).
+  const months: { key: string; label: string; n: number }[] = [];
+  {
+    const [y, m] = madridDate().split("-").map(Number);
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(Date.UTC(y, m - 1 - i, 1));
+      const key = d.toISOString().slice(0, 7);
+      months.push({ key, label: MONTHS_SHORT[d.getUTCMonth()], n: done.filter((x) => x.startsWith(key)).length });
+    }
+  }
+  const mMax = Math.max(1, ...months.map((x) => x.n));
+  const installed = (concepts ?? []).filter((c) => c.status === "activo").length;
+  const { data: ph } = await sb.from("visit_photos").select("id,storage_path,thumb_path,visit_id,visits!inner(store_id)").eq("visits.store_id", id).order("created_at", { ascending: false }).limit(8);
+  const phPaths = (ph ?? []).map((p) => p.thumb_path ?? p.storage_path);
+  const { data: phSigned } = phPaths.length ? await sb.storage.from("visit-photos").createSignedUrls(phPaths, 3600) : { data: [] };
+  const recentPhotos = (ph ?? []).map((p, i) => ({ id: p.id, visit: p.visit_id, url: phSigned?.[i]?.signedUrl ?? null }));
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
@@ -77,6 +94,41 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
           <p className="whitespace-pre-line text-sm">{s.notes}</p>
         </section>
       )}
+
+      <Collapsible title="Análisis" hint={`${done.length} visitas`} open>
+        <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
+          <div>
+            <div className="label">Visitas por mes</div>
+            <div className="flex h-28 items-end gap-2">
+              {months.map((x) => (
+                <div key={x.key} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
+                  <span className="text-[11px] font-semibold tabular-nums text-slate-600">{x.n || ""}</span>
+                  <div className="bar-grow w-full rounded-t-md bg-brand-600" style={{ height: `${Math.max(x.n ? 8 : 2, (x.n / mMax) * 100)}%`, opacity: x.n ? 1 : 0.2 }} />
+                  <span className="text-[10px] text-slate-500">{x.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <dl className="grid grid-cols-2 gap-2 text-center">
+            <div className="rounded-lg bg-slate-50 p-3"><dt className="text-[11px] text-slate-500">Cumplimiento</dt><dd className="mt-1"><StateBadge state={ob.state} /></dd></div>
+            <div className="rounded-lg bg-slate-50 p-3"><dt className="text-[11px] text-slate-500">Instalados</dt><dd className="text-lg font-bold">{installed}</dd></div>
+            <div className="rounded-lg bg-slate-50 p-3"><dt className="text-[11px] text-slate-500">Abonado</dt><dd className="text-lg font-bold">{eur(totalPaid)}</dd></div>
+            <div className="rounded-lg bg-slate-50 p-3"><dt className="text-[11px] text-slate-500">Última visita</dt><dd className="text-lg font-bold">{dmy(ob.lastVisit)}</dd></div>
+          </dl>
+        </div>
+        {recentPhotos.length > 0 && (
+          <div className="mt-4">
+            <div className="label">Fotos recientes</div>
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+              {recentPhotos.map((p) => (
+                <Link key={p.id} href={`/visits/${p.visit}`} className="block aspect-square overflow-hidden rounded-lg bg-slate-100">
+                  {p.url && /* eslint-disable-next-line @next/next/no-img-element */ <img src={p.url} alt="Foto de visita" loading="lazy" decoding="async" className="h-full w-full object-cover" />}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+      </Collapsible>
 
       <Collapsible title="Contactos" hint={`${(contacts ?? []).length}`} open>
         <Contacts storeId={s.id} contacts={contacts ?? []} />

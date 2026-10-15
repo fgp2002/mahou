@@ -5,6 +5,7 @@ import { VisitRunner, type PhotoView } from "@/components/VisitRunner";
 import { PageHeader } from "@/components/ui";
 import type { PhotoTag } from "@/components/PhotoTags";
 import type { VisitPayment } from "@/components/VisitPayments";
+import type { VisitItem } from "@/components/VisitItems";
 import { loadPaymentTypes } from "@/lib/server/load";
 import { effectiveFrequency, suggestNextVisit } from "@/lib/domain/periodicity";
 import { madridDate } from "@/lib/domain/dates";
@@ -23,6 +24,7 @@ export default async function VisitPage({ params }: { params: Promise<{ id: stri
     sb.from("visit_photos").select("id,storage_path,thumb_path,caption").eq("visit_id", id).order("created_at"),
     sb.from("photo_tags").select("id,kind,name").order("name"),
   ]);
+  const { data: vitems } = await sb.from("visit_items").select("id,product_id,product_name,quantity").eq("visit_id", id).order("created_at");
   const { data: pays } = await sb.from("payment_records").select("id,payment_type_id,concept,concept_name,amount,status,payment_date,is_demo,brand_id,brand_name").eq("visit_id", id).order("created_at");
   const photoIds = (ph ?? []).map((p) => p.id);
   const { data: links } = photoIds.length ? await sb.from("visit_photo_tags").select("photo_id,tag_id").in("photo_id", photoIds) : { data: [] };
@@ -37,7 +39,7 @@ export default async function VisitPage({ params }: { params: Promise<{ id: stri
       <PageHeader title="Visita">
         <Link href={`/stores/${visit.store_id}`} className="btn-secondary">Ver tienda</Link>
       </PageHeader>
-      <VisitRunner visit={visit as Visit} storeName={store?.name ?? ""} contacts={contacts ?? []} concepts={concepts ?? []} photos={photos} types={types} tags={(tagRows ?? []) as PhotoTag[]} payments={(pays ?? []) as VisitPayment[]} suggestedNext={store ? suggestNextVisit(effectiveFrequency(store.frequency as "semanal", !!store.audit), madridDate()) : null} />
+      <VisitRunner visit={visit as Visit} storeName={store?.name ?? ""} contacts={contacts ?? []} concepts={concepts ?? []} photos={photos} types={types} tags={(tagRows ?? []) as PhotoTag[]} payments={(pays ?? []) as VisitPayment[]} items={(vitems ?? []) as VisitItem[]} suggestedNext={store ? suggestNextVisit(effectiveFrequency(store.frequency as "semanal", !!store.audit), madridDate()) : null} />
     </div>
   );
 }

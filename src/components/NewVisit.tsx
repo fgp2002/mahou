@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { StorePicker, type PickedStore } from "./StorePicker";
+import { NearbyStores } from "./NearbyStores";
 import { VISIT_TYPES } from "@/lib/types";
 import { madridDate } from "@/lib/domain/dates";
 
@@ -44,7 +45,9 @@ export function NewVisit({ initialStore, durations }: { initialStore: PickedStor
   }
 
   return (
-    <div className="card max-w-xl space-y-3">
+    <div className="max-w-xl space-y-3">
+    {!initialStore && !store && !manual && <NearbyStores onPick={setStore} />}
+    <div className="card space-y-3">
       <div><label className="label">Tienda</label><StorePicker value={store} onChange={setStore} /></div>
       <div>
         <label className="label">Tipo de visita (duración prevista {planned} min)</label>
@@ -62,6 +65,7 @@ export function NewVisit({ initialStore, durations }: { initialStore: PickedStor
       )}
       {err && <p className="text-sm text-red-600">{err}</p>}
       <button className="btn w-full" onClick={go} disabled={busy}>{manual ? "Guardar visita" : "Iniciar visita ahora"}</button>
+    </div>
     </div>
   );
 }
