@@ -19,7 +19,7 @@ export interface StopView {
 interface RouteView {
   id: string; date: string; status: string; start_time: string; is_estimate: boolean; provider: string | null; drive: number; visit: number; dist: number;
   unscheduled: { store_id: string; name: string; reason: string }[]; warnings: string[]; generated_by: string; user_modified: boolean;
-  lunch_start?: string | null; lunch_after?: number | null; banners?: string[] | null;
+  lunch_start?: string | null; lunch_after?: number | null; banners?: string[] | null; saved?: number | null;
 }
 const ST: Record<string, string> = { proposed: "Propuesta (pendiente de aceptar)", accepted: "Aceptada", rejected: "Rechazada", completed: "Completada" };
 
@@ -103,6 +103,12 @@ export function RouteEditor({ route, stops }: { route: RouteView; stops: StopVie
     router.refresh();
   }
 
+  const last = stops[stops.length - 1];
+  const endTime = last?.planned_arrival ? (() => {
+    const [h, m] = last.planned_arrival!.slice(0, 5).split(":").map(Number);
+    const t = h * 60 + m + (last.planned_minutes ?? 0);
+    return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+  })() : null;
   const url = googleMapsRouteUrl(stops.map((s) => ({ lat: s.stores.lat, lng: s.stores.lng, address: s.stores.address, town: s.stores.town, postal_code: s.stores.postal_code })));
 
   return (
@@ -112,7 +118,19 @@ export function RouteEditor({ route, stops }: { route: RouteView; stops: StopVie
           <span className="badge bg-slate-200 text-slate-800">{ST[route.status]}</span>
           <span className="text-slate-500">{route.generated_by === "auto" ? "Generada automáticamente" : "Generada a mano"}{route.user_modified ? " · editada" : ""}</span>
         </div>
-        <div>{stops.length} paradas · conducción {fmtDuration(Math.round(route.drive / 60))} · visitas {fmtDuration(Math.round(route.visit / 60))} · {(route.dist / 1000).toFixed(1)} km</div>
+        <dl className="grid grid-cols-3 gap-2 text-center sm:grid-cols-6">
+          {[
+            ["Tiendas", String(stops.length)],
+            ["Km", (route.dist / 1000).toFixed(1)],
+            ["Conduciendo", fmtDuration(Math.round(route.drive / 60))],
+            ["Visitando", fmtDuration(Math.round(route.visit / 60))],
+            ["Fin estimado", endTime ?? "—"],
+            ["Ahorro", route.saved ? fmtDuration(Math.round(route.saved / 60)) : "—"],
+          ].map(([l, v]) => (
+            <div key={l} className="rounded-lg bg-slate-50 p-2"><dt className="text-[11px] text-slate-500">{l}</dt><dd className="text-base font-bold tabular-nums">{v}</dd></div>
+          ))}
+        </dl>
+        {route.saved ? <p className="text-xs text-slate-500">Ahorro: tiempo de conducción que te evita el orden optimizado frente a visitar las tiendas por orden de prioridad.</p> : null}
         {route.banners?.length ? <div className="flex flex-wrap items-center gap-1.5"><span className="text-slate-500">Solo enseñas:</span>{route.banners.map((b) => <span key={b} className="badge bg-brand-50 text-brand-700">{b}</span>)}</div> : null}
         {route.is_estimate && <div className="rounded bg-amber-50 p-2 text-amber-800">⚠ Tiempos ESTIMADOS (no por carretera real). {route.provider}</div>}
         {!route.is_estimate && route.provider && <div className="text-xs text-slate-400">Tiempos de trayecto: {route.provider}</div>}

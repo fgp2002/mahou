@@ -50,6 +50,11 @@ export interface ObligationOptions {
   quincenalGapDays?: number;
 }
 
+/** Las Audit sin periodicidad se tratan como mensuales: Audit da prioridad y, como mínimo, una visita al mes. */
+export function effectiveFrequency(freq: Frequency, audit: boolean): Frequency {
+  return freq === "ninguna" && audit ? "mensual" : freq;
+}
+
 export function currentWindow(freq: Frequency, today: string): Window | null {
   switch (freq) {
     case "semanal":
@@ -85,7 +90,8 @@ export function computeObligation(
   opts: ObligationOptions = {},
 ): Obligation {
   const soonDays = opts.soonDays ?? (freq === "semanal" ? 2 : 3);
-  const gap = opts.quincenalGapDays ?? 7;
+  // Quincenal: una visita en cada mitad del mes, sin separación mínima adicional.
+  const gap = opts.quincenalGapDays ?? 0;
   const sorted = [...visitDates].sort();
   const lastVisit = sorted.length ? sorted[sorted.length - 1] : null;
 
@@ -130,7 +136,7 @@ export function computeObligation(
   else state = "pendiente";
 
   let eligibleFrom: string | null = null;
-  if (freq === "quincenal" && lastVisit && pending > 0) {
+  if (freq === "quincenal" && gap > 0 && lastVisit && pending > 0) {
     eligibleFrom = addDays(lastVisit, gap);
   }
 

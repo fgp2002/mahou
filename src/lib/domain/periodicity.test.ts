@@ -65,12 +65,21 @@ test("la primera visita regulariza el arrastre y la ventana actual sigue pendien
   assert.equal(dos.state, "cumplida");
 });
 
-test("quincenal: dos ventanas por mes y separación entre visitas", () => {
+test("quincenal: una visita en cada mitad del mes, sin separación obligatoria", () => {
   const a = computeObligation("quincenal", "2026-10-20", ["2026-10-08"], opts);
   assert.equal(a.state, "pendiente"); // 2ª quincena sin visita; la 1ª está cumplida
-  assert.equal(a.eligibleFrom, "2026-10-15");
+  assert.equal(a.eligibleFrom, null);
   const b = computeObligation("quincenal", "2026-10-16", ["2026-10-15"], opts);
-  assert.equal(b.eligibleFrom, "2026-10-22"); // no se agrupan en días consecutivos
+  assert.equal(b.eligibleFrom, null); // del 16 en adelante ya puede visitarse
+  const c = computeObligation("quincenal", "2026-10-16", ["2026-10-15"], { ...opts, quincenalGapDays: 7 });
+  assert.equal(c.eligibleFrom, "2026-10-22"); // la separación sigue disponible como opción
+});
+
+test("Audit sin periodicidad cuenta como mensual", async () => {
+  const { effectiveFrequency } = await import("./periodicity.ts");
+  assert.equal(effectiveFrequency("ninguna", true), "mensual");
+  assert.equal(effectiveFrequency("ninguna", false), "ninguna");
+  assert.equal(effectiveFrequency("semanal", true), "semanal");
 });
 
 test("quincenal: primera quincena sin visita arrastra a la segunda", () => {

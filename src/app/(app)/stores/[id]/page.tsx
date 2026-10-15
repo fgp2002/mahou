@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { MapPin, Play, Store as StoreIcon } from "lucide-react";
 import { supabaseServer } from "@/lib/supabase/server";
 import { loadPaymentTypes, loadSettings } from "@/lib/server/load";
-import { computeObligation } from "@/lib/domain/periodicity";
+import { computeObligation, effectiveFrequency } from "@/lib/domain/periodicity";
 import { madridDate } from "@/lib/domain/dates";
 import { googleMapsPlaceUrl } from "@/lib/domain/geo";
 import { brandKey, logoUrl } from "@/lib/brands";
@@ -34,7 +34,7 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
   ]);
   const vs = (visits ?? []) as Visit[];
   const done = vs.filter((v) => v.status === "completed").map((v) => v.visit_date);
-  const ob = computeObligation(s.frequency, madridDate(), done, { trackingStart: settings.tracking_start });
+  const ob = computeObligation(effectiveFrequency(s.frequency, s.audit), madridDate(), done, { trackingStart: settings.tracking_start });
   const logoSrc = logo?.storage_path ? logoUrl(logo.storage_path) : null;
   const totalPaid = (records ?? []).reduce((a, r) => a + (r.status === "abonado" ? Number(r.amount) : 0), 0);
 

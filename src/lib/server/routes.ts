@@ -2,7 +2,7 @@
 // Siempre filtra por owner_id de forma explícita, así funciona igual con ambos clientes.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { addDays, fmtHM, madridDate, parseHM, weekdayMon0 } from "../domain/dates.ts";
-import { computeObligation, priorityScore } from "../domain/periodicity.ts";
+import { computeObligation, effectiveFrequency, priorityScore } from "../domain/periodicity.ts";
 import { estimateMatrix, googleMatrix, googleRoutePolyline, type Matrix } from "../domain/geo.ts";
 import { geocodeOne } from "./geocode.ts";
 import { pickZone, planRoute, scheduleFixedOrder, ZONE_DEFAULTS, type Lunch } from "../domain/planner.ts";
@@ -123,7 +123,7 @@ export async function generateRoute(
   sb: SupabaseClient,
   ownerId: string,
   date: string,
-  opts: { by: "auto" | "manual"; replaceExisting?: boolean; overrideProtected?: boolean; forcedStoreIds?: string[]; excludeStoreIds?: string[]; banners?: string[]; onlyStoreIds?: string[] } = { by: "manual" },
+  opts: { by: "auto" | "manual"; replaceExisting?: boolean; overrideProtected?: boolean; forcedStoreIds?: string[]; excludeStoreIds?: string[]; banners?: string[]; onlyStoreIds?: string[]; start?: { lat: number; lng: number } | null } = { by: "manual" },
 ): Promise<GenerateOutcome> {
   const settings = await loadOwnerSettings(sb, ownerId);
   if (!settings) return { status: "skipped", reason: "El usuario no tiene ajustes" };
@@ -163,12 +163,14 @@ export async function generateRoute(
   // Tiendas elegidas a mano en el mapa: son anclas obligatorias; la ruta se completa con las
   // pendientes más cercanas a ellas. Las tiendas sin obligación solo entran si se eligen.
   const anchors = opts.onlyStoreIds ?? [];
+  // Punto de salida: tu ubicación actual si la app la envía (ruta generada durante el día); si no, casa.
+  const origin = opts.start ?? settings.home;
   const forced = new Set([...(opts.forcedStoreIds ?? []), ...anchors]);
   const bannerSet = opts.banners?.length ? new Set(opts.banners.map((b) => b.trim().toUpperCase())) : null;
 
   const scored = stores
     .map((s) => {
-      const ob = computeObligation(s.frequency as "semanal", date, dates.get(s.id) ?? [], { trackingStart: settings.tracking_start });
+      const ob = computeObligation(effectiveFrequency(s.frequency as "semanal", s.audit), date, dates.get(s.id) ?? [], { trackingStart: settings.tracking_start });
       return { s, ob, score: priorityScore(ob, s.audit && settings.audit_first) + (forced.has(s.id) ? 1000 : 0) };
     })
     .filter((x) => !exclude.has(x.s.id) && !doneToday.has(x.s.id) && (!bannerSet || forced.has(x.s.id) || bannerSet.has((x.s.banner ?? "").replace(/\s+/g, " ").trim().toUpperCase())) && (forced.has(x.s.id) || (x.ob.pending > 0 && (!x.ob.eligibleFrom || x.ob.eligibleFrom <= date))))
@@ -181,7 +183,7 @@ export async function generateRoute(
   const zone = pickZone(located.map((x) => ({
     id: x.s.id, lat: x.s.lat!, lng: x.s.lng!, score: x.score, audit: x.s.audit && settings.audit_first,
     overdue: x.ob.state === "atrasada", forced: forced.has(x.s.id),
-  })), { ...ZONE_DEFAULTS, max: MAX_CANDIDATES, home: settings.home });
+  })), { ...ZONE_DEFAULTS, max: MAX_CANDIDATES, home: origin });
   const byId = new Map(located.map((x) => [x.s.id, x]));
   const prio = new Map(zone.picked.map((p) => [p.id, p.priority]));
   const cand = zone.picked.map((p) => byId.get(p.id)!);
@@ -194,13 +196,13 @@ export async function generateRoute(
 
   if (cand.length) {
     const pts = cand.map((x) => ({ lat: x.s.lat!, lng: x.s.lng! }));
-    matrix = await matrixFor(settings.home ? [settings.home, ...pts] : pts);
+    matrix = await matrixFor(origin ? [origin, ...pts] : pts);
     if (matrix.estimated) warnings.push("Tiempos de trayecto ESTIMADOS (no por carretera real): la distancia en línea recta se multiplica por 1,35 a 45 km/h.");
     const learned = await learnedMinutes(sb, ownerId, cand.map((x) => x.s.id));
     result = planRoute({
       stores: cand.map((x) => ({ id: x.s.id, minutes: learned.get(x.s.id) ?? settings.default_minutes, priority: prio.get(x.s.id) ?? x.score, forced: forced.has(x.s.id) })),
       dur: matrix.dur, dist: matrix.dist, startMinutes: startMin, endMinutes: endMin,
-      hasHome: !!settings.home, lunch: settings.lunch, kmWeight: KM_WEIGHT,
+      hasHome: !!origin, lunch: settings.lunch, kmWeight: KM_WEIGHT,
     });
     if (settings.max_stops && result.stops.length > settings.max_stops) {
       for (const st of result.stops.slice(settings.max_stops)) unscheduled.push({ store_id: st.id, name: cand[st.index].s.name, reason: "limite_paradas" });
@@ -218,11 +220,23 @@ export async function generateRoute(
       warnings.push(`La pausa para comer empieza a las ${fmtHM(result.lunch.start)}, más tarde de lo previsto.`);
   }
 
+  // Tiempo ahorrado: conducción del orden por prioridad (sin optimizar) menos la del orden optimizado.
+  let saved: number | null = null;
+  if (result && matrix && result.stops.length > 1) {
+    const node = (i: number) => (origin ? i + 1 : i);
+    const naive = [...result.stops].sort((a, b) => (prio.get(b.id) ?? 0) - (prio.get(a.id) ?? 0)).map((st) => node(st.index));
+    let t = 0;
+    let prev = origin ? 0 : null;
+    for (const n of naive) { if (prev != null) t += matrix.dur[prev][n]; prev = n; }
+    saved = Math.max(0, Math.round(t - result.totalDriveSeconds));
+  }
+
   const { data: route, error } = await sb.from("routes").insert({
     owner_id: ownerId, route_date: date, status: "proposed", start_time: settings.route_start, generated_by: opts.by, user_modified: false,
     routing_provider: matrix ? matrix.provider : null, is_estimate: matrix?.estimated ?? false,
     est_distance_m: result ? Math.round(result.totalDistanceM) : 0, est_drive_seconds: result ? Math.round(result.totalDriveSeconds) : 0,
     est_visit_seconds: result ? result.totalVisitMinutes * 60 : 0, unscheduled, warnings,
+    est_saved_seconds: saved,
     banner_filter: bannerSet ? [...bannerSet] : null,
     selected_store_ids: anchors.length ? anchors : null,
     lunch_start: result?.lunch ? fmtHM(result.lunch.start) : null, lunch_after_position: result?.lunch ? result.lunch.afterStop + 1 : null,
@@ -244,7 +258,7 @@ export async function generateRoute(
     })));
     if (e2) throw new Error(e2.message);
   }
-  await saveRouteShape(sb, route.id, settings.home, (result?.stops ?? []).map((st) => ({ lat: cand[st.index].s.lat!, lng: cand[st.index].s.lng! })));
+  await saveRouteShape(sb, route.id, origin, (result?.stops ?? []).map((st) => ({ lat: cand[st.index].s.lat!, lng: cand[st.index].s.lng! })));
 
   const nStops = result?.stops.length ?? 0;
   await sb.from("alerts").upsert({

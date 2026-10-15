@@ -84,3 +84,31 @@ export function Collapsible({ title, hint, open, children }: { title: string; hi
     </details>
   );
 }
+
+/** Aviso de viabilidad del mes: nunca se oculta si no da tiempo a cumplir todas las periodicidades. */
+export function FeasibilityCard({ f, compact = false }: { f: import("@/lib/domain/feasibility").FeasResult; compact?: boolean }) {
+  if (f.feasible) {
+    if (compact) return null;
+    return (
+      <div className="card flex items-center gap-3 text-sm">
+        <span className="badge bg-st-ok font-bold text-[#fff]">Mes viable</span>
+        <span className="text-slate-600">{f.visitsNeeded} visitas obligatorias pendientes · {f.hoursNeeded} h necesarias de {f.hoursAvailable} h disponibles ({f.workDaysLeft} días laborables).</span>
+      </div>
+    );
+  }
+  return (
+    <section className="card space-y-2 border-[rgb(var(--st-late))] text-sm" role="alert">
+      <h2 className="flex items-center gap-2 font-bold text-[rgb(var(--st-late))]">⚠️ Planificación inviable este mes</h2>
+      <p>Faltan <b>{f.visitsNeeded}</b> visitas obligatorias ({Object.entries(f.byFrequency).map(([k, v]) => `${v} ${k}`).join(", ")}). Necesitas unas <b>{f.hoursNeeded} h</b> y quedan <b>{f.hoursAvailable} h</b> en {f.workDaysLeft} días laborables.</p>
+      {f.shortFixes
+        ? <p className="text-slate-700"><b>Alternativa:</b> si las visitas que no son Audit duran 30 min, bastarían {f.hoursNeededShort} h y el mes sería viable.</p>
+        : <p className="text-slate-700">Ni acortando a 30 min las visitas no Audit da tiempo ({f.hoursNeededShort} h).</p>}
+      {f.atRisk.length > 0 && (
+        <details>
+          <summary className="cursor-pointer font-semibold">Tiendas en riesgo ({f.atRisk.length})</summary>
+          <ul className="mt-1 list-disc pl-5 text-slate-600">{f.atRisk.slice(0, 30).map((s) => <li key={s.id}>{s.name}{s.pending > 1 ? ` (${s.pending} visitas)` : ""}</li>)}</ul>
+        </details>
+      )}
+    </section>
+  );
+}

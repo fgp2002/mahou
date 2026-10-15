@@ -1,4 +1,5 @@
-import { computeObligation, priorityScore, type Obligation } from "../domain/periodicity.ts";
+import { cache } from "react";
+import { computeObligation, effectiveFrequency, priorityScore, type Obligation } from "../domain/periodicity.ts";
 import { madridDate } from "../domain/dates.ts";
 import type { Store } from "../types.ts";
 import { supabaseServer } from "../supabase/server";
@@ -15,7 +16,8 @@ export interface Settings {
   planning_prefs: { audit_first?: boolean; max_stops_per_day?: number | null; holidays?: string[]; work_days?: number[] };
 }
 
-export async function loadSettings(): Promise<Settings> {
+// cache(): si varias partes de una misma pantalla piden lo mismo, se consulta una sola vez.
+export const loadSettings = cache(async (): Promise<Settings> => {
   const sb = await supabaseServer();
   const { data } = await sb.from("user_settings").select("*").maybeSingle();
   return {
@@ -27,10 +29,10 @@ export async function loadSettings(): Promise<Settings> {
     visit_durations: data?.visit_durations ?? {},
     planning_prefs: data?.planning_prefs ?? {},
   };
-}
+});
 
 /** Fechas de visitas completadas por tienda (paginado para superar el límite de 1000 filas). */
-export async function loadCompletedDates(): Promise<Map<string, string[]>> {
+export const loadCompletedDates = cache(async (): Promise<Map<string, string[]>> => {
   const sb = await supabaseServer();
   const map = new Map<string, string[]>();
   for (let from = 0; ; from += 1000) {
@@ -44,9 +46,9 @@ export async function loadCompletedDates(): Promise<Map<string, string[]>> {
     if (data.length < 1000) break;
   }
   return map;
-}
+});
 
-export async function loadAllStores(): Promise<Store[]> {
+export const loadAllStores = cache(async (): Promise<Store[]> => {
   const sb = await supabaseServer();
   const out: Store[] = [];
   for (let from = 0; ; from += 1000) {
@@ -56,7 +58,7 @@ export async function loadAllStores(): Promise<Store[]> {
     if (data.length < 1000) break;
   }
   return out;
-}
+});
 
 export interface StoreWithObligation extends Store {
   ob: Obligation;
@@ -65,7 +67,7 @@ export interface StoreWithObligation extends Store {
 
 export function withObligations(stores: Store[], dates: Map<string, string[]>, settings: Settings, today = madridDate()): StoreWithObligation[] {
   return stores.map((s) => {
-    const ob = computeObligation(s.frequency, today, dates.get(s.id) ?? [], { trackingStart: settings.tracking_start });
+    const ob = computeObligation(effectiveFrequency(s.frequency, s.audit), today, dates.get(s.id) ?? [], { trackingStart: settings.tracking_start });
     return { ...s, ob, score: priorityScore(ob, s.audit) };
   });
 }

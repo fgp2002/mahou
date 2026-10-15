@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { ChevronUp, X } from "lucide-react";
 import { madridDate } from "@/lib/domain/dates";
 import { toast } from "./Toast";
+import { currentPosition } from "@/lib/geoClient";
 
 /** Barra del modo selección: tiendas elegidas tocando pines → ruta más eficiente con ellas. */
 export function MapSelectBar({ picked, onRemove, onClear, onClose }: {
@@ -20,9 +21,10 @@ export function MapSelectBar({ picked, onRemove, onClear, onClose }: {
   async function generate(replace = false) {
     if (!picked.length) return;
     setBusy(true); setMsg(null);
+    const start = date === madridDate() ? await currentPosition() : null;
     const r = await fetch("/api/routes/generate", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date, stores: picked.map((p) => p.id), ...(replace ? { replace: true } : {}) }),
+      body: JSON.stringify({ date, stores: picked.map((p) => p.id), ...(replace ? { replace: true } : {}), ...(start ? { start } : {}) }),
     });
     const j = await r.json().catch(() => ({}));
     setBusy(false);

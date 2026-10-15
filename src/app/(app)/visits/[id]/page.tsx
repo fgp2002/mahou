@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/ui";
 import type { PhotoTag } from "@/components/PhotoTags";
 import type { VisitPayment } from "@/components/VisitPayments";
 import { loadPaymentTypes } from "@/lib/server/load";
-import { suggestNextVisit } from "@/lib/domain/periodicity";
+import { effectiveFrequency, suggestNextVisit } from "@/lib/domain/periodicity";
 import { madridDate } from "@/lib/domain/dates";
 import type { Visit } from "@/lib/types";
 
@@ -17,7 +17,7 @@ export default async function VisitPage({ params }: { params: Promise<{ id: stri
   if (!visit) notFound();
   const types = await loadPaymentTypes();
   const [{ data: store }, { data: contacts }, { data: concepts }, { data: ph }, { data: tagRows }] = await Promise.all([
-    sb.from("stores").select("id,name,frequency").eq("id", visit.store_id).single(),
+    sb.from("stores").select("id,name,frequency,audit").eq("id", visit.store_id).single(),
     sb.from("store_contacts").select("*").eq("store_id", visit.store_id),
     sb.from("payment_concepts").select("*").eq("store_id", visit.store_id).eq("status", "activo"),
     sb.from("visit_photos").select("id,storage_path,thumb_path,caption").eq("visit_id", id).order("created_at"),
@@ -37,7 +37,7 @@ export default async function VisitPage({ params }: { params: Promise<{ id: stri
       <PageHeader title="Visita">
         <Link href={`/stores/${visit.store_id}`} className="btn-secondary">Ver tienda</Link>
       </PageHeader>
-      <VisitRunner visit={visit as Visit} storeName={store?.name ?? ""} contacts={contacts ?? []} concepts={concepts ?? []} photos={photos} types={types} tags={(tagRows ?? []) as PhotoTag[]} payments={(pays ?? []) as VisitPayment[]} suggestedNext={store ? suggestNextVisit(store.frequency as "semanal", madridDate()) : null} />
+      <VisitRunner visit={visit as Visit} storeName={store?.name ?? ""} contacts={contacts ?? []} concepts={concepts ?? []} photos={photos} types={types} tags={(tagRows ?? []) as PhotoTag[]} payments={(pays ?? []) as VisitPayment[]} suggestedNext={store ? suggestNextVisit(effectiveFrequency(store.frequency as "semanal", !!store.audit), madridDate()) : null} />
     </div>
   );
 }

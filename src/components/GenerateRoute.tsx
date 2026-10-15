@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { Check, ChevronDown, Store } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { currentPosition } from "@/lib/geoClient";
+import { madridDate } from "@/lib/domain/dates";
 
 type Banner = { name: string; stores: number };
 
@@ -32,9 +34,11 @@ export function GenerateRoute({ defaultDate, routeStart, embedded = false }: { d
   async function go() {
     setBusy(true);
     setMsg(null);
+    // Si la ruta es para hoy, sale desde donde estás ahora.
+    const start = date === madridDate() ? await currentPosition() : null;
     const r = await fetch("/api/routes/generate", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date, ...(picked.length ? { banners: picked } : {}) }),
+      body: JSON.stringify({ date, ...(picked.length ? { banners: picked } : {}), ...(start ? { start } : {}) }),
     });
     const j = await r.json();
     setBusy(false);
@@ -82,7 +86,7 @@ export function GenerateRoute({ defaultDate, routeStart, embedded = false }: { d
         </div>
       )}
 
-      <p className="text-xs text-slate-500">Sale de tu dirección de salida a las {routeStart}. La ruta del día siguiente también se genera sola a partir de las 18:00 (Madrid).</p>
+      <p className="text-xs text-slate-500">Sale de casa a las {routeStart} (si es para hoy, desde tu ubicación actual). La ruta del día siguiente también se genera sola a partir de las 18:00 (Madrid).</p>
       {msg && <p className="text-sm text-amber-700">{msg}</p>}
     </div>
   );

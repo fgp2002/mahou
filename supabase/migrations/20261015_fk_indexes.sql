@@ -1,7 +1,3 @@
--- Limpieza: tablas sin uso en el código (comprobado: sin referencias, sin FKs entrantes, sin triggers ni funciones que las usen).
-drop table if exists public.change_log;
-drop table if exists public.profiles;
-
 -- Índices para las claves foráneas (owner_id + referencia), recomendados por el asesor de Supabase.
 create index if not exists import_runs_owner on public.import_runs (owner_id);
 create index if not exists payment_concepts_brand_owner on public.payment_concepts (brand_id, owner_id);
@@ -24,7 +20,4 @@ create index if not exists visits_contact_owner on public.visits (contact_id, ow
 create index if not exists visits_route_stop_owner on public.visits (route_stop_id, owner_id);
 create index if not exists visits_store_owner on public.visits (store_id, owner_id);
 
--- Índices que quedan cubiertos por los nuevos compuestos.
-drop index if exists public.payment_concepts_brand;
-drop index if exists public.payment_records_brand;
-drop index if exists public.visit_photo_tags_tag;
+-- Aplicada en Supabase.

@@ -3,7 +3,8 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { loadAllStores, loadCompletedDates, loadSettings, withObligations } from "@/lib/server/load";
 import { addDays, formatLong, madridDate, monthStart } from "@/lib/domain/dates";
 import { googleMapsRouteUrl } from "@/lib/domain/geo";
-import { StateBadge, Ring } from "@/components/ui";
+import { StateBadge, Ring, FeasibilityCard } from "@/components/ui";
+import { loadFeasibility } from "@/lib/server/feasibility";
 import { StartVisitButton } from "@/components/StartVisitButton";
 import { GenerateRoute } from "@/components/GenerateRoute";
 
@@ -17,6 +18,7 @@ export default async function Today() {
   const today = madridDate();
   const [settings, stores, dates] = await Promise.all([loadSettings(), loadAllStores(), loadCompletedDates()]);
   const rows = withObligations(stores, dates, settings, today);
+  const feas = await loadFeasibility(rows, settings);
 
   const [{ data: route }, { data: tomorrow }, { data: open }, { data: alerts }, { data: monthVisits }] = await Promise.all([
     sb.from("routes").select("id,status").eq("route_date", today).maybeSingle(),
@@ -56,6 +58,8 @@ export default async function Today() {
         <p className="text-sm text-slate-500">{formatLong(today)}</p>
         <h1 className="text-3xl font-bold tracking-tight">{greeting}</h1>
       </header>
+
+      <FeasibilityCard f={feas} compact />
 
       {open && (
         <Link href={`/visits/${open.id}`} className="card tap flex items-center justify-between gap-3 !bg-slate-900 !text-white">
