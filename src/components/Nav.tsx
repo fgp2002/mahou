@@ -66,7 +66,8 @@ export function Nav({ unread }: { unread: number }) {
     <>
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-slate-200 bg-white md:flex">
         <div className="flex h-16 items-center gap-2.5 px-5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-extrabold text-[rgb(var(--on-accent))]">M</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/mahou-m.png" alt="" width={32} height={32} className="h-8 w-8 object-contain" />
           <span className="text-[15px] font-bold tracking-tight">Mahou</span>
         </div>
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-3" aria-label="Principal">

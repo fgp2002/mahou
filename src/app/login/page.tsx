@@ -29,7 +29,8 @@ export default function LoginPage() {
     <div className="scroll-root">
       <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-8 px-5 py-10">
         <div className="page-in flex flex-col items-center gap-3 text-center">
-          <span className="flex h-20 w-20 items-center justify-center rounded-lg bg-brand-600 text-4xl font-extrabold text-[rgb(var(--on-accent))] shadow-[0_12px_30px_rgb(0_0_0/0.25)]">M</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/mahou-m.png" alt="Mahou" width={96} height={96} className="h-24 w-24 object-contain" />
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Mahou</h1>
             <p className="text-sm text-slate-500">Tus visitas, rutas y tiendas en un sitio.</p>
