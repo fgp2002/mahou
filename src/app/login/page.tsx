@@ -34,7 +34,7 @@ export default function LoginPage() {
           <div>
             <h1 className="sr-only">Mahou</h1>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/mahou-wordmark.png" alt="" width={180} height={44} className="mx-auto mb-2 h-11 w-auto" />
+            <span className="mx-auto mb-3 inline-flex rounded-lg bg-[#DE1F26] px-5 py-3"><img src="/brand/mahou-wordmark-white.png" alt="" width={160} height={39} className="h-10 w-auto" /></span>
             <p className="text-sm text-slate-500">Tus visitas, rutas y tiendas en un sitio.</p>
           </div>
         </div>
