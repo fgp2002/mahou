@@ -25,7 +25,7 @@ export function BrandSelect({ value, onChange, label = "Marca", compact = false 
 
   useEffect(() => {
     listeners.add(setBrands);
-    loadBrands().then(setBrands);
+    loadBrands(true).then(setBrands);
     return () => { listeners.delete(setBrands); };
   }, []);
 

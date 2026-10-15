@@ -3,6 +3,7 @@ import clsx from "clsx";
 import { supabaseServer } from "@/lib/supabase/server";
 import { ProductsManager, type Product } from "@/components/ProductsManager";
 import { ThemeSwitch, AccountPanel } from "@/components/AppSettings";
+import { BrandsManager } from "@/components/BrandsManager";
 import { PageHeader } from "@/components/ui";
 import { ImportPanel } from "@/components/ImportPanel";
 import { GeocodePanel } from "@/components/GeocodePanel";
@@ -15,7 +16,7 @@ import { DEFAULT_DURATIONS } from "@/lib/types";
 import { madridDate } from "@/lib/domain/dates";
 
 const TABS = [["jornada", "Jornada"], ["catalogo", "Catálogo"], ["app", "App y cuenta"]] as const;
-const SUBS = [["ensenas", "Enseñas"], ["productos", "Productos"], ["pagos", "Tipos de pago"], ["datos", "Datos"]] as const;
+const SUBS = [["ensenas", "Enseñas"], ["productos", "Productos"], ["pagos", "Tipos de pago"], ["marcas", "Marcas"], ["datos", "Datos"]] as const;
 type Tab = (typeof TABS)[number][0];
 type Sub = (typeof SUBS)[number][0];
 
@@ -45,6 +46,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           {sub === "ensenas" && <Ensenas />}
           {sub === "productos" && <Productos />}
           {sub === "pagos" && <Pagos />}
+          {sub === "marcas" && <Marcas />}
           {sub === "datos" && <Datos />}
         </div>
       )}
@@ -131,4 +133,16 @@ async function App() {
       <AccountPanel email={data.user?.email ?? ""} />
     </div>
   );
+}
+
+async function Marcas() {
+  const sb = await supabaseServer();
+  const [{ data: brands }, { data: uc }, { data: ur }] = await Promise.all([
+    sb.from("payment_brands").select("id,name").order("name"),
+    sb.from("payment_concepts").select("brand_id").not("brand_id", "is", null).limit(5000),
+    sb.from("payment_records").select("brand_id").not("brand_id", "is", null).limit(10000),
+  ]);
+  const uses = new Map<string, number>();
+  for (const r of [...(uc ?? []), ...(ur ?? [])]) if (r.brand_id) uses.set(r.brand_id, (uses.get(r.brand_id) ?? 0) + 1);
+  return <BrandsManager brands={(brands ?? []).map((b) => ({ id: b.id, name: b.name, uses: uses.get(b.id) ?? 0 }))} />;
 }
