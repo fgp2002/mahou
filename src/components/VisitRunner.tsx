@@ -5,6 +5,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { VISIT_TYPES, type Visit } from "@/lib/types";
 import { eur, type PaymentType } from "@/lib/payments";
 import { NewTypeInline } from "./NewTypeInline";
+import { BrandSelect } from "./BrandSelect";
 import { toast } from "./Toast";
 import { VisitPayments, type VisitPayment } from "./VisitPayments";
 import { Pencil } from "lucide-react";
@@ -43,7 +44,7 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [next, setNext] = useState(visit.next_visit_recommended ?? suggestedNext ?? "");
-  const [extras, setExtras] = useState<{ typeId: string; amount: string }[]>([]);
+  const [extras, setExtras] = useState<{ typeId: string; amount: string; brandId?: string | null; brandName?: string | null }[]>([]);
   const [localTypes, setLocalTypes] = useState(types);
   const [step, setStep] = useState(0);
   const [editing, setEditing] = useState(false);
@@ -110,17 +111,19 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
     const recs: Record<string, unknown>[] = concepts.filter((x) => checked[x.id] && x.default_amount != null).map((x) => ({
       store_id: visit.store_id, concept_id: x.id, concept: x.concept, concept_name: (x.payment_type_id && typeById.get(x.payment_type_id)?.name) || x.concept,
       payment_type_id: x.payment_type_id, visit_id: visit.id, amount: x.default_amount, payment_date: madridDate(), status: "comprobado", is_demo: x.is_demo,
+      brand_id: x.brand_id ?? null, brand_name: x.brand_name ?? null,
     }));
     for (const ex of extras) {
       const t = typeById.get(ex.typeId);
       const amt = Number(ex.amount.replace(",", "."));
       if (!t || ex.amount.trim() === "" || !Number.isFinite(amt) || amt < 0) continue;
-      let conceptId = concepts.find((c) => c.payment_type_id === t.id)?.id;
+      const bId = ex.brandId ?? null, bName = ex.brandName ?? null;
+      let conceptId = concepts.find((c) => c.payment_type_id === t.id && (c.brand_id ?? null) === bId && c.status === "activo")?.id;
       if (!conceptId) {
-        const ins = await sb.from("payment_concepts").insert({ store_id: visit.store_id, concept: t.code, payment_type_id: t.id, default_amount: amt }).select("id").single();
+        const ins = await sb.from("payment_concepts").insert({ store_id: visit.store_id, concept: t.code, payment_type_id: t.id, default_amount: amt, brand_id: bId, brand_name: bName }).select("id").single();
         conceptId = ins.data?.id;
       }
-      recs.push({ store_id: visit.store_id, concept_id: conceptId ?? null, concept: t.code, concept_name: t.name, payment_type_id: t.id, visit_id: visit.id, amount: amt, payment_date: madridDate(), status: "comprobado", is_demo: false });
+      recs.push({ store_id: visit.store_id, concept_id: conceptId ?? null, concept: t.code, concept_name: t.name, payment_type_id: t.id, visit_id: visit.id, amount: amt, payment_date: madridDate(), status: "comprobado", is_demo: false, brand_id: bId, brand_name: bName });
     }
     if (recs.length) {
       const pr = await sb.from("payment_records").insert(recs);
@@ -279,7 +282,7 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
             {concepts.map((c) => (
               <label key={c.id} className="flex min-h-11 items-center gap-3 text-sm">
                 <input type="checkbox" className="h-5 w-5" checked={!!checked[c.id]} disabled={c.default_amount == null} onChange={(e) => setChecked({ ...checked, [c.id]: e.target.checked })} />
-                {(c.payment_type_id && typeById.get(c.payment_type_id)?.name) || c.concept} {c.default_amount != null ? `· ${eur(c.default_amount)}` : "(sin importe)"} {c.is_demo && <span className="badge bg-slate-200 text-slate-700">DEMO</span>}
+                {(c.payment_type_id && typeById.get(c.payment_type_id)?.name) || c.concept}{c.brand_name ? ` · ${c.brand_name}` : ""} {c.default_amount != null ? `· ${eur(c.default_amount)}` : "(sin importe)"} {c.is_demo && <span className="badge bg-slate-200 text-slate-700">DEMO</span>}
               </label>
             ))}
             {extras.map((ex, i) => (
@@ -297,6 +300,7 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
                   <input className="input w-28" inputMode="decimal" placeholder="€" aria-label="Importe" value={ex.amount} onChange={(e) => setExtras(extras.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)))} />
                   <button type="button" className="btn-secondary" aria-label="Quitar cobro" onClick={() => setExtras(extras.filter((_, j) => j !== i))}>✕</button>
                 </div>
+                <BrandSelect label="Marca del pago" value={ex.brandId ?? null} onChange={(b) => setExtras(extras.map((x, j) => (j === i ? { ...x, brandId: b?.id ?? null, brandName: b?.name ?? null } : x)))} />
                 {chips.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {chips.map((c) => (

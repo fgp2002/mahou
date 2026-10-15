@@ -23,7 +23,7 @@ export default async function VisitPage({ params }: { params: Promise<{ id: stri
     sb.from("visit_photos").select("id,storage_path,caption").eq("visit_id", id).order("created_at"),
     sb.from("photo_tags").select("id,kind,name").order("name"),
   ]);
-  const { data: pays } = await sb.from("payment_records").select("id,payment_type_id,concept,concept_name,amount,status,payment_date,is_demo").eq("visit_id", id).order("created_at");
+  const { data: pays } = await sb.from("payment_records").select("id,payment_type_id,concept,concept_name,amount,status,payment_date,is_demo,brand_id,brand_name").eq("visit_id", id).order("created_at");
   const photoIds = (ph ?? []).map((p) => p.id);
   const { data: links } = photoIds.length ? await sb.from("visit_photo_tags").select("photo_id,tag_id").in("photo_id", photoIds) : { data: [] };
   const tagsByPhoto = new Map<string, string[]>();

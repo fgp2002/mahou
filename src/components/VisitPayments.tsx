@@ -6,9 +6,11 @@ import { Plus, Trash2 } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { eur, type PaymentType } from "@/lib/payments";
 import { toast } from "./Toast";
+import { BrandSelect, type Brand } from "./BrandSelect";
 
 export interface VisitPayment {
   id: string; payment_type_id: string | null; concept: string; concept_name: string | null; amount: number; status: string; payment_date: string; is_demo: boolean;
+  brand_id?: string | null; brand_name?: string | null;
 }
 const ST: Record<string, string> = { previsto: "Previsto", comprobado: "Comprobado", abonado: "Abonado" };
 const ST_STYLE: Record<string, string> = { previsto: "bg-slate-200 text-slate-700", comprobado: "bg-st-soon text-[#fff]", abonado: "bg-st-ok text-[#fff]" };
@@ -21,6 +23,7 @@ export function VisitPayments({ visitId, storeId, payments, types, editable }: {
   const sb = supabaseBrowser();
   const [busy, setBusy] = useState(false);
   const [add, setAdd] = useState({ typeId: "", amount: "", status: "comprobado" });
+  const [brand, setBrand] = useState<Brand | null>(null);
   const byId = new Map(types.map((t) => [t.id, t]));
   const name = (p: VisitPayment) => p.concept_name ?? (p.payment_type_id ? byId.get(p.payment_type_id)?.name : null) ?? p.concept;
   const total = payments.reduce((s, p) => s + Number(p.amount), 0);
@@ -41,13 +44,21 @@ export function VisitPayments({ visitId, storeId, payments, types, editable }: {
     const amt = Number(add.amount.replace(",", "."));
     if (!t) return toast("Elige un tipo de pago", "error");
     if (!Number.isFinite(amt) || amt < 0 || add.amount.trim() === "") return toast("Importe no válido", "error");
-    const { data: c } = await sb.from("payment_concepts").select("id").eq("store_id", storeId).eq("payment_type_id", t.id).eq("status", "activo").maybeSingle();
+    let cq = sb.from("payment_concepts").select("id").eq("store_id", storeId).eq("payment_type_id", t.id).eq("status", "activo");
+    cq = brand ? cq.eq("brand_id", brand.id) : cq.is("brand_id", null);
+    let { data: c } = await cq.limit(1).maybeSingle();
+    if (!c) {
+      // Si la tienda no tenía este elemento (tipo + marca) se da de alta como instalado.
+      const ins = await sb.from("payment_concepts").insert({ store_id: storeId, concept: t.code, payment_type_id: t.id, default_amount: amt, brand_id: brand?.id ?? null, brand_name: brand?.name ?? null }).select("id").single();
+      c = ins.data;
+    }
     const { data: v } = await sb.from("visits").select("visit_date").eq("id", visitId).single();
     await run(() => sb.from("payment_records").insert({
       store_id: storeId, visit_id: visitId, concept_id: c?.id ?? null, concept: t.code, concept_name: t.name, payment_type_id: t.id,
-      amount: amt, status: add.status, payment_date: v?.visit_date, is_demo: false,
+      amount: amt, status: add.status, payment_date: v?.visit_date, is_demo: false, brand_id: brand?.id ?? null, brand_name: brand?.name ?? null,
     }), "Pago añadido");
     setAdd({ typeId: "", amount: "", status: "comprobado" });
+    setBrand(null);
   }
 
   return (
@@ -60,7 +71,7 @@ export function VisitPayments({ visitId, storeId, payments, types, editable }: {
       <ul className="divide-y divide-slate-100">
         {payments.map((p) => (
           <li key={p.id} className="flex flex-wrap items-center gap-2 py-2.5 text-sm">
-            <span className="min-w-0 flex-1 font-semibold">{name(p)}{p.is_demo && <span className="badge ml-2 bg-slate-200 text-slate-700">DEMO</span>}</span>
+            <span className="min-w-0 flex-1 font-semibold">{name(p)}{p.brand_name && <span className="badge ml-1.5 bg-brand-50 text-brand-700">{p.brand_name}</span>}{p.is_demo && <span className="badge ml-2 bg-slate-200 text-slate-700">DEMO</span>}</span>
             {editable ? (
               <>
                 <input className="input !min-h-9 w-24" inputMode="decimal" defaultValue={String(p.amount).replace(".", ",")} aria-label="Importe"
@@ -88,6 +99,7 @@ export function VisitPayments({ visitId, storeId, payments, types, editable }: {
               {types.filter((t) => t.active).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </div>
+          <div className="min-w-0 flex-1 basis-36"><BrandSelect label="Marca" value={brand?.id ?? null} onChange={setBrand} /></div>
           <input className="input w-24" inputMode="decimal" placeholder="€" aria-label="Importe" value={add.amount} onChange={(e) => setAdd({ ...add, amount: e.target.value })} />
           <select className="input w-36" value={add.status} onChange={(e) => setAdd({ ...add, status: e.target.value })} aria-label="Estado">
             {Object.entries(ST).map(([k, l]) => <option key={k} value={k}>{l}</option>)}

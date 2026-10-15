@@ -5,9 +5,10 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { eur, type PaymentType } from "@/lib/payments";
 import { madridDate } from "@/lib/domain/dates";
 import { NewTypeInline } from "./NewTypeInline";
+import { BrandSelect, type Brand } from "./BrandSelect";
 
-export interface PConcept { id: string; concept: string; payment_type_id: string | null; default_amount: number | null; status: string; is_demo: boolean; notes: string | null; last_checked_at: string | null }
-export interface PRecord { id: string; concept: string; concept_name: string | null; amount: number; payment_date: string; status: string; is_demo: boolean; notes: string | null }
+export interface PConcept { id: string; concept: string; payment_type_id: string | null; default_amount: number | null; status: string; is_demo: boolean; notes: string | null; last_checked_at: string | null; brand_id?: string | null; brand_name?: string | null }
+export interface PRecord { id: string; concept: string; concept_name: string | null; amount: number; payment_date: string; status: string; is_demo: boolean; notes: string | null; brand_name?: string | null }
 
 const REC_LABEL: Record<string, string> = { previsto: "Previsto", comprobado: "Comprobado", abonado: "Abonado" };
 const NEW = "__new__";
@@ -20,6 +21,7 @@ export function Payments({ storeId, concepts, records, types }: { storeId: strin
   const [typeId, setTypeId] = useState(active[0]?.id ?? "");
   const [amount, setAmount] = useState("");
   const [creating, setCreating] = useState(false);
+  const [brand, setBrand] = useState<Brand | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   async function run(p: PromiseLike<{ error: { message: string } | null }>) {
@@ -38,10 +40,10 @@ export function Payments({ storeId, concepts, records, types }: { storeId: strin
   const addConcept = () => {
     const t = byId.get(typeId);
     if (!t) return setErr("Elige un tipo de pago.");
-    if (concepts.some((c) => c.payment_type_id === t.id && c.status === "activo")) return setErr(`«${t.name}» ya está configurado en esta tienda.`);
+    if (concepts.some((c) => c.payment_type_id === t.id && c.status === "activo" && (c.brand_id ?? null) === (brand?.id ?? null))) return setErr(`«${t.name}${brand ? " · " + brand.name : ""}» ya está configurado en esta tienda.`);
     const amt = amount.trim() === "" ? t.default_amount : Number(amount.replace(",", "."));
     if (amt != null && (!Number.isFinite(amt) || amt < 0)) return setErr("El importe no es válido.");
-    return run(sb.from("payment_concepts").insert({ store_id: storeId, concept: t.code, payment_type_id: t.id, default_amount: amt }));
+    return run(sb.from("payment_concepts").insert({ store_id: storeId, concept: t.code, payment_type_id: t.id, default_amount: amt, brand_id: brand?.id ?? null, brand_name: brand?.name ?? null }));
   };
 
   const addRecord = (c: PConcept, status: string) => {
@@ -49,7 +51,7 @@ export function Payments({ storeId, concepts, records, types }: { storeId: strin
     const t = c.payment_type_id ? byId.get(c.payment_type_id) : undefined;
     return run(sb.from("payment_records").insert({
       store_id: storeId, concept_id: c.id, concept: c.concept, concept_name: t?.name ?? c.concept, payment_type_id: c.payment_type_id,
-      amount: c.default_amount, payment_date: madridDate(), status, is_demo: c.is_demo,
+      amount: c.default_amount, payment_date: madridDate(), status, is_demo: c.is_demo, brand_id: c.brand_id ?? null, brand_name: c.brand_name ?? null,
     }));
   };
 
@@ -76,7 +78,7 @@ export function Payments({ storeId, concepts, records, types }: { storeId: strin
         {concepts.map((c) => (
           <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
             <div>
-              {nameOf(c)} · {c.default_amount != null ? eur(c.default_amount) : "importe sin definir"}
+              <b>{nameOf(c)}</b>{c.brand_name && <span className="badge ml-1.5 bg-brand-50 text-brand-700">{c.brand_name}</span>} · {c.default_amount != null ? eur(c.default_amount) : "importe sin definir"}
               {c.is_demo && <span className="badge ml-2 bg-slate-200 text-slate-700">DEMO</span>}
             </div>
             <div className="flex flex-wrap gap-2">
@@ -96,6 +98,7 @@ export function Payments({ storeId, concepts, records, types }: { storeId: strin
             <option value={NEW}>＋ Nuevo tipo de pago…</option>
           </select>
         </div>
+        <div className="min-w-36 flex-1"><BrandSelect value={brand?.id ?? null} onChange={setBrand} label="Marca" /></div>
         <div className="w-28"><label className="label">Importe (€)</label><input className="input" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
         <button className="btn" onClick={addConcept}>Añadir a la tienda</button>
       </div>
@@ -107,7 +110,7 @@ export function Payments({ storeId, concepts, records, types }: { storeId: strin
         {records.map((r) => (
           <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
             <div>
-              {r.payment_date} · {r.concept_name ?? r.concept} · {eur(r.amount)}
+              {r.payment_date} · {r.concept_name ?? r.concept}{r.brand_name ? ` · ${r.brand_name}` : ""} · {eur(r.amount)}
               {r.is_demo && <span className="badge ml-2 bg-slate-200 text-slate-700">DEMO</span>}
             </div>
             <div className="flex items-center gap-2">
