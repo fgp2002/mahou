@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Field } from "@/components/Field";
+import { MahouLogo } from "@/components/MahouLogo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,12 +30,9 @@ export default function LoginPage() {
     <div className="scroll-root">
       <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-8 px-5 py-10">
         <div className="page-in flex flex-col items-center gap-3 text-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/mahou-m.png" alt="Mahou" width={96} height={96} className="h-24 w-24 object-contain" />
           <div>
             <h1 className="sr-only">Mahou</h1>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <span className="mx-auto mb-3 inline-flex rounded-lg bg-[#DE1F26] px-5 py-3"><img src="/brand/mahou-wordmark-white.png" alt="" width={160} height={39} className="h-10 w-auto" /></span>
+            <MahouLogo height={56} className="mx-auto mb-4 block" />
             <p className="text-sm text-slate-500">Tus visitas, rutas y tiendas en un sitio.</p>
           </div>
         </div>

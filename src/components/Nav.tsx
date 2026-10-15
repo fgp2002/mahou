@@ -3,6 +3,7 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import clsx from "clsx";
+import { MahouLogo } from "./MahouLogo";
 import { Sun, Store, Map, ClipboardList, Route, BarChart3, Settings, LogOut, Ellipsis, X, Plus, ChevronDown, Wallet } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { clearOfflineData } from "@/lib/offline/db";
@@ -69,10 +70,7 @@ export function Nav({ unread }: { unread: number }) {
     <>
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-slate-200 bg-white md:flex">
         <div className="flex h-16 items-center gap-2.5 px-5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/mahou-m.png" alt="" width={32} height={32} className="h-8 w-8 object-contain" />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <span className="flex h-8 items-center rounded-md bg-[#DE1F26] px-2.5"><img src="/brand/mahou-wordmark-white.png" alt="Mahou" width={82} height={20} className="h-5 w-auto" /></span>
+          <MahouLogo height={30} />
         </div>
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-3" aria-label="Principal">
           {GROUPS.map((g) => {

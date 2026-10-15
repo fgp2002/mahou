@@ -2,7 +2,7 @@
 // - Recursos estáticos (_next/static, logos, iconos): caché primero.
 // - Páginas: red primero; sin red, la última copia guardada (o un aviso si nunca se abrió).
 // - Datos de Supabase y /api: nunca se guardan aquí (los cambios sin red van a la cola de la app).
-const VERSION = "v1";
+const VERSION = "v2";
 const STATIC = `static-${VERSION}`;
 const PAGES = `pages-${VERSION}`;
 
@@ -27,8 +27,8 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/login")) return;
 
-  // Estáticos inmutables
-  if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/brand/") || /\.(png|jpg|webp|svg|woff2?)$/.test(url.pathname)) {
+  // Estáticos inmutables (las imágenes las gestiona el propio navegador)
+  if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith((async () => {
       const cache = await caches.open(STATIC);
       const hit = await cache.match(req);
