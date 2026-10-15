@@ -32,7 +32,7 @@ export function MapSelectBar({ picked, onRemove, onClear, onClose }: {
       setExists(true);
       return setMsg("Ya hay una ruta ese día.");
     }
-    toast(`Ruta generada con ${j.stops ?? picked.length} tiendas`);
+    toast(`Ruta generada: ${j.stops ?? picked.length} paradas`);
     router.push(`/routes/${date}`);
   }
 
@@ -43,7 +43,7 @@ export function MapSelectBar({ picked, onRemove, onClear, onClose }: {
           <span className="flex h-8 min-w-8 items-center justify-center rounded-full bg-brand-600 px-2 text-sm font-bold text-[rgb(var(--on-accent))]">{picked.length}</span>
           <span className="min-w-0">
             <span className="block text-sm font-semibold">{picked.length ? `tienda${picked.length > 1 ? "s" : ""} seleccionada${picked.length > 1 ? "s" : ""}` : "Toca los pines para elegir tiendas"}</span>
-            <span className="block text-xs text-slate-500">{picked.length >= 24 ? "Máximo 24 por ruta" : "Saldrás desde casa en el orden más eficiente"}</span>
+            <span className="block text-xs text-slate-500">{picked.length >= 24 ? "Máximo 24 por ruta" : "Se completa con las pendientes más cercanas"}</span>
           </span>
           {picked.length > 0 && <ChevronUp size={16} className={clsx("ml-auto shrink-0 text-slate-400 transition-transform", !list && "rotate-180")} />}
         </button>

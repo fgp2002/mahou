@@ -1,5 +1,7 @@
 "use client";
 import { Fragment, useState } from "react";
+import { Trash2 } from "lucide-react";
+import { toast } from "./Toast";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -86,19 +88,18 @@ export function RouteEditor({ route, stops }: { route: RouteView; stops: StopVie
     setBusy(false);
     router.refresh();
   }
-  async function reject() {
-    if (!confirm("¿Rechazar esta ruta?")) return;
-    await sb.from("routes").update({ status: "rejected" }).eq("id", route.id);
-    router.refresh();
-  }
-  async function regenerate() {
-    const protectedRoute = route.status === "accepted" || route.user_modified;
-    if (protectedRoute && !confirm("Esta ruta está aceptada o la has editado. Si la regeneras se perderán esos cambios. ¿Continuar?")) return;
+  async function removeRoute() {
+    const done = stops.filter((s) => s.visit?.status === "completed").length;
+    if (!confirm(`¿Eliminar la ruta de este día?${done ? ` Las ${done} visitas ya hechas se conservan en el historial.` : ""} Después podrás generar otra.`)) return;
     setBusy(true);
-    const r = await fetch("/api/routes/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ date: route.date, replace: true, override: protectedRoute }) });
-    const j = await r.json();
+    setErr(null);
+    const planned = stops.map((s) => s.visit).filter((v): v is NonNullable<typeof v> => !!v && v.status === "planned").map((v) => v.id);
+    if (planned.length) await sb.from("visits").delete().in("id", planned);
+    const { error } = await sb.from("routes").delete().eq("id", route.id);
+    if (!error) await sb.from("alerts").delete().in("dedupe_key", [`route:${route.date}`, `unsched:${route.date}`]);
     setBusy(false);
-    if (!r.ok) setErr(j.error);
+    if (error) return setErr(error.message);
+    toast("Ruta eliminada");
     router.refresh();
   }
 
@@ -124,11 +125,14 @@ export function RouteEditor({ route, stops }: { route: RouteView; stops: StopVie
         )}
         <div className="flex flex-wrap gap-2 pt-2">
           {route.status === "proposed" && <button className="btn" disabled={busy} onClick={accept}>Aceptar ruta</button>}
-          {route.status === "proposed" && <button className="btn-secondary" disabled={busy} onClick={reject}>Rechazar</button>}
-          {route.status === "rejected" && <button className="btn" disabled={busy} onClick={accept}>Aceptar de todos modos</button>}
-          {!locked && <button className="btn-secondary" disabled={busy} onClick={regenerate}>Regenerar</button>}
+          {route.status === "rejected" && <button className="btn" disabled={busy} onClick={accept}>Aceptar</button>}
           {url && <a className="btn-secondary" href={url} target="_blank" rel="noreferrer">Abrir en Google Maps</a>}
         </div>
+        {!locked && (
+          <div className="border-t border-slate-100 pt-3">
+            <button className="btn-secondary !text-red-600" disabled={busy} onClick={removeRoute}><Trash2 size={16} /> Eliminar ruta</button>
+          </div>
+        )}
         {err && <p className="text-red-600">{err}</p>}
       </div>
 

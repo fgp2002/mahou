@@ -16,7 +16,7 @@ export default async function RoutePage({ params }: { params: Promise<{ date: st
     return (
       <div className="max-w-3xl space-y-6">
         <PageHeader title={formatLong(date)}><Link href="/routes" className="btn-secondary">Todas las rutas</Link></PageHeader>
-        <p className="text-sm text-slate-500">No hay ruta para este día.</p>
+        <p className="text-sm text-slate-500">No hay ruta para este día. Genera una automática o <Link href="/map" className="font-semibold text-brand-600 underline">elige tiendas en el mapa</Link> con «Seleccionar» y la ruta se completará con las pendientes más cercanas.</p>
         <GenerateRoute defaultDate={date} routeStart="la hora configurada" />
       </div>
     );

@@ -160,9 +160,10 @@ export async function generateRoute(
   const { data: sameDay } = await sb.from("visits").select("store_id").eq("owner_id", ownerId).eq("visit_date", date).in("status", ["completed", "in_progress"]);
   const doneToday = new Set((sameDay ?? []).map((v) => v.store_id));
   const exclude = new Set(opts.excludeStoreIds ?? []);
-  const forced = new Set(opts.forcedStoreIds ?? []);
-  // Selección a mano en el mapa: la ruta lleva exactamente esas tiendas, en el orden más eficiente.
-  const only = opts.onlyStoreIds?.length ? new Set(opts.onlyStoreIds) : null;
+  // Tiendas elegidas a mano en el mapa: son anclas obligatorias; la ruta se completa con las
+  // pendientes más cercanas a ellas. Las tiendas sin obligación solo entran si se eligen.
+  const anchors = opts.onlyStoreIds ?? [];
+  const forced = new Set([...(opts.forcedStoreIds ?? []), ...anchors]);
   const bannerSet = opts.banners?.length ? new Set(opts.banners.map((b) => b.trim().toUpperCase())) : null;
 
   const scored = stores
@@ -170,16 +171,14 @@ export async function generateRoute(
       const ob = computeObligation(s.frequency as "semanal", date, dates.get(s.id) ?? [], { trackingStart: settings.tracking_start });
       return { s, ob, score: priorityScore(ob, s.audit && settings.audit_first) + (forced.has(s.id) ? 1000 : 0) };
     })
-    .filter((x) => only ? only.has(x.s.id) : !exclude.has(x.s.id) && !doneToday.has(x.s.id) && (!bannerSet || forced.has(x.s.id) || bannerSet.has((x.s.banner ?? "").replace(/\s+/g, " ").trim().toUpperCase())) && (forced.has(x.s.id) || (x.ob.pending > 0 && (!x.ob.eligibleFrom || x.ob.eligibleFrom <= date))))
+    .filter((x) => !exclude.has(x.s.id) && !doneToday.has(x.s.id) && (!bannerSet || forced.has(x.s.id) || bannerSet.has((x.s.banner ?? "").replace(/\s+/g, " ").trim().toUpperCase())) && (forced.has(x.s.id) || (x.ob.pending > 0 && (!x.ob.eligibleFrom || x.ob.eligibleFrom <= date))))
     .sort((a, b) => b.score - a.score);
 
   const unscheduled: { store_id: string; name: string; reason: string }[] = [];
   const located = scored.filter((x) => x.s.lat != null && x.s.lng != null);
   for (const x of scored) if (x.s.lat == null || x.s.lng == null) unscheduled.push({ store_id: x.s.id, name: x.s.name, reason: "sin_ubicacion" });
   // Zona del día: ancla (la más urgente) + pendientes cercanas, con tope de Audit por día.
-  const zone = only
-    ? { picked: located.slice(0, MAX_CANDIDATES).map((x) => ({ id: x.s.id, priority: 0, distKm: 0 })), dropped: located.slice(MAX_CANDIDATES).map((x) => ({ id: x.s.id, reason: "fuera_candidatos" as const })) }
-    : pickZone(located.map((x) => ({
+  const zone = pickZone(located.map((x) => ({
     id: x.s.id, lat: x.s.lat!, lng: x.s.lng!, score: x.score, audit: x.s.audit && settings.audit_first,
     overdue: x.ob.state === "atrasada", forced: forced.has(x.s.id),
   })), { ...ZONE_DEFAULTS, max: MAX_CANDIDATES, home: settings.home });
@@ -200,7 +199,7 @@ export async function generateRoute(
     const learned = await learnedMinutes(sb, ownerId, cand.map((x) => x.s.id));
     result = planRoute({
       stores: cand.map((x) => ({ id: x.s.id, minutes: learned.get(x.s.id) ?? settings.default_minutes, priority: prio.get(x.s.id) ?? x.score, forced: forced.has(x.s.id) })),
-      dur: matrix.dur, dist: matrix.dist, startMinutes: startMin, endMinutes: only ? Number.POSITIVE_INFINITY : endMin,
+      dur: matrix.dur, dist: matrix.dist, startMinutes: startMin, endMinutes: endMin,
       hasHome: !!settings.home, lunch: settings.lunch, kmWeight: KM_WEIGHT,
     });
     if (settings.max_stops && result.stops.length > settings.max_stops) {
@@ -212,7 +211,8 @@ export async function generateRoute(
   if (!cand.length) warnings.push(bannerSet ? "No hay tiendas pendientes de esas enseñas con ubicación para este día." : "No hay tiendas pendientes con ubicación para este día.");
   if (result) {
     const approx = result.stops.filter((st) => cand[st.index].s.geocode_status === "partial").length;
-    if (only && result.endMinutes > endMin) warnings.push(`Con las ${result.stops.length} tiendas elegidas la jornada acabaría a las ${fmtHM(result.endMinutes)}, después de tu hora de fin (${settings.work_end}).`);
+    const missing = anchors.filter((id) => !result!.stops.some((st) => st.id === id));
+    if (missing.length) warnings.push(`${missing.length} de las tiendas que elegiste no caben en la jornada: quita alguna o amplía el horario.`);
     if (approx) warnings.push(`${approx} paradas tienen la ubicación aproximada: el orden puede no ser exacto. Corrígela en la ficha de la tienda.`);
     if (result.lunch && settings.lunch && result.lunch.start > settings.lunch.latest - settings.lunch.minutes)
       warnings.push(`La pausa para comer empieza a las ${fmtHM(result.lunch.start)}, más tarde de lo previsto.`);
@@ -223,8 +223,8 @@ export async function generateRoute(
     routing_provider: matrix ? matrix.provider : null, is_estimate: matrix?.estimated ?? false,
     est_distance_m: result ? Math.round(result.totalDistanceM) : 0, est_drive_seconds: result ? Math.round(result.totalDriveSeconds) : 0,
     est_visit_seconds: result ? result.totalVisitMinutes * 60 : 0, unscheduled, warnings,
-    banner_filter: bannerSet && !only ? [...bannerSet] : null,
-    selected_store_ids: only ? [...only] : null,
+    banner_filter: bannerSet ? [...bannerSet] : null,
+    selected_store_ids: anchors.length ? anchors : null,
     lunch_start: result?.lunch ? fmtHM(result.lunch.start) : null, lunch_after_position: result?.lunch ? result.lunch.afterStop + 1 : null,
   }).select("id").single();
   if (error) {
@@ -239,7 +239,7 @@ export async function generateRoute(
       owner_id: ownerId, route_id: route.id, store_id: st.id, position: i + 1,
       planned_arrival: fmtHM(st.arrivalMinutes), planned_minutes: st.minutes,
       drive_seconds_from_prev: Math.round(st.driveSecondsFromPrev), distance_m_from_prev: Math.round(st.distanceMFromPrev),
-      reason: cand[st.index].ob.state === "atrasada" ? "Atrasada" : cand[st.index].s.audit ? "Audit" : cand[st.index].ob.state === "proxima" ? "Vence pronto" : "Pendiente",
+      reason: anchors.includes(st.id) ? "Elegida por ti" : cand[st.index].ob.state === "atrasada" ? "Atrasada" : cand[st.index].s.audit ? "Audit" : cand[st.index].ob.state === "proxima" ? "Vence pronto" : "Pendiente",
       forced_priority: forced.has(st.id),
     })));
     if (e2) throw new Error(e2.message);

@@ -52,6 +52,7 @@ export function MapView({ stores }: { stores: MapStore[] }) {
   const [showFilters, setShowFilters] = useState(false);
   const [sel, setSel] = useState<MapStore | null>(null);
   const [contacts, setContacts] = useState<{ id: string; full_name: string | null; phone: string | null }[]>([]);
+  const [history, setHistory] = useState<{ id: string; visit_date: string; status: string; duration_minutes: number | null }[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   // Modo selección: tocar pines los añade o quita de la ruta que se va a generar.
   const [picking, setPicking] = useState(false);
@@ -145,11 +146,18 @@ export function MapView({ stores }: { stores: MapStore[] }) {
 
   useEffect(() => {
     setContacts([]);
+    setHistory([]);
     if (!sel) return;
     let live = true;
     (async () => {
-      const { data } = await supabaseBrowser().from("store_contacts").select("id,full_name,phone").eq("store_id", sel.id).limit(3);
-      if (live) setContacts((data ?? []) as { id: string; full_name: string | null; phone: string | null }[]);
+      const sb = supabaseBrowser();
+      const [{ data }, { data: vs }] = await Promise.all([
+        sb.from("store_contacts").select("id,full_name,phone").eq("store_id", sel.id).limit(3),
+        sb.from("visits").select("id,visit_date,status,duration_minutes").eq("store_id", sel.id).in("status", ["completed", "in_progress"]).order("visit_date", { ascending: false }).limit(5),
+      ]);
+      if (!live) return;
+      setContacts((data ?? []) as { id: string; full_name: string | null; phone: string | null }[]);
+      setHistory((vs ?? []) as { id: string; visit_date: string; status: string; duration_minutes: number | null }[]);
     })();
     return () => { live = false; };
   }, [sel]);
@@ -237,6 +245,16 @@ export function MapView({ stores }: { stores: MapStore[] }) {
                 {contacts.map((c) => <li key={c.id}>{c.full_name ?? "Contacto"} {c.phone && <a className="underline" href={`tel:${c.phone}`}>{c.phone}</a>}</li>)}
               </ul>
             )}
+            <div className="mb-3">
+              <div className="label">Últimas visitas</div>
+              {history.length === 0 ? <p className="text-sm text-slate-500">Sin visitas registradas.</p> : (
+                <ul className="divide-y divide-slate-100 text-sm">
+                  {history.map((v) => (
+                    <li key={v.id}><Link href={`/visits/${v.id}`} className="flex justify-between py-1.5 hover:text-brand-600"><span>{v.visit_date.slice(8, 10)}/{v.visit_date.slice(5, 7)}/{v.visit_date.slice(0, 4)}</span><span className="text-slate-500">{v.status === "completed" ? `${v.duration_minutes ?? "?"} min` : "En curso"}</span></Link></li>
+                  ))}
+                </ul>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-2">
               <StartVisitButton storeId={sel.id} label="Iniciar visita" />
               <a className="btn-secondary" target="_blank" rel="noreferrer" href={googleMapsPlaceUrl(sel)}>Cómo llegar</a>
