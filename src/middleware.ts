@@ -22,7 +22,14 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isPublic = path === "/login" || path.startsWith("/api/cron/");
+  // Enlace de «restablecer contraseña»: si el correo trae al usuario a otra página con ?code=, se lleva a la pantalla de nueva contraseña.
+  const code = request.nextUrl.searchParams.get("code");
+  if (code && !path.startsWith("/auth/") && !path.startsWith("/api/")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/reset";
+    return NextResponse.redirect(url);
+  }
+  const isPublic = path === "/login" || path.startsWith("/auth/") || path.startsWith("/api/cron/");
 
   if (!user && !isPublic) {
     if (path.startsWith("/api/")) {

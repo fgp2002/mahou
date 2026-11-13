@@ -12,6 +12,21 @@ export default function LoginPage() {
   const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<"login" | "forgot" | "sent">("login");
+
+  async function sendReset(e: React.FormEvent) {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const { error } = await supabaseBrowser().auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/auth/reset` });
+    setBusy(false);
+    // Por seguridad no se dice si el correo existe; solo se avisa de fallos técnicos o de demasiados intentos.
+    if (error && /rate|limit|seconds/i.test(error.message)) return setError("Has pedido varios enlaces seguidos. Espera unos minutos y vuelve a intentarlo.");
+    if (error && navigator.onLine === false) return setError("Sin conexión. Inténtalo de nuevo cuando tengas cobertura.");
+    if (error && !/not found|user/i.test(error.message)) return setError("No se pudo enviar el correo. Inténtalo de nuevo en unos minutos.");
+    setMode("sent");
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -44,6 +59,7 @@ export default function LoginPage() {
         </section>
 
         <main className="relative -mt-8 flex justify-center px-4 pb-[max(2rem,env(safe-area-inset-bottom))] lg:mt-0 lg:items-center lg:px-10">
+          {mode === "login" ? (
           <form onSubmit={onSubmit} noValidate={false} aria-busy={busy} className="card page-in w-full max-w-md space-y-4 self-start !p-6 shadow-pop lg:self-center lg:!p-8 lg:shadow-card">
             <div>
               <h1 className="t-page">Entrar</h1>
@@ -65,9 +81,34 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+            <button type="button" onClick={() => { setMode("forgot"); setError(null); }} className="link -mt-1 block text-sm">¿Has olvidado la contraseña?</button>
             {error && <p id="login-err" className="rounded-xl bg-red-100 px-3 py-2 text-sm font-medium text-red-700" role="alert">{error}</p>}
             <button type="submit" className="btn w-full !min-h-12 text-base" disabled={busy}>{busy ? "Entrando…" : "Entrar"}</button>
           </form>
+          ) : mode === "forgot" ? (
+          <form onSubmit={sendReset} aria-busy={busy} className="card page-in w-full max-w-md space-y-4 self-start !p-6 shadow-pop lg:self-center lg:!p-8 lg:shadow-card">
+            <div>
+              <h1 className="t-page">Restablecer contraseña</h1>
+              <p className="mt-1 text-sm text-slate-500">Escribe tu correo y te enviaremos un enlace para poner una contraseña nueva.</p>
+            </div>
+            <div>
+              <label htmlFor="email-reset" className="label">Correo <span className="text-brand-600" aria-hidden>*</span></label>
+              <input id="email-reset" className="input !min-h-12 text-base" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} enterKeyHint="send" required autoFocus
+                value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={error ? true : undefined} aria-describedby={error ? "reset-err" : undefined} />
+            </div>
+            {error && <p id="reset-err" className="rounded-xl bg-red-100 px-3 py-2 text-sm font-medium text-red-700" role="alert">{error}</p>}
+            <button type="submit" className="btn w-full !min-h-12 text-base" disabled={busy}>{busy ? "Enviando…" : "Enviar enlace"}</button>
+            <button type="button" onClick={() => { setMode("login"); setError(null); }} className="btn-ghost w-full">Volver a entrar</button>
+          </form>
+          ) : (
+          <div className="card page-in w-full max-w-md space-y-4 self-start !p-6 shadow-pop lg:self-center lg:!p-8 lg:shadow-card" role="status">
+            <h1 className="t-page">Revisa tu correo</h1>
+            <p className="text-sm text-slate-600">Si <b className="break-all">{email.trim()}</b> tiene cuenta, te llegará en unos minutos un correo con un enlace para poner una contraseña nueva. Mira también en correo no deseado.</p>
+            <p className="text-sm text-slate-500">Ábrelo en este mismo dispositivo y navegador.</p>
+            <button type="button" onClick={() => setMode("login")} className="btn w-full !min-h-12 text-base">Volver a entrar</button>
+            <button type="button" onClick={() => setMode("forgot")} className="btn-ghost w-full">No me ha llegado: enviar otro</button>
+          </div>
+          )}
         </main>
       </div>
     </div>
