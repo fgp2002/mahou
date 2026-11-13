@@ -122,18 +122,20 @@ export type GenerateOutcome =
 
 export async function generateRoute(
   sb: SupabaseClient,
-  ownerId: string,
+  userId: string,
   date: string,
-  opts: { by: "auto" | "manual"; replaceExisting?: boolean; overrideProtected?: boolean; forcedStoreIds?: string[]; excludeStoreIds?: string[]; banners?: string[]; onlyStoreIds?: string[]; start?: { lat: number; lng: number } | null } = { by: "manual" },
+  opts: { by: "auto" | "manual"; dataOwner?: string; assignedOnly?: boolean; replaceExisting?: boolean; overrideProtected?: boolean; forcedStoreIds?: string[]; excludeStoreIds?: string[]; banners?: string[]; onlyStoreIds?: string[]; start?: { lat: number; lng: number } | null } = { by: "manual" },
 ): Promise<GenerateOutcome> {
-  const settings = await loadOwnerSettings(sb, ownerId);
+  // Cada persona tiene su ruta y sus ajustes (userId); los datos (tiendas, visitas) son de la organización (ownerId).
+  const ownerId = opts.dataOwner ?? userId;
+  const settings = await loadOwnerSettings(sb, userId);
   if (!settings) return { status: "skipped", reason: "El usuario no tiene ajustes" };
 
   const warnings: string[] = [];
-  const homeWarn = await ensureHome(sb, ownerId, settings);
+  const homeWarn = await ensureHome(sb, userId, settings);
   if (homeWarn) warnings.push(homeWarn);
 
-  const { data: existing } = await sb.from("routes").select("id,status,user_modified,banner_filter,selected_store_ids").eq("owner_id", ownerId).eq("route_date", date).maybeSingle();
+  const { data: existing } = await sb.from("routes").select("id,status,user_modified,banner_filter,selected_store_ids").eq("user_id", userId).eq("route_date", date).maybeSingle();
   if (existing) {
     // Nunca se pisa una ruta aceptada, editada o completada salvo confirmación expresa del usuario
     // (overrideProtected). El cron (by: "auto") jamás reemplaza nada.
@@ -156,6 +158,13 @@ export async function generateRoute(
     const { data } = await sb.from("stores").select("id,name,town,lat,lng,frequency,audit,banner,geocode_status,opening_days,open_time,close_time,preferred_from,preferred_to,extra_minutes").eq("owner_id", ownerId).eq("active", true).range(from, from + 999);
     stores.push(...(data ?? []));
     if (!data || data.length < 1000) break;
+  }
+  if (opts.assignedOnly) {
+    // Con la clave de servicio (planificación automática) no hay RLS: se limita a la cartera de la persona.
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: mine } = await sb.from("store_assignments").select("store_id,valid_from,valid_to").eq("user_id", userId);
+    const ok = new Set((mine ?? []).filter((a) => a.valid_from <= today && (!a.valid_to || a.valid_to >= today)).map((a) => a.store_id));
+    stores.splice(0, stores.length, ...stores.filter((x) => ok.has(x.id)));
   }
   const dates = await completedDates(sb, ownerId);
   const { data: sameDay } = await sb.from("visits").select("store_id").eq("owner_id", ownerId).eq("visit_date", date).in("status", ["completed", "in_progress"]);
@@ -240,7 +249,7 @@ export async function generateRoute(
   }
 
   const { data: route, error } = await sb.from("routes").insert({
-    owner_id: ownerId, route_date: date, status: "proposed", start_time: settings.route_start, generated_by: opts.by, user_modified: false,
+    owner_id: ownerId, user_id: userId, route_date: date, status: "proposed", start_time: settings.route_start, generated_by: opts.by, user_modified: false,
     routing_provider: matrix ? matrix.provider : null, is_estimate: matrix?.estimated ?? false,
     est_distance_m: result ? Math.round(result.totalDistanceM) : 0, est_drive_seconds: result ? Math.round(result.totalDriveSeconds) : 0,
     est_visit_seconds: result ? result.totalVisitMinutes * 60 : 0, unscheduled, warnings,
@@ -251,7 +260,7 @@ export async function generateRoute(
   }).select("id").single();
   if (error) {
     // Carrera con otra ejecución: la ruta ya existe, no se duplica.
-    const { data: again } = await sb.from("routes").select("id,status").eq("owner_id", ownerId).eq("route_date", date).maybeSingle();
+    const { data: again } = await sb.from("routes").select("id,status").eq("user_id", userId).eq("route_date", date).maybeSingle();
     if (again) return { status: "exists", routeId: again.id, routeStatus: again.status };
     throw new Error(error.message);
   }
@@ -270,13 +279,13 @@ export async function generateRoute(
 
   const nStops = result?.stops.length ?? 0;
   await sb.from("alerts").upsert({
-    owner_id: ownerId, kind: "route_proposed", severity: "info", dedupe_key: `route:${date}`,
+    owner_id: userId, kind: "route_proposed", severity: "info", dedupe_key: `route:${date}`,
     message: `Ruta propuesta para ${date}: ${nStops} paradas${unscheduled.length ? ` y ${unscheduled.length} sin programar` : ""}. Revísala y acéptala.`,
   }, { onConflict: "owner_id,dedupe_key", ignoreDuplicates: true });
 
   if (unscheduled.length) {
     await sb.from("alerts").upsert({
-      owner_id: ownerId, kind: "route_unscheduled", severity: "warning", dedupe_key: `unsched:${date}`,
+      owner_id: userId, kind: "route_unscheduled", severity: "warning", dedupe_key: `unsched:${date}`,
       message: `${unscheduled.length} tiendas pendientes no caben en la ruta del ${date}. Mira el motivo en la ruta.`,
     }, { onConflict: "owner_id,dedupe_key", ignoreDuplicates: true });
   }
@@ -290,11 +299,14 @@ export async function generateRoute(
  * las visitas ya hechas o en curso se quedan como están, al principio.
  */
 export async function recalcRoute(
-  sb: SupabaseClient, ownerId: string, routeId: string,
+  sb: SupabaseClient, requester: string, routeId: string,
   opts: { from?: { lat: number; lng: number; minutes: number } | null } = {},
 ): Promise<{ estimate: boolean; reordered?: number }> {
-  const { data: route } = await sb.from("routes").select("*").eq("id", routeId).eq("owner_id", ownerId).single();
+  const { data: route } = await sb.from("routes").select("*").eq("id", routeId).single();
   if (!route) throw new Error("Ruta no encontrada");
+  // La ruta puede ser de otra persona del equipo (un responsable la ajusta): ajustes de quien la hace, datos de la organización.
+  const userId: string = route.user_id ?? requester;
+  const ownerId: string = route.owner_id;
   const { data: stops } = await sb.from("route_stops").select("*, stores(name,lat,lng,open_time,close_time,preferred_from,preferred_to)").eq("route_id", routeId).eq("owner_id", ownerId).order("position");
   type Row = { id: string; planned_minutes: number; planned_arrival: string | null; drive_seconds_from_prev: number | null; distance_m_from_prev: number | null; stores: { name: string; lat: number; lng: number } & StoreHoursLike };
   const list = (stops ?? []) as unknown as Row[];
@@ -302,8 +314,8 @@ export async function recalcRoute(
     await sb.from("routes").update({ est_distance_m: 0, est_drive_seconds: 0, est_visit_seconds: 0, updated_at: new Date().toISOString() }).eq("id", routeId);
     return { estimate: false };
   }
-  const settings = await loadOwnerSettings(sb, ownerId);
-  if (settings) await ensureHome(sb, ownerId, settings);
+  const settings = await loadOwnerSettings(sb, userId);
+  if (settings) await ensureHome(sb, userId, settings);
   const home = settings?.home ?? null;
   const warnings: string[] = [];
 
@@ -366,7 +378,7 @@ export async function recalcRoute(
   if (matrix.estimated) warnings.push("Tiempos de trayecto ESTIMADOS (no por carretera real).");
   const late = r.stops.filter((st) => st.late).map((st) => list[st.index].stores.name);
   if (late.length) warnings.push(`Con este orden no da tiempo a visitar dentro de su horario: ${late.join(", ")}.`);
-  const { data: set } = await sb.from("user_settings").select("work_end").eq("owner_id", ownerId).single();
+  const { data: set } = await sb.from("user_settings").select("work_end").eq("owner_id", userId).maybeSingle();
   if (set && r.endMinutes > parseHM(String(set.work_end).slice(0, 5))) warnings.push(`La ruta termina a las ${fmtHM(r.endMinutes)}, después del fin de jornada (${String(set.work_end).slice(0, 5)}).`);
   await sb.from("routes").update({
     is_estimate: matrix.estimated, routing_provider: matrix.provider, est_distance_m: Math.round(r.totalDistanceM),

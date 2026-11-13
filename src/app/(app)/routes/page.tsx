@@ -5,6 +5,7 @@ import { loadFeasibility } from "@/lib/server/feasibility";
 import { FeasibilityCard } from "@/components/ui";
 import { PageHeader } from "@/components/ui";
 import { GenerateRoute } from "@/components/GenerateRoute";
+import { getMe } from "@/lib/server/me";
 import { madridDate, addDays, formatLong } from "@/lib/domain/dates";
 
 const ST: Record<string, string> = { proposed: "Propuesta", accepted: "Aceptada", rejected: "Rechazada", completed: "Completada" };
@@ -14,7 +15,8 @@ export default async function RoutesPage() {
   const today = madridDate();
   const [settings, stores, dates] = await Promise.all([loadSettings(), loadAllStores(), loadCompletedDates()]);
   const feas = await loadFeasibility(withObligations(stores, dates, settings, today), settings);
-  const { data: routes } = await sb.from("routes").select("id,route_date,status,generated_by,est_drive_seconds,est_visit_seconds,is_estimate,route_stops(count)").order("route_date", { ascending: false }).limit(60);
+  const me = await getMe();
+  const { data: routes } = await sb.from("routes").select("id,route_date,status,generated_by,est_drive_seconds,est_visit_seconds,is_estimate,route_stops(count)").eq("user_id", me?.userId ?? "").order("route_date", { ascending: false }).limit(60);
   const rows = (routes ?? []) as unknown as { id: string; route_date: string; status: string; generated_by: string; est_drive_seconds: number | null; est_visit_seconds: number | null; is_estimate: boolean; route_stops: { count: number }[] }[];
   const upcoming = rows.filter((r) => r.route_date >= today).reverse();
   const past = rows.filter((r) => r.route_date < today);

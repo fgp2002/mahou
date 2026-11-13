@@ -12,7 +12,14 @@ import { complianceInRange, sumCompliance } from "@/lib/domain/report";
 import { monthEnd } from "@/lib/economy";
 import { INCIDENT_COLS, INCIDENT_TYPE_LABEL, PRIORITY_LABEL, PRIORITY_STYLE, daysOpen, sortIncidents, type Incident } from "@/lib/incidents";
 import { MahouEmblem } from "@/components/MahouLogo";
-import { AlertTriangle, ChevronRight, Clock, Euro, FileSignature, ShieldCheck, Wrench } from "lucide-react";
+import { AlertTriangle, CalendarClock, ChevronRight, Clock, Euro, FileSignature, ShieldCheck, Wrench } from "lucide-react";
+import { getMe } from "@/lib/server/me";
+import { can, TASK_STATUS } from "@/lib/enterprise/roles";
+import { ManagerHome } from "@/components/enterprise/ManagerHome";
+import { OPEN_TASK, TASK_COLS, type Task } from "@/lib/server/scope";
+
+// Perfiles que supervisan: su inicio es el estado de su ámbito, no una ruta propia.
+const MANAGERS = new Set(["direccion_nacional", "direccion_regional", "jefe_comercial", "jefe_gpv", "analista", "administrador", "supervisor_conveniencia"]);
 
 const eur = (n: number) => n.toLocaleString("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
@@ -31,24 +38,35 @@ interface Stop {
 export default async function Today() {
   const sb = await supabaseServer();
   const today = madridDate();
+  const me = await getMe();
+  const hour0 = Number(new Intl.DateTimeFormat("es-ES", { hour: "numeric", hour12: false, timeZone: "Europe/Madrid" }).format(new Date())) % 24;
+  if (me && !me.isOwner && me.role && MANAGERS.has(me.role)) {
+    return <ManagerHome me={me} greeting={hour0 < 6 ? "Buenas noches" : hour0 < 14 ? "Buenos días" : hour0 < 21 ? "Buenas tardes" : "Buenas noches"} />;
+  }
+  const perms = me?.permissions ?? ["todo.todo"];
+  const uid = me?.userId ?? "";
   const [settings, stores, dates] = await Promise.all([loadSettings(), loadAllStores(), loadCompletedDates()]);
   const rows = withObligations(stores, dates, settings, today);
   const feas = await loadFeasibility(rows, settings);
 
   const [{ data: route }, { data: tomorrow }, { data: open }, { data: alerts }, { data: monthVisits }] = await Promise.all([
-    sb.from("routes").select("id,status").eq("route_date", today).maybeSingle(),
-    sb.from("routes").select("id,status,route_date").gt("route_date", today).lte("route_date", addDays(today, 4)).eq("status", "proposed").order("route_date").limit(1).maybeSingle(),
-    sb.from("visits").select("id,stores(name)").eq("status", "in_progress").limit(1).maybeSingle(),
+    sb.from("routes").select("id,status").eq("route_date", today).eq("user_id", uid).maybeSingle(),
+    sb.from("routes").select("id,status,route_date").eq("user_id", uid).gt("route_date", today).lte("route_date", addDays(today, 4)).eq("status", "proposed").order("route_date").limit(1).maybeSingle(),
+    sb.from("visits").select("id,stores(name)").eq("status", "in_progress").eq("created_by", uid).limit(1).maybeSingle(),
     sb.from("alerts").select("id,message,severity,kind,dedupe_key").is("resolved_at", null).order("created_at", { ascending: false }).limit(5),
     sb.from("visits").select("id", { count: "exact", head: false }).eq("status", "completed").gte("visit_date", monthStart(today)).lte("visit_date", today),
   ]);
   const soonEnd = addDays(today, 60);
-  const [{ data: incData }, { data: pend }, { count: toReview }, { count: agSoon }] = await Promise.all([
+  const [{ data: incData }, { data: pend }, { count: toReview }, { count: agSoon }, { data: myTasks }] = await Promise.all([
     sb.from("incidents").select(INCIDENT_COLS).is("deleted_at", null).in("status", ["abierta", "en_seguimiento"]).limit(500),
     sb.from("payment_records").select("amount").is("deleted_at", null).in("status", ["previsto", "aprobado", "comprobado"]).limit(2000),
     sb.from("store_equipment").select("id", { count: "exact", head: true }).is("deleted_at", null).in("status", ["deteriorado", "pendiente_revision", "pendiente_instalacion"]),
     sb.from("agreements").select("id", { count: "exact", head: true }).is("deleted_at", null).in("status", ["aprobado", "en_ejecucion"]).gte("end_date", today).lte("end_date", soonEnd),
+    can(perms, "tareas.consultar") && me && !me.isOwner
+      ? sb.from("tasks").select(TASK_COLS).is("deleted_at", null).eq("assignee_id", uid).in("status", OPEN_TASK).order("due_date", { ascending: true, nullsFirst: false }).limit(20)
+      : Promise.resolve({ data: [] as Task[] }),
   ]);
+  const tasksMine = (myTasks ?? []) as Task[];
   const openInc = sortIncidents((incData ?? []) as Incident[]);
   const pendAmount = (pend ?? []).reduce((a, p) => a + Number(p.amount), 0);
 
@@ -80,21 +98,24 @@ export default async function Today() {
   const month = sumCompliance(rows.map((r) => complianceInRange(r.frequency, r.audit, dates.get(r.id) ?? [], m0, monthEnd(m0), today, settings.tracking_start)));
   const audits = rows.filter((r) => r.audit && r.ob.pending > 0).length;
   const storeName = new Map(rows.map((r) => [r.id, r.name]));
-  const tiles: { href: string; label: string; value: string | number; hint?: string; tone: string; icon: React.ReactNode }[] = [
+  const allTiles: { href: string; label: string; value: string | number; hint?: string; tone: string; icon: React.ReactNode; perm?: string }[] = [
     { href: "/stores?state=atrasada", label: "Atrasadas", value: atrasadas, hint: "fuera de plazo", tone: atrasadas ? "text-st-late" : "", icon: <AlertTriangle size={16} /> },
     { href: "/stores?state=proxima", label: "Vencen pronto", value: proximas, hint: "en los próximos días", tone: proximas ? "text-st-soon" : "", icon: <Clock size={16} /> },
     { href: "/stores?audit=1&state=atrasada&state=proxima&state=pendiente", label: "Audit pendientes", value: audits, tone: "", icon: <ShieldCheck size={16} /> },
     { href: "/incidents", label: "Incidencias abiertas", value: openInc.length, hint: openInc.filter((i) => i.priority === "alta").length ? `${openInc.filter((i) => i.priority === "alta").length} de prioridad alta` : undefined, tone: openInc.length ? "text-st-late" : "", icon: <AlertTriangle size={16} /> },
-    { href: `/economy?period=${today.slice(0, 4)}&status=previsto&status=aprobado&status=comprobado`, label: "Pagos pendientes", value: (pend ?? []).length, hint: (pend ?? []).length ? eur(pendAmount) : undefined, tone: "", icon: <Euro size={16} /> },
-    { href: "/inventory?status=deteriorado&status=pendiente_revision&status=pendiente_instalacion", label: "Elementos por revisar", value: toReview ?? 0, hint: "deteriorados o pendientes", tone: toReview ? "text-st-soon" : "", icon: <Wrench size={16} /> },
-    { href: "/agreements?venc=60", label: "Acuerdos que vencen", value: agSoon ?? 0, hint: "en 60 días", tone: agSoon ? "text-st-soon" : "", icon: <FileSignature size={16} /> },
+    { href: `/economy?period=${today.slice(0, 4)}&status=previsto&status=aprobado&status=comprobado`, label: "Pagos pendientes", value: (pend ?? []).length, hint: (pend ?? []).length ? eur(pendAmount) : undefined, tone: "", icon: <Euro size={16} />, perm: "pagos.consultar" },
+    { href: "/inventory?status=deteriorado&status=pendiente_revision&status=pendiente_instalacion", label: "Elementos por revisar", value: toReview ?? 0, hint: "deteriorados o pendientes", tone: toReview ? "text-st-soon" : "", icon: <Wrench size={16} />, perm: "inventario.consultar" },
+    { href: "/agreements?venc=60", label: "Acuerdos que vencen", value: agSoon ?? 0, hint: "en 60 días", tone: agSoon ? "text-st-soon" : "", icon: <FileSignature size={16} />, perm: "acuerdos.consultar" },
+    ...(tasksMine.length ? [{ href: "/tasks?tab=mias", label: "Mis tareas", value: tasksMine.length, hint: tasksMine.some((t) => t.due_date && t.due_date < today) ? "alguna fuera de plazo" : "pendientes", tone: tasksMine.some((t) => t.due_date && t.due_date < today) ? "text-st-late" : "", icon: <CalendarClock size={16} /> }] : []),
   ];
+  // Sin datos económicos para quien no tiene permiso (la base de datos tampoco se los da).
+  const tiles = allTiles.filter((t) => !t.perm || can(perms, t.perm));
 
   return (
     <div className="space-y-6">
       <header>
         <p className="t-eyebrow">{formatLong(today)}</p>
-        <h1 className="t-display mt-1">{greeting}</h1>
+        <h1 className="t-display mt-1">{greeting}{me && !me.isOwner && me.name ? `, ${me.name.split(" ")[0]}` : ""}</h1>
       </header>
 
       <section className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
@@ -175,6 +196,22 @@ export default async function Today() {
         </Link>
       )}
 
+
+      {tasksMine.length > 0 && (
+        <section className="card space-y-2">
+          <div className="flex items-center justify-between gap-2"><h2 className="t-section">Mis tareas</h2><Link href="/tasks?tab=mias" className="link text-sm">Ver todas</Link></div>
+          <ul className="divide-y divide-slate-200">
+            {tasksMine.slice(0, 5).map((t) => (
+              <li key={t.id}>
+                <Link href="/tasks?tab=mias" className="row-link -mx-2 flex min-h-12 items-center justify-between gap-2 rounded-xl px-2 py-2 text-sm">
+                  <span className="min-w-0"><b className="block truncate">{t.title}</b><span className="block truncate text-xs text-slate-500">{storeName.get(t.store_id) ?? "Tienda"}{t.due_date ? ` · hasta el ${t.due_date.slice(8, 10)}/${t.due_date.slice(5, 7)}` : ""}</span></span>
+                  <span className={`badge ${t.due_date && t.due_date < today ? "bg-red-100 text-red-700" : TASK_STATUS[t.status]?.tone}`}>{t.due_date && t.due_date < today ? "Fuera de plazo" : TASK_STATUS[t.status]?.label}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
         <section className="card">

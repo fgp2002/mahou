@@ -7,9 +7,10 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const sb = await supabaseServer();
   const { data: u } = await sb.auth.getUser();
   if (!u.user) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-  const owner = u.user.id;
-  const { data: route } = await sb.from("routes").select("id,route_date,status").eq("id", id).eq("owner_id", owner).single();
+  // La ruta puede ser de otra persona del equipo (lo controla la base de datos); los datos son de la organización.
+  const { data: route } = await sb.from("routes").select("id,route_date,status,owner_id,user_id").eq("id", id).single();
   if (!route) return NextResponse.json({ error: "Ruta no encontrada" }, { status: 404 });
+  const owner: string = route.owner_id;
   if (route.status === "completed") return NextResponse.json({ error: "La ruta ya está completada" }, { status: 409 });
 
   const { data: stops } = await sb.from("route_stops").select("id,store_id,planned_minutes").eq("route_id", id).eq("owner_id", owner);
@@ -23,7 +24,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     const { error } = await sb.from("visits").insert(rows);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  await sb.from("routes").update({ status: "accepted", updated_at: new Date().toISOString() }).eq("id", id).eq("owner_id", owner);
-  await sb.from("alerts").update({ resolved_at: new Date().toISOString() }).eq("owner_id", owner).eq("dedupe_key", `route:${route.route_date}`);
+  await sb.from("routes").update({ status: "accepted", updated_at: new Date().toISOString() }).eq("id", id);
+  await sb.from("alerts").update({ resolved_at: new Date().toISOString() }).eq("owner_id", u.user.id).eq("dedupe_key", `route:${route.route_date}`);
   return NextResponse.json({ ok: true, visitsCreated: rows.length });
 }

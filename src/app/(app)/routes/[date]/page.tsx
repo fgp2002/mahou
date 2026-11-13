@@ -6,12 +6,14 @@ import { formatLong } from "@/lib/domain/dates";
 import { GenerateRoute } from "@/components/GenerateRoute";
 import { RoutePreviewLoader } from "@/components/RoutePreviewLoader";
 import { ensureRouteShape } from "@/lib/server/routes";
+import { getMe } from "@/lib/server/me";
 
 export default async function RoutePage({ params }: { params: Promise<{ date: string }> }) {
   const { date } = await params;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return <p>Fecha no válida.</p>;
   const sb = await supabaseServer();
-  const { data: route } = await sb.from("routes").select("*").eq("route_date", date).maybeSingle();
+  const me = await getMe();
+  const { data: route } = await sb.from("routes").select("*").eq("route_date", date).eq("user_id", me?.userId ?? "").maybeSingle();
   if (!route) {
     return (
       <div className="max-w-3xl space-y-6">

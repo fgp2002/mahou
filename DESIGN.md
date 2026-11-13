@@ -64,7 +64,7 @@ Espaciado en múltiplos de 4 px (Tailwind). Radios: tarjetas `rounded-2xl` (16 p
 - **Tarjetas**: `.card`; paneles secundarios `.panel`.
 - **Cabecera de página**: `PageHeader` (título, contador en chip rojo suave, subtítulo, acciones).
 - **Enlaces de texto**: `.link` (rojo, subrayado al pasar el ratón).
-- **Chips de filtro/pestañas**: seleccionado en rojo Mahou.
+- **Chips de filtro/pestañas** (`.chip`): seleccionado en rojo Mahou.
 - **Modales**: `Sheet` (hoja inferior en móvil, panel centrado en escritorio).
 - **Tablas**: `.data-table` en escritorio; listas de tarjetas en móvil.
 - **Estados vacíos**: `EmptyState`; carga: `.skeleton`.
@@ -82,3 +82,11 @@ Espaciado en múltiplos de 4 px (Tailwind). Radios: tarjetas `rounded-2xl` (16 p
 - **Modales** (`useScrollLock` / `<ScrollLock/>`): bloquean el fondo, admiten anidados, conservan la posición y devuelven el foco al cerrar. Escape cierra solo el de arriba.
 - **Formularios** (`FormAssist`, global): Enter pasa al siguiente campo; en el último envía si es un formulario o cierra el teclado; en textos largos hace salto de línea; los campos con su propio Enter (buscadores, etiquetas) mandan. Se evita el doble envío y el primer campo con error se centra en pantalla.
 - **Tema**: automático, claro u oscuro (Ajustes → App y cuenta), guardado en el dispositivo.
+
+## 8. Mahou Enterprise (perfiles y organización)
+
+- **Menú por perfil**: cada entrada declara el permiso que necesita (`Nav.tsx`); lo que no se puede usar no se enseña. La seguridad real está en la base de datos (RLS + `has_perm`), nunca solo en la pantalla.
+- **Inicio por perfil**: GPV y reponedores ven su jornada (ruta, tareas, prioridades); dirección, jefes, supervisores y analistas ven el estado de su ámbito; el administrador ve la salud de la organización (usuarios, carteras, tiendas sin unidad).
+- **Sin economía para quien no tiene permiso**: las cifras de pagos y acuerdos desaparecen (no se muestran a cero).
+- **Componentes**: `TaskBoard` (tareas con estados y validación), `ScopeViews` (indicadores, barras de cumplimiento, tablas por unidad y por persona), paneles de administración en hojas (`Sheet`).
+- **Colores de estado de tarea**: pendiente gris, asignada rojo suave, en curso ámbar, por validar naranja, validada verde, rechazada rojo.

@@ -57,7 +57,7 @@ export async function POST(req: Request) {
   const up = await sb.storage.from("brand-logos").upload(path, buf, { contentType: type, cacheControl: "31536000" });
   if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
   const { data: old } = await sb.from("brand_logos").select("storage_path").eq("brand_key", key).maybeSingle();
-  const { error } = await sb.from("brand_logos").upsert({ owner_id: u.user.id, brand_key: key, storage_path: path, source: url.hostname }, { onConflict: "owner_id,brand_key" });
+  const { error } = await sb.from("brand_logos").upsert({ brand_key: key, storage_path: path, source: url.hostname }, { onConflict: "owner_id,brand_key" });
   if (error) { await sb.storage.from("brand-logos").remove([path]); return NextResponse.json({ error: error.message }, { status: 500 }); }
   if (old?.storage_path) await sb.storage.from("brand-logos").remove([old.storage_path]);
   return NextResponse.json({ ok: true, path });

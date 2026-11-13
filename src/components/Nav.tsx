@@ -5,22 +5,31 @@ import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { MahouLogo } from "./MahouLogo";
 import { ScrollLock } from "@/lib/useScrollLock";
-import { Sun, Store, Map, ClipboardList, Route, BarChart3, Settings, LogOut, Ellipsis, X, Plus, Wallet } from "lucide-react";
+import { Sun, Store, Map, ClipboardList, Route, BarChart3, Settings, LogOut, Ellipsis, X, Plus, Wallet, Users, ShieldCheck } from "lucide-react";
+import { can } from "@/lib/enterprise/roles";
 import { safeLogout } from "@/lib/offline/logout";
 
 type Ico = typeof Sun;
-interface Item { href: string; label: string }
+// «perm»: permiso necesario para ver la entrada (la base de datos aplica la seguridad de verdad).
+interface Item { href: string; label: string; perm?: string | string[] }
 interface Group { label: string; icon: Ico; href?: string; items?: Item[] }
 
 const GROUPS: Group[] = [
   { label: "Hoy", icon: Sun, href: "/" },
-  { label: "Planificación", icon: Route, items: [{ href: "/map", label: "Mapa" }, { href: "/routes", label: "Rutas" }] },
-  { label: "Tiendas", icon: Store, items: [{ href: "/stores", label: "Listado" }, { href: "/inventory", label: "Inventario" }, { href: "/stores/new", label: "Nueva tienda" }] },
-  { label: "Visitas", icon: ClipboardList, items: [{ href: "/visits", label: "Historial" }, { href: "/visits/new", label: "Nueva visita" }, { href: "/incidents", label: "Incidencias" }, { href: "/gallery", label: "Galería" }] },
-  { label: "Economía", icon: Wallet, items: [{ href: "/economy", label: "Resumen" }, { href: "/agreements", label: "Acuerdos" }] },
-  { label: "Informes", icon: BarChart3, items: [{ href: "/reports", label: "Informe de actividad" }] },
-  { label: "Ajustes", icon: Settings, items: [{ href: "/settings?tab=jornada", label: "Jornada" }, { href: "/settings?tab=catalogo", label: "Catálogo" }, { href: "/settings?tab=papelera", label: "Papelera" }, { href: "/settings?tab=app", label: "App y cuenta" }] },
+  { label: "Planificación", icon: Route, items: [{ href: "/map", label: "Mapa", perm: "tiendas.consultar" }, { href: "/routes", label: "Rutas", perm: "rutas.crear" }] },
+  { label: "Tiendas", icon: Store, items: [{ href: "/stores", label: "Listado", perm: "tiendas.consultar" }, { href: "/inventory", label: "Inventario", perm: "inventario.consultar" }, { href: "/stores/new", label: "Nueva tienda", perm: "tiendas.crear" }] },
+  { label: "Visitas", icon: ClipboardList, items: [{ href: "/visits", label: "Historial", perm: "visitas.consultar" }, { href: "/visits/new", label: "Nueva visita", perm: "visitas.crear" }, { href: "/incidents", label: "Incidencias", perm: "incidencias.consultar" }, { href: "/gallery", label: "Galería", perm: "fotos.consultar" }] },
+  { label: "Equipo", icon: Users, items: [{ href: "/tasks", label: "Tareas", perm: "tareas.consultar" }, { href: "/team", label: "Mi equipo", perm: "usuarios.consultar" }, { href: "/direction", label: "Panel de dirección", perm: ["informes.exportar", "panel.exportar"] }] },
+  { label: "Economía", icon: Wallet, items: [{ href: "/economy", label: "Resumen", perm: "pagos.consultar" }, { href: "/agreements", label: "Acuerdos", perm: "acuerdos.consultar" }] },
+  { label: "Informes", icon: BarChart3, items: [{ href: "/reports", label: "Informe de actividad", perm: "informes.consultar" }] },
+  { label: "Administración", icon: ShieldCheck, items: [{ href: "/admin/users", label: "Usuarios", perm: ["usuarios.crear", "usuarios.editar"] }, { href: "/admin/structure", label: "Organización", perm: "estructura.consultar" }, { href: "/admin/portfolios", label: "Carteras", perm: ["carteras.asignar", "carteras.administrar"] }, { href: "/admin/permissions", label: "Roles y permisos", perm: "usuarios.consultar" }, { href: "/admin/audit", label: "Auditoría", perm: "auditoria.consultar" }] },
+  { label: "Ajustes", icon: Settings, items: [{ href: "/settings?tab=jornada", label: "Jornada", perm: "rutas.crear" }, { href: "/settings?tab=catalogo", label: "Catálogo", perm: "catalogos.administrar" }, { href: "/settings?tab=papelera", label: "Papelera", perm: "tiendas.editar" }, { href: "/settings?tab=app", label: "App y cuenta" }] },
 ];
+
+function visibleGroups(perms: string[]): Group[] {
+  const ok = (i: Item) => !i.perm || (Array.isArray(i.perm) ? i.perm.some((p) => can(perms, p)) : can(perms, i.perm));
+  return GROUPS.map((g) => (g.items ? { ...g, items: g.items.filter(ok) } : g)).filter((g) => g.href || (g.items?.length ?? 0) > 0);
+}
 
 const MOBILE_LEFT = [{ href: "/", label: "Hoy", icon: Sun }, { href: "/map", label: "Mapa", icon: Map }];
 const MOBILE_RIGHT = [{ href: "/stores", label: "Tiendas", icon: Store }];
@@ -46,7 +55,11 @@ function useActive() {
   };
 }
 
-export function Nav({ unread }: { unread: number }) {
+export function Nav({ unread, perms = ["todo.todo"], who }: { unread: number; perms?: string[]; who?: { name: string; role: string } | null }) {
+  const groups = visibleGroups(perms);
+  const canVisit = can(perms, "visitas.crear");
+  const mobileLeft = MOBILE_LEFT.filter((x) => x.href !== "/map" || can(perms, "tiendas.consultar"));
+  const mobileRight = MOBILE_RIGHT.filter(() => can(perms, "tiendas.consultar"));
   const path = usePathname();
   const router = useRouter();
   const isActive = useActive();
@@ -71,7 +84,7 @@ export function Nav({ unread }: { unread: number }) {
           <MahouLogo height={30} tone="white" />
         </Link>
         <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Principal">
-          {GROUPS.map((g) => {
+          {groups.map((g) => {
             const Icon = g.icon;
             const act = groupActive(g);
             if (g.href) {
@@ -110,6 +123,12 @@ export function Nav({ unread }: { unread: number }) {
           })}
         </nav>
         <div className="border-t border-slate-200 p-3">
+          {who && (
+            <div className="mb-1 px-3 py-1.5">
+              <div className="truncate text-sm font-semibold text-slate-800">{who.name}</div>
+              <div className="truncate text-xs text-slate-500">{who.role}</div>
+            </div>
+          )}
           <button onClick={logout} className="nav-item flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100">
             <LogOut size={18} /> <span>Cerrar sesión</span>
           </button>
@@ -123,8 +142,8 @@ export function Nav({ unread }: { unread: number }) {
           <div role="dialog" aria-label="Más secciones" onClick={(e) => e.stopPropagation()}
             className="sheet-up absolute inset-x-0 bottom-0 mx-auto max-h-[85dvh] max-w-xl overflow-y-auto overscroll-contain rounded-t-[1.75rem] bg-white p-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] shadow-pop">
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-200" aria-hidden />
-            <div className="mb-1 flex items-center justify-between px-1"><MahouLogo height={24} /><button aria-label="Cerrar" onClick={() => setMore(false)} className="tap flex h-10 w-10 items-center justify-center rounded-full bg-slate-100"><X size={18} /></button></div>
-            {GROUPS.filter((g) => g.items).map((g) => (
+            <div className="mb-1 flex items-center justify-between gap-3 px-1"><div className="flex min-w-0 items-center gap-3"><MahouLogo height={24} />{who && <span className="min-w-0 truncate text-xs text-slate-500"><b className="font-semibold text-slate-700">{who.name}</b> · {who.role}</span>}</div><button aria-label="Cerrar" onClick={() => setMore(false)} className="tap flex h-10 w-10 items-center justify-center rounded-full bg-slate-100"><X size={18} /></button></div>
+            {groups.filter((g) => g.items).map((g) => (
               <div key={g.label} className="py-1.5">
                 <div className="px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">{g.label}</div>
                 {(g.items ?? []).map((i) => (
@@ -138,7 +157,7 @@ export function Nav({ unread }: { unread: number }) {
       )}
 
       <nav aria-label="Principal" className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[60] mx-auto flex max-w-md items-center rounded-[1.75rem] border border-slate-200 bg-white/95 px-1.5 shadow-pop backdrop-blur-xl lg:hidden">
-        {MOBILE_LEFT.map(({ href, label, icon: I }) => {
+        {mobileLeft.map(({ href, label, icon: I }) => {
           const on = isActive(href);
           return (
             <Link key={href} href={href} aria-current={on ? "page" : undefined}
@@ -148,10 +167,12 @@ export function Nav({ unread }: { unread: number }) {
             </Link>
           );
         })}
-        <Link href="/visits/new" aria-label="Iniciar visita" className="nav-item mx-1 -mt-7 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-600 text-[rgb(var(--on-accent))] shadow-brand ring-4 ring-slate-50">
-          <Plus size={28} strokeWidth={2.4} />
-        </Link>
-        {MOBILE_RIGHT.map(({ href, label, icon: I }) => {
+        {canVisit && (
+          <Link href="/visits/new" aria-label="Iniciar visita" className="nav-item mx-1 -mt-7 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-600 text-[rgb(var(--on-accent))] shadow-brand ring-4 ring-slate-50">
+            <Plus size={28} strokeWidth={2.4} />
+          </Link>
+        )}
+        {mobileRight.map(({ href, label, icon: I }) => {
           const on = isActive(href);
           return (
             <Link key={href} href={href} aria-current={on ? "page" : undefined}

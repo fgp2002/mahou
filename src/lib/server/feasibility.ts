@@ -3,11 +3,13 @@ import { madridDate, madridHour, parseHM } from "../domain/dates.ts";
 import { effectiveFrequency } from "../domain/periodicity.ts";
 import { monthFeasibility, type FeasResult } from "../domain/feasibility.ts";
 import type { Settings, StoreWithObligation } from "./load.ts";
+import { getMe } from "./me.ts";
 
 /** Viabilidad del mes en curso con los datos reales (jornada, comida, festivos y conducción media de tus rutas). */
 export async function loadFeasibility(rows: StoreWithObligation[], settings: Settings): Promise<FeasResult> {
   const sb = await supabaseServer();
-  const { data: recent } = await sb.from("routes").select("est_drive_seconds,route_stops(count)").order("route_date", { ascending: false }).limit(10);
+  const me = await getMe();
+  const { data: recent } = await sb.from("routes").select("est_drive_seconds,route_stops(count)").eq("user_id", me?.userId ?? "").order("route_date", { ascending: false }).limit(10);
   let drive = 0, stops = 0;
   for (const r of (recent ?? []) as unknown as { est_drive_seconds: number | null; route_stops: { count: number }[] }[]) {
     drive += r.est_drive_seconds ?? 0;

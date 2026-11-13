@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { supabaseServer } from "@/lib/supabase/server";
 import { generateRoute } from "@/lib/server/routes";
+import { getMe } from "@/lib/server/me";
 
 export const maxDuration = 60;
 
@@ -23,8 +24,11 @@ export async function POST(req: Request) {
   const { data: u } = await sb.auth.getUser();
   if (!u.user) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   try {
+    const me = await getMe();
+    // Una persona nueva del equipo aún sin ajustes de jornada: se crean con los valores por defecto.
+    await sb.from("user_settings").upsert({ owner_id: u.user.id }, { onConflict: "owner_id", ignoreDuplicates: true });
     const out = await generateRoute(sb, u.user.id, p.data.date, {
-      by: "manual", replaceExisting: p.data.replace, overrideProtected: p.data.override, forcedStoreIds: p.data.forced, excludeStoreIds: p.data.exclude, banners: p.data.banners, onlyStoreIds: p.data.stores, start: p.data.start ?? null,
+      by: "manual", dataOwner: me?.dataOwner ?? u.user.id, replaceExisting: p.data.replace, overrideProtected: p.data.override, forcedStoreIds: p.data.forced, excludeStoreIds: p.data.exclude, banners: p.data.banners, onlyStoreIds: p.data.stores, start: p.data.start ?? null,
     });
     return NextResponse.json(out);
   } catch (e) {

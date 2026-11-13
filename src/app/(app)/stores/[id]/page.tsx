@@ -28,11 +28,17 @@ import { daysToEnd, totals } from "@/lib/economy";
 import { PAYMENT_COLS, type PaymentRow } from "@/lib/payments";
 import { FREQ_LABEL, VISIT_TYPES, type Store, type Visit } from "@/lib/types";
 import { eur, dmy, MONTHS_SHORT } from "@/lib/format";
+import { getMe } from "@/lib/server/me";
+import { can } from "@/lib/enterprise/roles";
+import { loadOrg, TASK_COLS, type Task } from "@/lib/server/scope";
+import { TaskBoard } from "@/components/enterprise/TaskBoard";
 
 const TABS = [
   ["resumen", "Resumen"], ["visitas", "Visitas"], ["inventario", "Inventario"], ["pagos", "Pagos y acuerdos"],
-  ["fotos", "Fotos"], ["contactos", "Contactos"], ["incidencias", "Incidencias"], ["historico", "Histórico"],
+  ["fotos", "Fotos"], ["contactos", "Contactos"], ["incidencias", "Incidencias"], ["tareas", "Tareas"], ["historico", "Histórico"],
 ] as const;
+// Pestañas que dependen de un permiso (la base de datos tampoco devuelve esos datos sin él).
+const TAB_PERM: Partial<Record<string, string[]>> = { pagos: ["pagos.consultar", "acuerdos.consultar"], contactos: ["contactos.consultar"], tareas: ["tareas.consultar"], inventario: ["inventario.consultar"], fotos: ["fotos.consultar"], visitas: ["visitas.consultar"] };
 type Tab = (typeof TABS)[number][0];
 type FullStore = Store & StoreHoursValues & { updated_at?: string };
 
@@ -46,7 +52,10 @@ async function signed(paths: string[]) {
 export default async function StorePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const { id } = await params;
   const sp = await searchParams;
-  const tab: Tab = (TABS.find(([k]) => k === sp.tab)?.[0]) ?? "resumen";
+  const me = await getMe();
+  const perms = me?.permissions ?? ["todo.todo"];
+  const tabs = TABS.filter(([k]) => !TAB_PERM[k] || TAB_PERM[k]!.some((p) => can(perms, p)));
+  const tab: Tab = (tabs.find(([k]) => k === sp.tab)?.[0]) ?? "resumen";
   const sb = await supabaseServer();
   const { data: store } = await sb.from("stores").select("*").eq("id", id).maybeSingle();
   if (!store) notFound();
@@ -114,7 +123,7 @@ export default async function StorePage({ params, searchParams }: { params: Prom
       </section>
 
       <nav className="h-scroll -mx-4 flex gap-1.5 px-4 pb-1 md:mx-0 md:px-0" aria-label="Secciones de la tienda">
-        {TABS.map(([k, l]) => (
+        {tabs.map(([k, l]) => (
           <Link key={k} href={tabHref(k)} scroll={false} aria-current={tab === k ? "page" : undefined}
             className={clsx("tap flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-sm", tab === k ? "border-brand-600 bg-brand-600 font-semibold text-[rgb(var(--on-accent))]" : "border-slate-200 bg-white text-slate-600")}>
             {l}{counts[k] ? <span className={clsx("rounded-full px-1.5 text-[11px] tabular-nums", tab === k ? "bg-white/20" : k === "incidencias" ? "bg-st-late text-[#fff]" : "bg-slate-100")}>{counts[k]}</span> : null}
@@ -142,8 +151,23 @@ export default async function StorePage({ params, searchParams }: { params: Prom
       {tab === "fotos" && <Fotos storeId={s.id} />}
       {tab === "contactos" && <section className="card"><Contacts storeId={s.id} contacts={contacts ?? []} /></section>}
       {tab === "incidencias" && <section className="card"><IncidentList incidents={incidents} storeId={s.id} equipment={equipment} types={types} initialOpen={sp.inc} /></section>}
+      {tab === "tareas" && me && <StoreTasks storeId={s.id} storeName={s.name} town={s.town} me={me} />}
       {tab === "historico" && <Historico storeId={s.id} />}
     </div>
+  );
+}
+
+async function StoreTasks({ storeId, storeName, town, me }: { storeId: string; storeName: string; town: string | null; me: NonNullable<Awaited<ReturnType<typeof getMe>>> }) {
+  const sb = await supabaseServer();
+  const [{ data }, org] = await Promise.all([sb.from("tasks").select(TASK_COLS).eq("store_id", storeId).is("deleted_at", null).order("created_at", { ascending: false }).limit(200), loadOrg()]);
+  return (
+    <section className="space-y-3">
+      <TaskBoard tasks={(data ?? []) as Task[]} tab="tienda" storeId={storeId} today={madridDate()}
+        me={{ id: me.userId, orgId: me.orgId, perms: me.permissions, isOwner: me.isOwner }}
+        stores={{ [storeId]: { name: storeName, town } }}
+        people={org.members.filter((m) => m.status === "activo").map((m) => ({ id: m.user_id, name: m.full_name, role: m.role, org: m.organization_id }))}
+        companies={org.orgs.filter((o) => o.kind === "externa" && o.active).map((o) => ({ id: o.id, name: o.name }))} />
+    </section>
   );
 }
 
@@ -157,6 +181,8 @@ async function Resumen({ store: s, visits, done, ob, installed, openInc, today }
     loadStoreTimeline(s.id, 6),
   ]);
   const t = totals((pays ?? []).map((p) => ({ ...p, amount: Number(p.amount) })) as Parameters<typeof totals>[0]);
+  const me = await getMe();
+  const canMoney = can(me?.permissions ?? ["todo.todo"], "pagos.consultar");
   const months: { key: string; label: string; n: number }[] = [];
   const [y, m] = today.split("-").map(Number);
   for (let i = 5; i >= 0; i--) {
@@ -172,7 +198,8 @@ async function Resumen({ store: s, visits, done, ob, installed, openInc, today }
       <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
         <div className="card !p-3 text-center"><div className="text-[11px] text-slate-500">Cumplimiento</div><div className="mt-1"><StateBadge state={ob.state} /></div></div>
         <Link href={`/stores/${s.id}?tab=inventario`} scroll={false} className="card tap !p-3 text-center"><div className="text-[11px] text-slate-500">Elementos instalados</div><div className="text-xl font-bold">{installed}</div></Link>
-        <Link href={`/stores/${s.id}?tab=pagos`} scroll={false} className="card tap !p-3 text-center"><div className="text-[11px] text-slate-500">Invertido este año</div><div className="text-xl font-bold tabular-nums">{eur(t.executed)}</div></Link>
+        {canMoney ? <Link href={`/stores/${s.id}?tab=pagos`} scroll={false} className="card tap !p-3 text-center"><div className="text-[11px] text-slate-500">Invertido este año</div><div className="text-xl font-bold tabular-nums">{eur(t.executed)}</div></Link>
+          : <Link href={`/stores/${s.id}?tab=visitas`} scroll={false} className="card tap !p-3 text-center"><div className="text-[11px] text-slate-500">Visitas hechas</div><div className="text-xl font-bold tabular-nums">{done.length}</div></Link>}
         <Link href={`/stores/${s.id}?tab=incidencias`} scroll={false} className="card tap !p-3 text-center"><div className="text-[11px] text-slate-500">Incidencias abiertas</div><div className={clsx("text-xl font-bold", openInc.length > 0 && "text-[rgb(var(--st-late))]")}>{openInc.length}</div></Link>
       </section>
       {s.notes && <section className="card"><h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Notas</h2><p className="whitespace-pre-line text-sm">{s.notes}</p></section>}

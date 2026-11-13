@@ -6,16 +6,20 @@ import { ToastHost } from "@/components/Toast";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { OfflineManager } from "@/components/OfflineManager";
 import { supabaseServer } from "@/lib/supabase/server";
+import { getMe } from "@/lib/server/me";
+import { roleName } from "@/lib/enterprise/roles";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const sb = await supabaseServer();
+  const me = await getMe();
+  const who = me && me.role && !me.isOwner ? { name: me.name, role: `${roleName(me.role)}${me.unitName ? ` · ${me.unitName}` : me.orgKind === "externa" && me.orgName ? ` · ${me.orgName}` : ""}` } : me?.isOwner && me.name ? { name: me.name, role: "Acceso total" } : null;
   // Una sola consulta: las alertas abiertas y, de ellas, cuántas sin leer.
   const { data: open } = await sb.from("alerts").select("id,message,severity,read_at").is("resolved_at", null).order("created_at", { ascending: false }).limit(50);
   const alerts = (open ?? []).slice(0, 10);
   const count = (open ?? []).filter((a) => !a.read_at).length;
   return (
     <div className="h-dvh overflow-hidden">
-      <Suspense fallback={null}><Nav unread={count ?? 0} /></Suspense>
+      <Suspense fallback={null}><Nav unread={count ?? 0} perms={me?.permissions ?? ["todo.todo"]} who={who} /></Suspense>
       <ToastHost />
       <PullToRefresh />
       <OfflineManager />

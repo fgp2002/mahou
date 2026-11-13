@@ -24,8 +24,7 @@ export function LogosManager({ brands }: { brands: BrandRow[] }) {
   const missing = brands.filter((b) => !b.url).length;
 
   async function setPath(key: string, path: string, source: string, oldPath: string | null) {
-    const { data: u } = await sb.auth.getUser();
-    const { error } = await sb.from("brand_logos").upsert({ owner_id: u.user!.id, brand_key: key, storage_path: path, source }, { onConflict: "owner_id,brand_key" });
+    const { error } = await sb.from("brand_logos").upsert({ brand_key: key, storage_path: path, source }, { onConflict: "owner_id,brand_key" });
     if (error) throw error;
     if (oldPath && oldPath !== path) {
       // Solo se borra el archivo si ninguna otra enseña lo usa (al copiar un logo se comparte el archivo).

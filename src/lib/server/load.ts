@@ -3,6 +3,7 @@ import { computeObligation, effectiveFrequency, priorityScore, type Obligation }
 import { madridDate } from "../domain/dates.ts";
 import type { Store } from "../types.ts";
 import { supabaseServer } from "../supabase/server";
+import { getMe } from "./me.ts";
 
 const STORE_COLS = "id,source_id,name,banner,chain,macro_chain,store_type,area,kam,address,town,postal_code,province,lat,lng,geocode_status,geocode_formatted,gpv,frequency,audit,notes,active,manual_overrides";
 
@@ -20,9 +21,10 @@ export interface Settings {
 // cache(): si varias partes de una misma pantalla piden lo mismo, se consulta una sola vez.
 export const loadSettings = cache(async (): Promise<Settings> => {
   const sb = await supabaseServer();
-  const { data } = await sb.from("user_settings").select("*").maybeSingle();
+  const [{ data }, me] = await Promise.all([sb.from("user_settings").select("*").maybeSingle(), getMe()]);
   return {
-    tracking_start: data?.tracking_start ?? madridDate(),
+    // En un equipo, el cumplimiento se mide desde la fecha de la organización, no desde el alta de cada persona.
+    tracking_start: (me && !me.isOwner && me.trackingStart) || data?.tracking_start || me?.trackingStart || madridDate(),
     work_start: (data?.work_start ?? "08:00").slice(0, 5),
     work_end: (data?.work_end ?? "18:00").slice(0, 5),
     route_start: (data?.route_start ?? "09:00").slice(0, 5),
