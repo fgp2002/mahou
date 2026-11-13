@@ -82,7 +82,7 @@ export function PeopleTable({ rows, unitName }: { rows: (Bucket & { member: { us
           {p.portfolio > 0 ? <ComplianceBar b={p} /> : <span className="text-xs text-slate-500">Sin cartera asignada</span>}
           <span className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
             <span>{p.portfolio} tiendas</span>
-            {p.atrasadas > 0 && <span className="font-semibold text-st-late">{p.atrasadas} atrasadas</span>}
+            {p.atrasadas > 0 && <span className="font-semibold text-st-late">{p.atrasadas} {p.atrasadas === 1 ? "atrasada" : "atrasadas"}</span>}
             <span>{p.tasksOpen} tareas{p.tasksOverdue ? ` · ${p.tasksOverdue} fuera de plazo` : ""}</span>
             <span>Última visita: {p.lastVisit ? dmy(p.lastVisit) : "—"}</span>
           </span>

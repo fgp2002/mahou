@@ -87,7 +87,8 @@ export async function loadScope(unitFilter?: string | null): Promise<ScopeData> 
   const childrenOf = (id: string | null) => org.units.filter((u) => u.parent_id === id);
   let level = unitFilter ? childrenOf(unitFilter) : org.units.filter((u) => !u.parent_id || !org.units.some((p) => p.id === u.parent_id));
   // Si solo hay un nivel con un único elemento (p. ej. España), se baja hasta que haya reparto.
-  while (level.length === 1 && childrenOf(level[0].id).length) level = childrenOf(level[0].id);
+  // (solo si la unidad no tiene tiendas propias: si las tiene, se queda en ese nivel).
+  while (level.length === 1 && childrenOf(level[0].id).length && !rows.some((r) => r.unit_id === level[0].id)) level = childrenOf(level[0].id);
   const groupOf = new Map<string, string>();
   for (const u of level) for (const id of subtree(org.units, u.id)) groupOf.set(id, u.id);
 

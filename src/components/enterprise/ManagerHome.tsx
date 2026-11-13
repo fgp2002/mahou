@@ -138,7 +138,7 @@ async function AdminHome({ me, greeting }: { me: Me; greeting: string }) {
         <section className="card space-y-2">
           <div className="flex items-center justify-between"><h2 className="t-section">Últimos cambios</h2>{can(me.permissions, "auditoria.consultar") && <Link className="link text-sm" href="/admin/audit">Auditoría</Link>}</div>
           {(audit ?? []).length === 0 ? <p className="text-sm text-slate-500">Sin movimientos.</p> : (
-            <ul className="divide-y divide-slate-200 text-sm">{audit!.map((a) => <li key={a.id} className="flex min-h-11 items-center justify-between gap-2"><span>{a.action.replace(/_/g, " ")}</span><span className="text-xs text-slate-500">{new Date(a.created_at).toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })}</span></li>)}</ul>
+            <ul className="divide-y divide-slate-200 text-sm">{audit!.map((a) => <li key={a.id} className="flex min-h-11 items-center justify-between gap-2"><span>{a.action.charAt(0).toUpperCase() + a.action.slice(1).replace(/_/g, " ")}</span><span className="text-xs text-slate-500">{new Date(a.created_at).toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })}</span></li>)}</ul>
           )}
         </section>
       </div>
