@@ -93,9 +93,9 @@ async function Productos() {
 async function Pagos() {
   const sb = await supabaseServer();
   const types = await loadPaymentTypes();
-  const [{ data: uc }, { data: ur }] = await Promise.all([sb.from("payment_concepts").select("payment_type_id"), sb.from("payment_records").select("payment_type_id")]);
+  const [{ data: uc }, { data: ur }] = await Promise.all([sb.from("store_equipment").select("type_id"), sb.from("payment_records").select("payment_type_id")]);
   const usage: Record<string, number> = {};
-  for (const r of [...(uc ?? []), ...(ur ?? [])]) if (r.payment_type_id) usage[r.payment_type_id] = (usage[r.payment_type_id] ?? 0) + 1;
+  for (const r of [...(uc ?? []).map((x) => ({ payment_type_id: x.type_id as string | null })), ...(ur ?? [])]) if (r.payment_type_id) usage[r.payment_type_id] = (usage[r.payment_type_id] ?? 0) + 1;
   return <PaymentTypesManager types={types} usage={usage} />;
 }
 
@@ -139,7 +139,7 @@ async function Marcas() {
   const sb = await supabaseServer();
   const [{ data: brands }, { data: uc }, { data: ur }] = await Promise.all([
     sb.from("payment_brands").select("id,name,logo_path").order("name"),
-    sb.from("payment_concepts").select("brand_id").not("brand_id", "is", null).limit(5000),
+    sb.from("store_equipment").select("brand_id").not("brand_id", "is", null).limit(5000),
     sb.from("payment_records").select("brand_id").not("brand_id", "is", null).limit(10000),
   ]);
   const uses = new Map<string, number>();

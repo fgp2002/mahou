@@ -3,64 +3,40 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { VISIT_TYPES, type Visit } from "@/lib/types";
-import { eur, type PaymentType } from "@/lib/payments";
-import { NewTypeInline } from "./NewTypeInline";
-import { BrandSelect } from "./BrandSelect";
+import { type PaymentType } from "@/lib/payments";
 import { enqueue, isNetworkError } from "@/lib/offline/outbox";
-import { savePhotoOffline } from "@/lib/offline/visit";
+import { uploadPhoto, trashPhoto } from "@/lib/photos";
+import type { Equipment } from "@/lib/equipment";
+import { VisitEquipment } from "./VisitEquipment";
 import { toast } from "./Toast";
 import { VisitPayments, type VisitPayment } from "./VisitPayments";
 import { VisitItems, type VisitItem } from "./VisitItems";
 import { Pencil } from "lucide-react";
 import { PhotoTags, type PhotoTag } from "./PhotoTags";
-import { madridDate } from "@/lib/domain/dates";
 import type { Contact } from "./Contacts";
-import type { PConcept } from "./Payments";
 
 export interface PhotoView { id: string; url: string | null; thumb: string | null; caption: string | null; tagIds: string[] }
 
-async function resize(file: File, max = 1600, quality = 0.82): Promise<Blob> {
-  const bmp = await createImageBitmap(file);
-  const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
-  const c = document.createElement("canvas");
-  c.width = Math.round(bmp.width * k);
-  c.height = Math.round(bmp.height * k);
-  c.getContext("2d")!.drawImage(bmp, 0, 0, c.width, c.height);
-  return await new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("No se pudo procesar la imagen"))), "image/jpeg", quality));
-}
-
 const fmt = (s: number) => `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
-const NEW = "__new__";
-const STEPS = ["Fotos", "Pagos", "Notas"];
-function activeTypesDefaults(ts: PaymentType[]): number[] {
-  return ts.filter((t) => t.active && t.default_amount != null).map((t) => Number(t.default_amount)).sort((a, b) => a - b);
-}
+const STEPS = ["Fotos", "Elementos y pagos", "Notas"];
 
-export function VisitRunner({ visit, storeName, contacts, concepts, photos, types, suggestedNext, tags, payments = [], items = [] }: { visit: Visit; storeName: string; contacts: Contact[]; concepts: PConcept[]; photos: PhotoView[]; types: PaymentType[]; suggestedNext: string | null; tags: PhotoTag[]; payments?: VisitPayment[]; items?: VisitItem[] }) {
+export function VisitRunner({ visit, storeName, contacts, equipment, photos, types, suggestedNext, tags, payments = [], items = [] }: { visit: Visit; storeName: string; contacts: Contact[]; equipment: Equipment[]; photos: PhotoView[]; types: PaymentType[]; suggestedNext: string | null; tags: PhotoTag[]; payments?: VisitPayment[]; items?: VisitItem[] }) {
   const router = useRouter();
   const sb = supabaseBrowser();
   const running = visit.status === "in_progress";
   const [secs, setSecs] = useState(0);
   const [f, setF] = useState({ result: visit.result ?? "", notes: visit.notes ?? "", incidents: visit.incidents ?? "", items: visit.items_reviewed ?? "", contact: "" });
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
-  // Importe real de cada cobro: se propone el precio por defecto del tipo y se puede cambiar.
-  const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [next, setNext] = useState(visit.next_visit_recommended ?? suggestedNext ?? "");
-  const [extras, setExtras] = useState<{ typeId: string; amount: string; brandId?: string | null; brandName?: string | null }[]>([]);
-  const [localTypes, setLocalTypes] = useState(types);
+  const localTypes = types;
   const [step, setStep] = useState(0);
   const [editing, setEditing] = useState(false);
   const [meta, setMeta] = useState({ date: visit.visit_date, minutes: visit.duration_minutes != null ? String(visit.duration_minutes) : "" });
   const vis = (n: number) => (running ? step === n : editing);
-  const chips = [...new Set(activeTypesDefaults(types))].slice(0, 5);
   const [allTags, setAllTags] = useState(tags);
   const [photoTagIds, setPhotoTagIds] = useState<Record<string, string[]>>(() => Object.fromEntries(photos.map((p) => [p.id, p.tagIds])));
-  const [creatingFor, setCreatingFor] = useState<number | null>(null);
-  const activeTypes = localTypes.filter((t) => t.active);
-  const typeById = new Map(localTypes.map((t) => [t.id, t]));
 
   useEffect(() => {
     if (!running || !visit.started_at) return;
@@ -76,39 +52,21 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
     setBusy(true);
     setErr(null);
     try {
-      const { data: u } = await sb.auth.getUser();
-      if (!u.user) throw new Error("Sesión caducada");
-      for (const file of Array.from(files)) {
-        // Foto a 1600 px para verla en grande y miniatura de 400 px para listados y galería.
-        const [blob, small] = await Promise.all([resize(file), resize(file, 400, 0.7)]);
-        const base = `${u.user.id}/${visit.id}/${crypto.randomUUID()}`;
-        const path = `${base}.jpg`, thumb = `${base}.thumb.jpg`;
-        const [up, upT] = await Promise.all([
-          sb.storage.from("visit-photos").upload(path, blob, { contentType: "image/jpeg", cacheControl: "31536000" }),
-          sb.storage.from("visit-photos").upload(thumb, small, { contentType: "image/jpeg", cacheControl: "31536000" }),
-        ]);
-        if (up.error) throw up.error;
-        const ins = await sb.from("visit_photos").insert({ visit_id: visit.id, storage_path: path, thumb_path: upT.error ? null : thumb, mime_type: "image/jpeg", size_bytes: blob.size });
-        if (ins.error) throw ins.error;
-      }
+      let queued = 0;
+      // Foto a 1600 px y miniatura de 400 px. Sin red se guardan en el móvil y se suben solas al volver la conexión.
+      for (const file of Array.from(files)) if ((await uploadPhoto(file, { kind: "visita", storeId: visit.store_id, visitId: visit.id })).queued) queued++;
+      if (queued) toast(`Sin conexión: ${queued} foto${queued === 1 ? "" : "s"} guardada${queued === 1 ? "" : "s"} en el móvil`);
       router.refresh();
     } catch (e) {
-      if (isNetworkError(e)) {
-        // Sin red: las fotos se guardan en el móvil y se suben solas al volver la conexión.
-        try {
-          for (const file of Array.from(files)) await savePhotoOffline(visit.id, file);
-          toast(`Sin conexión: ${files.length} foto${files.length === 1 ? "" : "s"} guardada${files.length === 1 ? "" : "s"} en el móvil`);
-        } catch (e2) { setErr((e2 as Error).message); }
-      } else setErr("No se pudo subir la foto: " + (e as Error).message);
+      setErr("No se pudo subir la foto: " + (e as Error).message);
     }
     setBusy(false);
   }
 
   async function removePhoto(p: PhotoView) {
-    if (!confirm("¿Eliminar esta foto?")) return;
-    const { data } = await sb.from("visit_photos").select("storage_path,thumb_path").eq("id", p.id).single();
-    if (data) await sb.storage.from("visit-photos").remove([data.storage_path, data.thumb_path].filter(Boolean) as string[]);
-    await sb.from("visit_photos").delete().eq("id", p.id);
+    if (!confirm("¿Enviar esta foto a la papelera? Podrás recuperarla desde Ajustes → Papelera.")) return;
+    const { error } = await trashPhoto(p.id);
+    if (error) return setErr(error.message);
     router.refresh();
   }
 
@@ -127,40 +85,12 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
     const offline = !!error && isNetworkError(error);
     if (error && !offline) { setBusy(false); return setErr(error.message); }
     if (offline) await enqueue({ kind: "update", table: "visits", id: visit.id, values: finishValues, label: "Fin de visita" });
-    const priceOf = (x: (typeof concepts)[number]) => {
-      const raw = amounts[x.id] ?? String((x.payment_type_id && typeById.get(x.payment_type_id)?.default_amount) ?? x.default_amount ?? "");
-      const n = Number(raw.replace(",", "."));
-      return raw.trim() !== "" && Number.isFinite(n) && n >= 0 ? n : null;
-    };
-    const recs: Record<string, unknown>[] = concepts.filter((x) => checked[x.id] && priceOf(x) != null).map((x) => ({
-      store_id: visit.store_id, concept_id: x.id, concept: x.concept, concept_name: (x.payment_type_id && typeById.get(x.payment_type_id)?.name) || x.concept,
-      payment_type_id: x.payment_type_id, visit_id: visit.id, amount: priceOf(x), payment_date: madridDate(), status: "comprobado", is_demo: x.is_demo,
-      brand_id: x.brand_id ?? null, brand_name: x.brand_name ?? null,
-    }));
-    for (const ex of extras) {
-      const t = typeById.get(ex.typeId);
-      const amt = Number(ex.amount.replace(",", "."));
-      if (!t || ex.amount.trim() === "" || !Number.isFinite(amt) || amt < 0) continue;
-      const bId = ex.brandId ?? null, bName = ex.brandName ?? null;
-      let conceptId = concepts.find((c) => c.payment_type_id === t.id && (c.brand_id ?? null) === bId && c.status === "activo")?.id;
-      if (!conceptId && !offline) {
-        const ins = await sb.from("payment_concepts").insert({ store_id: visit.store_id, concept: t.code, payment_type_id: t.id, default_amount: amt, brand_id: bId, brand_name: bName }).select("id").single();
-        conceptId = ins.data?.id;
-      }
-      recs.push({ store_id: visit.store_id, concept_id: conceptId ?? null, concept: t.code, concept_name: t.name, payment_type_id: t.id, visit_id: visit.id, amount: amt, payment_date: madridDate(), status: "comprobado", is_demo: false, brand_id: bId, brand_name: bName });
-    }
+    setBusy(false);
     if (offline) {
-      for (const r of recs) await enqueue({ kind: "insert", table: "payment_records", values: { id: crypto.randomUUID(), ...r }, label: `Pago ${r.concept_name}` });
-      setBusy(false);
       toast("Sin conexión: visita guardada en el móvil. Se enviará al volver la red.");
       router.push("/");
       return;
     }
-    if (recs.length) {
-      const pr = await sb.from("payment_records").insert(recs);
-      if (pr.error) setErr("La visita se guardó, pero fallaron los pagos: " + pr.error.message);
-    }
-    setBusy(false);
     toast("Visita guardada");
     router.refresh();
   }
@@ -310,54 +240,7 @@ export function VisitRunner({ visit, storeName, contacts, concepts, photos, type
         {vis(2) && ([["result", "Resultado"], ["items", "Productos / elementos revisados"], ["incidents", "Incidencias"], ["notes", "Notas"]] as const).map(([k, l]) => (
           <div key={k}><label className="label">{l}</label><textarea className="input" rows={2} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} /></div>
         ))}
-        {running && step === 1 && (
-          <div className="space-y-2">
-            <label className="label">Cobros comprobados en esta visita</label>
-            {concepts.map((c) => (
-              <div key={c.id} className="flex min-h-11 items-center gap-3 text-sm">
-                <input id={`cc-${c.id}`} type="checkbox" className="h-5 w-5 shrink-0 accent-[rgb(var(--brand-600))]" checked={!!checked[c.id]} onChange={(e) => setChecked({ ...checked, [c.id]: e.target.checked })} />
-                <label htmlFor={`cc-${c.id}`} className="min-w-0 flex-1">{(c.payment_type_id && typeById.get(c.payment_type_id)?.name) || c.concept}{c.brand_name ? ` · ${c.brand_name}` : ""} {c.is_demo && <span className="badge bg-slate-200 text-slate-700">DEMO</span>}</label>
-                <input className="input !min-h-9 w-24" inputMode="decimal" aria-label="Importe de esta operación" placeholder="€"
-                  value={amounts[c.id] ?? String((c.payment_type_id && typeById.get(c.payment_type_id)?.default_amount) ?? c.default_amount ?? "")}
-                  onChange={(e) => { setAmounts({ ...amounts, [c.id]: e.target.value }); setChecked({ ...checked, [c.id]: true }); }} />
-              </div>
-            ))}
-            {extras.map((ex, i) => (
-              <div key={i} className="space-y-2">
-                <div className="flex gap-2">
-                  <select className="input" aria-label="Tipo de pago" value={creatingFor === i ? NEW : ex.typeId} onChange={(e) => {
-                    if (e.target.value === NEW) return setCreatingFor(i);
-                    const t = typeById.get(e.target.value);
-                    setExtras(extras.map((x, j) => (j === i ? { typeId: e.target.value, amount: x.amount || (t?.default_amount != null ? String(t.default_amount) : "") } : x)));
-                  }}>
-                    <option value="">Elige tipo…</option>
-                    {activeTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    <option value={NEW}>＋ Nuevo tipo de pago…</option>
-                  </select>
-                  <input className="input w-28" inputMode="decimal" placeholder="€" aria-label="Importe" value={ex.amount} onChange={(e) => setExtras(extras.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)))} />
-                  <button type="button" className="btn-secondary" aria-label="Quitar cobro" onClick={() => setExtras(extras.filter((_, j) => j !== i))}>✕</button>
-                </div>
-                <BrandSelect label="Marca del pago" value={ex.brandId ?? null} onChange={(b) => setExtras(extras.map((x, j) => (j === i ? { ...x, brandId: b?.id ?? null, brandName: b?.name ?? null } : x)))} />
-                {chips.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {chips.map((c) => (
-                      <button key={c} type="button" onClick={() => setExtras(extras.map((x, j) => (j === i ? { ...x, amount: String(c) } : x)))}
-                        className={`tap min-h-9 rounded-full border px-3 text-xs ${Number(ex.amount.replace(",", ".")) === c ? "border-brand-600 bg-brand-600 text-[rgb(var(--on-accent))]" : "border-slate-300 text-slate-700"}`}>{eur(c)}</button>
-                    ))}
-                  </div>
-                )}
-                {creatingFor === i && (
-                  <NewTypeInline onCancel={() => setCreatingFor(null)} onCreated={(t) => {
-                    setLocalTypes([...localTypes, t]);
-                    setExtras(extras.map((x, j) => (j === i ? { typeId: t.id, amount: t.default_amount != null ? String(t.default_amount) : x.amount } : x)));
-                    setCreatingFor(null);
-                  }} />
-                )}
-              </div>
-            ))}
-            <button type="button" className="btn-secondary" onClick={() => setExtras([...extras, { typeId: "", amount: "" }])}>＋ Añadir otro cobro</button>
-          </div>
-        )}
+        {running && step === 1 && <VisitEquipment visitId={visit.id} storeId={visit.store_id} items={equipment} types={types} />}
         {running && step === 1 && (
           <div className="flex gap-2">
             <button type="button" className="btn-secondary" onClick={() => setStep(0)}>Atrás</button>

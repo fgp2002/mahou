@@ -13,6 +13,9 @@ import { Contacts } from "@/components/Contacts";
 import { Payments } from "@/components/Payments";
 import { QuickNote } from "@/components/QuickNote";
 import { StoreLineal } from "@/components/StoreLineal";
+import { EquipmentPanel } from "@/components/EquipmentPanel";
+import { loadStoreEquipment } from "@/lib/server/equipment";
+import { isPresent } from "@/lib/equipment";
 import { FREQ_LABEL, VISIT_TYPES, type Store, type Visit } from "@/lib/types";
 import { eur, dmy, MONTHS_SHORT } from "@/lib/format";
 
@@ -24,12 +27,12 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
   if (!store) notFound();
   const s = store as Store;
   const key = brandKey(s.banner);
-  const [settings, types, { data: visits }, { data: contacts }, { data: concepts }, { data: records }, { data: logo }] = await Promise.all([
+  const [settings, types, equipment, { data: visits }, { data: contacts }, { data: records }, { data: logo }] = await Promise.all([
     loadSettings(),
     loadPaymentTypes(),
+    loadStoreEquipment(id),
     sb.from("visits").select("*").eq("store_id", id).order("visit_date", { ascending: false }).limit(50),
     sb.from("store_contacts").select("*").eq("store_id", id).order("created_at"),
-    sb.from("payment_concepts").select("*").eq("store_id", id).order("created_at"),
     sb.from("payment_records").select("*").eq("store_id", id).order("payment_date", { ascending: false }).limit(50),
     key ? sb.from("brand_logos").select("storage_path").eq("brand_key", key).maybeSingle() : Promise.resolve({ data: null }),
   ]);
@@ -50,8 +53,8 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
     }
   }
   const mMax = Math.max(1, ...months.map((x) => x.n));
-  const installed = (concepts ?? []).filter((c) => c.status === "activo").length;
-  const { data: ph } = await sb.from("visit_photos").select("id,storage_path,thumb_path,visit_id,visits!inner(store_id)").eq("visits.store_id", id).order("created_at", { ascending: false }).limit(8);
+  const installed = equipment.filter((e) => isPresent(e.status)).reduce((n, e) => n + e.quantity, 0);
+  const { data: ph } = await sb.from("visit_photos").select("id,storage_path,thumb_path,visit_id").eq("store_id", id).is("deleted_at", null).order("taken_at", { ascending: false }).limit(8);
   const phPaths = (ph ?? []).map((p) => p.thumb_path ?? p.storage_path);
   const { data: phSigned } = phPaths.length ? await sb.storage.from("visit-photos").createSignedUrls(phPaths, 3600) : { data: [] };
   const linealPath = (store as { lineal_path?: string | null }).lineal_path ?? null;
@@ -159,8 +162,12 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
         )}
       </Collapsible>
 
-      <Collapsible title="Pagos y conceptos" hint={`${(concepts ?? []).length} conceptos`}>
-        <Payments storeId={s.id} concepts={concepts ?? []} records={records ?? []} types={types} />
+      <Collapsible title="Inventario" hint={`${installed} instalado${installed === 1 ? "" : "s"}`} open>
+        <EquipmentPanel storeId={s.id} items={equipment} types={types} />
+      </Collapsible>
+
+      <Collapsible title="Pagos" hint={`${(records ?? []).length}`}>
+        <Payments storeId={s.id} records={records ?? []} types={types} equipment={equipment} />
       </Collapsible>
 
       <Collapsible title="Datos de la tienda" hint={s.source_id ? `ID ${s.source_id}` : "creada a mano"}>

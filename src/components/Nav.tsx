@@ -5,8 +5,7 @@ import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { MahouLogo } from "./MahouLogo";
 import { Sun, Store, Map, ClipboardList, Route, BarChart3, Settings, LogOut, Ellipsis, X, Plus, ChevronDown, Wallet } from "lucide-react";
-import { supabaseBrowser } from "@/lib/supabase/client";
-import { clearOfflineData } from "@/lib/offline/db";
+import { safeLogout } from "@/lib/offline/logout";
 
 type Ico = typeof Sun;
 interface Item { href: string; label: string }
@@ -15,7 +14,7 @@ interface Group { label: string; icon: Ico; href?: string; items?: Item[] }
 const GROUPS: Group[] = [
   { label: "Hoy", icon: Sun, href: "/" },
   { label: "Planificación", icon: Route, items: [{ href: "/map", label: "Mapa" }, { href: "/routes", label: "Rutas" }] },
-  { label: "Tiendas", icon: Store, items: [{ href: "/stores", label: "Listado" }, { href: "/stores/new", label: "Nueva tienda" }] },
+  { label: "Tiendas", icon: Store, items: [{ href: "/stores", label: "Listado" }, { href: "/inventory", label: "Inventario" }, { href: "/stores/new", label: "Nueva tienda" }] },
   { label: "Visitas", icon: ClipboardList, items: [{ href: "/visits", label: "Historial" }, { href: "/visits/new", label: "Nueva visita" }, { href: "/gallery", label: "Galería" }] },
   { label: "Pagos", icon: Wallet, items: [{ href: "/payments", label: "Desglose por tipo" }] },
   { label: "Informes", icon: BarChart3, items: [{ href: "/stats", label: "Estadísticas" }] },
@@ -57,9 +56,8 @@ export function Nav({ unread }: { unread: number }) {
   useEffect(() => setMore(false), [path]);
 
   async function logout() {
-    // Al salir se borra todo lo guardado en el dispositivo (páginas, cola y datos).
-    await clearOfflineData();
-    await supabaseBrowser().auth.signOut();
+    // Antes de salir se intenta enviar lo pendiente; lo que no se pueda enviar se queda guardado en el móvil.
+    if (!(await safeLogout())) return;
     router.replace("/login");
     router.refresh();
   }

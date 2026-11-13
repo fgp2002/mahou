@@ -54,7 +54,7 @@ export function BrandsManager({ brands }: { brands: BrandUse[] }) {
     const r = await sb.from("payment_brands").update({ name: n }).eq("id", edit.id);
     // El nombre guardado en conceptos y pagos se actualiza para que los filtros sigan agrupando bien.
     if (!r.error) {
-      await sb.from("payment_concepts").update({ brand_name: n }).eq("brand_id", edit.id);
+      await sb.from("store_equipment").update({ brand_name: n }).eq("brand_id", edit.id);
       await sb.from("payment_records").update({ brand_name: n }).eq("brand_id", edit.id);
     }
     setBusy(false);

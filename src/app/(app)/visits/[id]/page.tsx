@@ -10,6 +10,7 @@ import { loadPaymentTypes } from "@/lib/server/load";
 import { effectiveFrequency, suggestNextVisit } from "@/lib/domain/periodicity";
 import { madridDate } from "@/lib/domain/dates";
 import type { Visit } from "@/lib/types";
+import { EQUIPMENT_COLS, type Equipment } from "@/lib/equipment";
 
 export default async function VisitPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,11 +18,11 @@ export default async function VisitPage({ params }: { params: Promise<{ id: stri
   const { data: visit } = await sb.from("visits").select("*").eq("id", id).maybeSingle();
   if (!visit) notFound();
   const types = await loadPaymentTypes();
-  const [{ data: store }, { data: contacts }, { data: concepts }, { data: ph }, { data: tagRows }] = await Promise.all([
+  const [{ data: store }, { data: contacts }, { data: equipment }, { data: ph }, { data: tagRows }] = await Promise.all([
     sb.from("stores").select("id,name,frequency,audit").eq("id", visit.store_id).single(),
     sb.from("store_contacts").select("*").eq("store_id", visit.store_id),
-    sb.from("payment_concepts").select("*").eq("store_id", visit.store_id).eq("status", "activo"),
-    sb.from("visit_photos").select("id,storage_path,thumb_path,caption").eq("visit_id", id).order("created_at"),
+    sb.from("store_equipment").select(EQUIPMENT_COLS).eq("store_id", visit.store_id).is("deleted_at", null).order("created_at"),
+    sb.from("visit_photos").select("id,storage_path,thumb_path,caption").eq("visit_id", id).eq("kind", "visita").is("deleted_at", null).order("created_at"),
     sb.from("photo_tags").select("id,kind,name").order("name"),
   ]);
   const { data: vitems } = await sb.from("visit_items").select("id,product_id,product_name,quantity").eq("visit_id", id).order("created_at");
@@ -39,7 +40,7 @@ export default async function VisitPage({ params }: { params: Promise<{ id: stri
       <PageHeader title="Visita">
         <Link href={`/stores/${visit.store_id}`} className="btn-secondary">Ver tienda</Link>
       </PageHeader>
-      <VisitRunner visit={visit as Visit} storeName={store?.name ?? ""} contacts={contacts ?? []} concepts={concepts ?? []} photos={photos} types={types} tags={(tagRows ?? []) as PhotoTag[]} payments={(pays ?? []) as VisitPayment[]} items={(vitems ?? []) as VisitItem[]} suggestedNext={store ? suggestNextVisit(effectiveFrequency(store.frequency as "semanal", !!store.audit), madridDate()) : null} />
+      <VisitRunner visit={visit as Visit} storeName={store?.name ?? ""} contacts={contacts ?? []} equipment={(equipment ?? []) as unknown as Equipment[]} photos={photos} types={types} tags={(tagRows ?? []) as PhotoTag[]} payments={(pays ?? []) as VisitPayment[]} items={(vitems ?? []) as VisitItem[]} suggestedNext={store ? suggestNextVisit(effectiveFrequency(store.frequency as "semanal", !!store.audit), madridDate()) : null} />
     </div>
   );
 }

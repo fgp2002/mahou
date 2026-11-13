@@ -85,7 +85,7 @@ export function GalleryView({ photos, tags }: { photos: GalleryPhoto[]; tags: Ta
             <div className="flex flex-wrap justify-center gap-1.5">
               {open.tagIds.map((id) => tagById.get(id)).filter(Boolean).map((t) => <span key={t!.id} className="rounded-full bg-white/20 px-3 py-1 text-xs">{t!.name}</span>)}
             </div>
-            <Link href={`/visits/${open.visitId}`} className="inline-block underline">Ver visita</Link>
+            {open.visitId ? <Link href={`/visits/${open.visitId}`} className="inline-block underline">Ver visita</Link> : <Link href={`/stores/${open.storeId}`} className="inline-block underline">Ver tienda</Link>}
           </div>
         </div>
       )}

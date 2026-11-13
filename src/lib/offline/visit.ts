@@ -4,10 +4,12 @@ import { madridDate } from "../domain/dates";
 import { resizeImage } from "../image";
 import { kv } from "./db";
 import { enqueue, saveBlob } from "./outbox";
+import { paymentValues } from "../paymentRecord";
 
 export interface LocalVisit { id: string; storeId: string; storeName: string; startedAt: string; photos: number; payments: { name: string; amount: number }[] }
 export interface CachedStore { id: string; name: string; town: string | null; lat: number | null; lng: number | null }
-export interface CachedType { id: string; code: string; name: string; default_amount: number | null; active: boolean }
+export interface CachedType { id: string; code: string; name: string; default_amount: number | null; active: boolean; tracks_inventory?: boolean }
+export interface CachedEquipment { id: string; store_id: string; type_id: string; code: string | null; name: string | null; brand_id: string | null; brand_name: string | null; quantity: number; location: string | null; status: string; reference_amount: number | null; legacy_concept_id: string | null }
 export interface CachedBrand { id: string; name: string }
 
 const uuid = () => crypto.randomUUID();
@@ -30,7 +32,7 @@ export async function startOfflineVisit(o: { storeId: string; storeName?: string
 }
 
 /** Guarda la foto (y su miniatura) en el móvil y deja en cola la subida y su registro. */
-export async function savePhotoOffline(visitId: string, file: Blob) {
+export async function savePhotoOffline(visitId: string, file: Blob, equipmentId?: string | null) {
   const uid = await kv.get<string>("uid");
   if (!uid) throw new Error("Abre la app una vez con conexión para poder hacer fotos sin red.");
   const [full, thumb] = await Promise.all([resizeImage(file), resizeImage(file, 400, 0.7)]);
@@ -39,17 +41,19 @@ export async function savePhotoOffline(visitId: string, file: Blob) {
   await saveBlob(`${base}.thumb.jpg`, thumb);
   await enqueue({ kind: "upload", bucket: "visit-photos", path: `${base}.jpg`, blobKey: `${base}.jpg`, contentType: "image/jpeg", label: "Foto" });
   await enqueue({ kind: "upload", bucket: "visit-photos", path: `${base}.thumb.jpg`, blobKey: `${base}.thumb.jpg`, contentType: "image/jpeg", label: "Miniatura" });
-  await enqueue({ kind: "insert", table: "visit_photos", label: "Registro de foto", values: { id: uuid(), visit_id: visitId, storage_path: `${base}.jpg`, thumb_path: `${base}.thumb.jpg`, mime_type: "image/jpeg", size_bytes: full.size } });
+  await enqueue({ kind: "insert", table: "visit_photos", label: "Registro de foto", values: { id: uuid(), visit_id: visitId, equipment_id: equipmentId ?? null, kind: equipmentId ? "elemento" : "visita", storage_path: `${base}.jpg`, thumb_path: `${base}.thumb.jpg`, mime_type: "image/jpeg", size_bytes: full.size } });
 }
 
-export async function addPaymentOffline(v: { visitId: string; storeId: string; type: CachedType; amount: number; brand?: CachedBrand | null }) {
+export async function addPaymentOffline(v: { visitId: string; storeId: string; type: CachedType; amount: number; brand?: CachedBrand | null; equipment?: CachedEquipment | null }) {
   await enqueue({
     kind: "insert", table: "payment_records", label: `Pago ${v.type.name}`,
-    values: {
-      id: uuid(), store_id: v.storeId, visit_id: v.visitId, concept_id: null, concept: v.type.code, concept_name: v.type.name, payment_type_id: v.type.id,
-      amount: v.amount, payment_date: madridDate(), status: "comprobado", is_demo: false, brand_id: v.brand?.id ?? null, brand_name: v.brand?.name ?? null,
-    },
+    values: paymentValues({ storeId: v.storeId, type: v.type, amount: v.amount, date: madridDate(), status: "comprobado", visitId: v.visitId, equipment: v.equipment ?? null, brand: v.brand ?? null }),
   });
+}
+
+/** Marca un elemento del inventario como revisado en esta visita (sin conexión). */
+export async function reviewEquipmentOffline(visitId: string, equipmentId: string) {
+  await enqueue({ kind: "update", table: "store_equipment", id: equipmentId, label: "Revisión de elemento", values: { last_reviewed_at: new Date().toISOString(), context_visit_id: visitId } });
 }
 
 export async function finishOfflineVisit(visitId: string, startedAt: string, f: { result?: string; notes?: string; incidents?: string }) {

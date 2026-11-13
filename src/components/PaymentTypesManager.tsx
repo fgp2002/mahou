@@ -8,20 +8,20 @@ export function PaymentTypesManager({ types, usage }: { types: PaymentType[]; us
   const router = useRouter();
   const sb = supabaseBrowser();
   const [edit, setEdit] = useState<string | null>(null);
-  const [f, setF] = useState({ name: "", amount: "", category: "", notes: "" });
-  const [nf, setNf] = useState({ name: "", amount: "", category: "" });
+  const [f, setF] = useState({ name: "", amount: "", category: "", notes: "", inv: false });
+  const [nf, setNf] = useState({ name: "", amount: "", category: "", inv: true });
   const [msg, setMsg] = useState<string | null>(null);
 
   async function add() {
-    const { error } = await createPaymentType(sb, { name: nf.name, default_amount: nf.amount.trim() === "" ? null : Number(nf.amount.replace(",", ".")), category: nf.category });
+    const { error } = await createPaymentType(sb, { name: nf.name, default_amount: nf.amount.trim() === "" ? null : Number(nf.amount.replace(",", ".")), category: nf.category, tracks_inventory: nf.inv });
     if (error) return setMsg(error);
-    setNf({ name: "", amount: "", category: "" });
+    setNf({ name: "", amount: "", category: "", inv: true });
     setMsg("Tipo creado.");
     router.refresh();
   }
   function start(t: PaymentType) {
     setEdit(t.id);
-    setF({ name: t.name, amount: t.default_amount?.toString() ?? "", category: t.category ?? "", notes: t.notes ?? "" });
+    setF({ name: t.name, amount: t.default_amount?.toString() ?? "", category: t.category ?? "", notes: t.notes ?? "", inv: !!t.tracks_inventory });
   }
   async function save(t: PaymentType) {
     const name = f.name.replace(/\s+/g, " ").trim();
@@ -31,7 +31,7 @@ export function PaymentTypesManager({ types, usage }: { types: PaymentType[]; us
     const clash = types.find((x) => x.id !== t.id && x.name.trim().toLowerCase() === name.toLowerCase());
     if (clash) return setMsg(`Ya existe un tipo llamado «${clash.name}».`);
     // Solo se actualiza el tipo: los pagos ya registrados conservan el nombre con el que se hicieron.
-    const { error } = await sb.from("payment_types").update({ name, default_amount: amount, category: f.category.trim() || null, notes: f.notes.trim() || null }).eq("id", t.id);
+    const { error } = await sb.from("payment_types").update({ name, default_amount: amount, category: f.category.trim() || null, notes: f.notes.trim() || null, tracks_inventory: f.inv }).eq("id", t.id);
     if (error) return setMsg(error.message);
     setEdit(null);
     setMsg("Guardado. El historial de pagos no cambia.");
@@ -51,8 +51,8 @@ export function PaymentTypesManager({ types, usage }: { types: PaymentType[]; us
 
   return (
     <section className="card space-y-3">
-      <h2 className="font-medium">Tipos de pago</h2>
-      <p className="text-sm text-slate-500">Crea, renombra o desactiva tipos. Los pagos ya registrados conservan su nombre original. Los tipos con historial no se pueden eliminar, solo desactivar.</p>
+      <h2 className="font-medium">Tipos de elemento y conceptos de pago</h2>
+      <p className="text-sm text-slate-500">Un solo catálogo para el inventario y los pagos. Marca «Se instala en tienda» en lo que es físico (neveras, cabeceras, expositores…): aparecerá en el inventario. Los pagos ya registrados conservan su nombre original; los tipos con historial no se pueden eliminar, solo desactivar.</p>
       <ul className="divide-y divide-slate-200">
         {types.map((t) => {
           const used = usage[t.id] ?? 0;
@@ -64,12 +64,13 @@ export function PaymentTypesManager({ types, usage }: { types: PaymentType[]; us
                   <div><label className="label">Importe (€)</label><input className="input" inputMode="decimal" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} /></div>
                   <div><label className="label">Categoría</label><input className="input" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} /></div>
                   <div className="col-span-2"><label className="label">Notas</label><input className="input" value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></div>
+                  <label className="col-span-2 flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" className="h-5 w-5 accent-[rgb(var(--brand-600))]" checked={f.inv} onChange={(e) => setF({ ...f, inv: e.target.checked })} /> Se instala en tienda (aparece en el inventario)</label>
                   <div className="col-span-2 flex gap-2"><button className="btn" onClick={() => save(t)}>Guardar</button><button className="btn-secondary" onClick={() => setEdit(null)}>Cancelar</button></div>
                 </div>
               ) : (
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className={t.active ? "" : "opacity-50"}>
-                    <div className="font-medium">{t.name} {!t.active && <span className="badge bg-slate-200 text-slate-700">Desactivado</span>}</div>
+                    <div className="font-medium">{t.name} {t.tracks_inventory && <span className="badge bg-brand-50 text-brand-700">Inventario</span>} {!t.active && <span className="badge bg-slate-200 text-slate-700">Desactivado</span>}</div>
                     <div className="text-xs text-slate-500">{t.default_amount != null ? eur(t.default_amount) : "sin importe"}{t.category ? ` · ${t.category}` : ""} · {used} usos</div>
                   </div>
                   <div className="flex gap-2">
@@ -90,6 +91,7 @@ export function PaymentTypesManager({ types, usage }: { types: PaymentType[]; us
           <div><label className="label">Importe (€)</label><input className="input" inputMode="decimal" value={nf.amount} onChange={(e) => setNf({ ...nf, amount: e.target.value })} /></div>
           <div className="col-span-2 sm:col-span-1"><label className="label">Categoría</label><input className="input" value={nf.category} onChange={(e) => setNf({ ...nf, category: e.target.value })} /></div>
         </div>
+        <label className="mt-2 flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" className="h-5 w-5 accent-[rgb(var(--brand-600))]" checked={nf.inv} onChange={(e) => setNf({ ...nf, inv: e.target.checked })} /> Se instala en tienda (aparece en el inventario)</label>
         <button className="btn mt-2" onClick={add}>Crear tipo</button>
       </div>
       {msg && <p className="text-sm text-slate-600" role="status">{msg}</p>}

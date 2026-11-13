@@ -24,10 +24,11 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
   const withDemo = demo === "1";
   const sb = await supabaseServer();
   type C = { store_id: string; concept: string; payment_type_id: string | null; default_amount: number | null; status: string; is_demo: boolean; brand_name: string | null };
+  type E = { store_id: string; type_id: string; reference_amount: number | null; status: string; brand_name: string | null; quantity: number };
   type R = { store_id: string; concept: string; concept_name: string | null; payment_type_id: string | null; amount: number; status: string; is_demo: boolean; payment_date: string; brand_name: string | null };
   const [types, concepts, records, { data: stores }] = await Promise.all([
     loadPaymentTypes(),
-    fetchAll<C>((a, b) => sb.from("payment_concepts").select("store_id,concept,payment_type_id,default_amount,status,is_demo,brand_name").range(a, b)),
+    fetchAll<E>((a, b) => sb.from("store_equipment").select("store_id,type_id,reference_amount,status,brand_name,quantity").is("deleted_at", null).range(a, b)),
     fetchAll<R>((a, b) => sb.from("payment_records").select("store_id,concept,concept_name,payment_type_id,amount,status,is_demo,payment_date,brand_name").range(a, b)),
     sb.from("stores").select("id,name,town,banner").limit(5000),
   ]);
@@ -35,7 +36,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
   const typeById = new Map(types.map((t) => [t.id, t]));
   const keyOf = (x: { payment_type_id: string | null; concept: string }) => x.payment_type_id ?? `code:${x.concept}`;
   const nameOf = (k: string, fallback?: string | null) => typeById.get(k)?.name ?? fallback ?? k.replace(/^code:/, "");
-  const C2 = concepts.filter((c) => withDemo || !c.is_demo);
+  const C2: (C & { quantity: number })[] = concepts.map((e) => ({ store_id: e.store_id, concept: "", payment_type_id: e.type_id, default_amount: e.reference_amount, status: e.status === "retirado" || e.status === "pendiente_instalacion" ? "retirado" : "activo", is_demo: false, brand_name: e.brand_name, quantity: e.quantity }));
   const R2 = records.filter((r) => withDemo || !r.is_demo);
 
   // Agregado por tipo: instaladas = conceptos activos por tienda; importe = solo lo abonado (histórico).
@@ -43,7 +44,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
   const touch = (k: string, name: string) => agg.get(k) ?? (agg.set(k, { name, installed: 0, paid: 0, payments: 0, brands: new Map() }), agg.get(k)!);
   for (const c of C2) if (c.status === "activo") {
     const a = touch(keyOf(c), nameOf(keyOf(c)));
-    a.installed++;
+    a.installed += c.quantity;
     const b = c.brand_name ?? "Sin marca";
     a.brands.set(b, (a.brands.get(b) ?? 0) + 1);
   }

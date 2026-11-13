@@ -3,6 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export interface PaymentType {
   id: string; code: string; name: string; category: string | null; default_amount: number | null; notes: string | null;
   active: boolean; is_builtin: boolean; sort_order: number;
+  /** Se instala en tienda: aparece en el inventario. */
+  tracks_inventory?: boolean;
 }
 
 export function slugify(name: string): string {
@@ -12,7 +14,7 @@ export function slugify(name: string): string {
 export { eur } from "./format";
 
 /** Crea un tipo de pago evitando duplicados por nombre (sin distinguir mayúsculas ni espacios extra). */
-export async function createPaymentType(sb: SupabaseClient, input: { name: string; default_amount?: number | null; category?: string | null }) {
+export async function createPaymentType(sb: SupabaseClient, input: { name: string; default_amount?: number | null; category?: string | null; tracks_inventory?: boolean }) {
   const name = input.name.replace(/\s+/g, " ").trim();
   if (!name) return { data: null, error: "Escribe un nombre." };
   if (input.default_amount != null && (!Number.isFinite(input.default_amount) || input.default_amount < 0)) return { data: null, error: "El importe no es válido." };
@@ -22,7 +24,7 @@ export async function createPaymentType(sb: SupabaseClient, input: { name: strin
   let code = slugify(name);
   for (let i = 0; i < 3; i++) {
     const { data, error } = await sb.from("payment_types")
-      .insert({ code, name, default_amount: input.default_amount ?? null, category: input.category?.trim() || null, sort_order: 100 })
+      .insert({ code, name, default_amount: input.default_amount ?? null, category: input.category?.trim() || null, sort_order: 100, tracks_inventory: !!input.tracks_inventory })
       .select("*").single();
     if (!error) return { data: data as PaymentType, error: null };
     if (error.code === "23505" && /code/.test(error.message)) { code = `${slugify(name)}_${Math.random().toString(36).slice(2, 6)}`; continue; }

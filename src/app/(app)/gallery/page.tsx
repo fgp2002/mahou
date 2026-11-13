@@ -8,12 +8,14 @@ export default async function GalleryPage() {
   const sb = await supabaseServer();
   const { data: rows } = await sb
     .from("visit_photos")
-    .select("id,storage_path,thumb_path,created_at,visit_id,visits(visit_date,store_id,stores(id,name,town,banner,chain))")
-    .order("created_at", { ascending: false })
+    .select("id,storage_path,thumb_path,created_at,taken_at,visit_id,kind,stores(id,name,town,banner,chain),visits(visit_date)")
+    .is("deleted_at", null)
+    .order("taken_at", { ascending: false })
     .limit(600);
   const photos = (rows ?? []) as unknown as {
-    id: string; storage_path: string; thumb_path: string | null; created_at: string; visit_id: string;
-    visits: { visit_date: string; store_id: string; stores: { id: string; name: string; town: string | null; banner: string | null; chain: string | null } | null } | null;
+    id: string; storage_path: string; thumb_path: string | null; created_at: string; taken_at: string; visit_id: string | null; kind: string;
+    visits: { visit_date: string } | null;
+    stores: { id: string; name: string; town: string | null; banner: string | null; chain: string | null } | null;
   }[];
   const ids = photos.map((p) => p.id);
   const [{ data: tags }, { data: links }, { data: signed }] = await Promise.all([
@@ -28,12 +30,12 @@ export default async function GalleryPage() {
     id: p.id,
     url: urlByPath.get(p.thumb_path ?? p.storage_path) ?? null,
     path: p.storage_path,
-    date: p.visits?.visit_date ?? p.created_at.slice(0, 10),
-    visitId: p.visit_id,
-    storeId: p.visits?.stores?.id ?? "",
-    store: p.visits?.stores?.name ?? "Tienda",
-    town: p.visits?.stores?.town ?? "",
-    banner: p.visits?.stores?.banner ?? p.visits?.stores?.chain ?? "",
+    date: p.visits?.visit_date ?? p.taken_at.slice(0, 10),
+    visitId: p.visit_id ?? "",
+    storeId: p.stores?.id ?? "",
+    store: p.stores?.name ?? "Tienda",
+    town: p.stores?.town ?? "",
+    banner: p.stores?.banner ?? p.stores?.chain ?? "",
     tagIds: tagsByPhoto.get(p.id) ?? [],
   }));
   return (

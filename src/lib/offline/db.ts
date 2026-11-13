@@ -41,10 +41,13 @@ export const kv = {
   set: (key: string, value: unknown) => idb.put("kv", value, key).catch(() => undefined),
 };
 
-/** Borra todo lo guardado en el dispositivo (al cerrar sesión). */
+/**
+ * Al cerrar sesión se borran las páginas y los datos de consulta guardados en el móvil.
+ * Los cambios pendientes de enviar (cola y fotos) NO se borran: se enviarán cuando vuelva a entrar el mismo usuario.
+ */
 export async function clearOfflineData() {
   try {
-    await Promise.all(["outbox", "blobs", "kv"].map((s) => idb.clear(s)));
+    await idb.clear("kv");
   } catch { /* sin IndexedDB */ }
   try {
     if ("caches" in window) for (const k of await caches.keys()) await caches.delete(k);

@@ -8,6 +8,8 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { eur, type PaymentType } from "@/lib/payments";
 import { toast } from "./Toast";
 import { BrandSelect, type Brand } from "./BrandSelect";
+import { paymentValues } from "@/lib/paymentRecord";
+import { madridDate } from "@/lib/domain/dates";
 
 export interface VisitPayment {
   id: string; payment_type_id: string | null; concept: string; concept_name: string | null; amount: number; status: string; payment_date: string; is_demo: boolean;
@@ -45,19 +47,20 @@ export function VisitPayments({ visitId, storeId, payments, types, editable }: {
     const amt = Number(add.amount.replace(",", "."));
     if (!t) return toast("Elige un tipo de pago", "error");
     if (!Number.isFinite(amt) || amt < 0 || add.amount.trim() === "") return toast("Importe no válido", "error");
-    let cq = sb.from("payment_concepts").select("id").eq("store_id", storeId).eq("payment_type_id", t.id).eq("status", "activo");
-    cq = brand ? cq.eq("brand_id", brand.id) : cq.is("brand_id", null);
-    let { data: c } = await cq.limit(1).maybeSingle();
-    if (!c) {
-      // Si la tienda no tenía este elemento (tipo + marca) se da de alta como instalado.
-      const ins = await sb.from("payment_concepts").insert({ store_id: storeId, concept: t.code, payment_type_id: t.id, default_amount: amt, brand_id: brand?.id ?? null, brand_name: brand?.name ?? null }).select("id").single();
-      c = ins.data;
+    // Se vincula al elemento del inventario de ese tipo y marca; si es un tipo que se instala y la tienda no lo tenía, se da de alta.
+    let eq: { id: string; brand_id: string | null; brand_name: string | null; legacy_concept_id: string | null } | null = null;
+    if (t.tracks_inventory) {
+      let q = sb.from("store_equipment").select("id,brand_id,brand_name,legacy_concept_id").eq("store_id", storeId).eq("type_id", t.id).is("deleted_at", null).neq("status", "retirado");
+      q = brand ? q.eq("brand_id", brand.id) : q.is("brand_id", null);
+      const { data: found } = await q.limit(2);
+      if (found?.length === 1) eq = found[0];
+      else if (!found?.length) {
+        const ins = await sb.from("store_equipment").insert({ store_id: storeId, type_id: t.id, brand_id: brand?.id ?? null, brand_name: brand?.name ?? null, reference_amount: amt, context_visit_id: visitId, installed_on: madridDate() }).select("id,brand_id,brand_name,legacy_concept_id").single();
+        eq = ins.data;
+      }
     }
     const { data: v } = await sb.from("visits").select("visit_date").eq("id", visitId).single();
-    await run(() => sb.from("payment_records").insert({
-      store_id: storeId, visit_id: visitId, concept_id: c?.id ?? null, concept: t.code, concept_name: t.name, payment_type_id: t.id,
-      amount: amt, status: add.status, payment_date: v?.visit_date, is_demo: false, brand_id: brand?.id ?? null, brand_name: brand?.name ?? null,
-    }), "Pago añadido");
+    await run(() => sb.from("payment_records").insert(paymentValues({ storeId, type: t, amount: amt, date: v?.visit_date ?? madridDate(), status: add.status, visitId, equipment: eq, brand })), "Pago añadido");
     setAdd({ typeId: "", amount: "", status: "comprobado" });
     setBrand(null);
   }
