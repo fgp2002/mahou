@@ -3,7 +3,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { Camera, Check, ChevronRight, Plus, Wallet } from "lucide-react";
-import type { PaymentType } from "@/lib/payments";
+import { defaultSettlement, type InvestmentCategory, type PaymentType } from "@/lib/payments";
+import { UNIT_LABEL } from "@/lib/economy";
 import { madridDate } from "@/lib/domain/dates";
 import { eur } from "@/lib/format";
 import { equipmentTitle, type Equipment } from "@/lib/equipment";
@@ -21,7 +22,7 @@ interface Done { reviewed?: boolean; photos?: number; paid?: number }
  * Paso «Elementos y pagos» de la visita: cada elemento de la tienda con cuatro acciones de un toque.
  * Nada es obligatorio. Todo funciona sin conexión (se envía al volver la red).
  */
-export function VisitEquipment({ visitId, storeId, items, types }: { visitId: string; storeId: string; items: Equipment[]; types: PaymentType[] }) {
+export function VisitEquipment({ visitId, storeId, items, types, categories = [] }: { visitId: string; storeId: string; items: Equipment[]; types: PaymentType[]; categories?: InvestmentCategory[] }) {
   const router = useRouter();
   const today = madridDate();
   const typeById = new Map(types.map((t) => [t.id, t]));
@@ -30,7 +31,7 @@ export function VisitEquipment({ visitId, storeId, items, types }: { visitId: st
   const [open, setOpen] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
-  const [other, setOther] = useState<{ typeId: string; amount: string; status: string } | null>(null);
+  const [other, setOther] = useState<{ typeId: string; amount: string; status: string; quantity: string } | null>(null);
   const [otherBrand, setOtherBrand] = useState<Brand | null>(null);
   const mark = (id: string, d: Done) => setDone((m) => ({ ...m, [id]: { ...m[id], ...d } }));
   const list = items.filter((e) => e.status !== "retirado");
@@ -77,7 +78,7 @@ export function VisitEquipment({ visitId, storeId, items, types }: { visitId: st
     if (!t) return toast("Elige el concepto", "error");
     if (amount == null) return toast("Importe no válido", "error");
     setBusy("other");
-    const r = await writeOrQueue({ kind: "insert", table: "payment_records", label: `Pago ${t.name}`, values: paymentValues({ storeId, type: t, amount, date: today, status: other.status, visitId, brand: otherBrand }) });
+    const r = await writeOrQueue({ kind: "insert", table: "payment_records", label: `Pago ${t.name}`, values: paymentValues({ storeId, type: t, amount, date: today, status: other.status, visitId, brand: otherBrand, settlement: defaultSettlement(t, categories), quantity: other.quantity.trim() ? parseAmount(other.quantity) : null, unit: t.unit && t.unit !== "eur" ? t.unit : null }) });
     setBusy(null);
     if (r.error) return toast(r.error, "error");
     setOther(null);
@@ -128,7 +129,7 @@ export function VisitEquipment({ visitId, storeId, items, types }: { visitId: st
       </ul>
       <div className="grid grid-cols-2 gap-2">
         <button className="btn-secondary" onClick={() => setAdding(true)}><Plus size={16} /> Elemento</button>
-        <button className="btn-secondary" onClick={() => setOther(other ? null : { typeId: "", amount: "", status: "comprobado" })}><Wallet size={16} /> Otro pago</button>
+        <button className="btn-secondary" onClick={() => setOther(other ? null : { typeId: "", amount: "", status: "comprobado", quantity: "" })}><Wallet size={16} /> Otro pago</button>
       </div>
       {other && (
         <div className="fade-in grid grid-cols-2 gap-2 rounded-xl border border-slate-200 p-3">
@@ -138,7 +139,10 @@ export function VisitEquipment({ visitId, storeId, items, types }: { visitId: st
               {types.filter((t) => t.active).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select></div>
           <div className="col-span-2"><BrandSelect label="Marca" value={otherBrand?.id ?? null} onChange={setOtherBrand} /></div>
-          <div><label className="label">Importe (€)</label><input className="input" inputMode="decimal" value={other.amount} onChange={(e) => setOther({ ...other, amount: e.target.value })} /></div>
+          <div><label className="label">{defaultSettlement(typeById.get(other.typeId), categories) === "especie" ? "Valoración (€)" : "Importe (€)"}</label><input className="input" inputMode="decimal" value={other.amount} onChange={(e) => setOther({ ...other, amount: e.target.value })} /></div>
+          {typeById.get(other.typeId)?.unit && typeById.get(other.typeId)?.unit !== "eur" && (
+            <div><label className="label">Cantidad ({UNIT_LABEL[typeById.get(other.typeId)!.unit!]})</label><input className="input" inputMode="decimal" value={other.quantity} onChange={(e) => setOther({ ...other, quantity: e.target.value })} /></div>
+          )}
           <div><label className="label">Estado</label><select className="input" value={other.status} onChange={(e) => setOther({ ...other, status: e.target.value })}><option value="previsto">Previsto</option><option value="comprobado">Comprobado</option><option value="abonado">Abonado</option></select></div>
           <button className="btn col-span-2" disabled={busy === "other"} onClick={payOther}>Registrar pago</button>
         </div>

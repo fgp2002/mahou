@@ -38,7 +38,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
   const [settings, stores, dates, { data: vis }, { data: pays }] = await Promise.all([
     loadSettings(), loadAllStores(), loadCompletedDates(),
     sb.from("visits").select("visit_date,duration_minutes,is_manual,stores(town)").eq("status", "completed").gte("visit_date", since).limit(10000),
-    sb.from("payment_records").select("concept,concept_name,amount,status,is_demo").limit(5000),
+    sb.from("payment_records").select("concept,concept_name,amount,status,is_demo").is("deleted_at", null).neq("status", "cancelado").limit(5000),
   ]);
   const visits = (vis ?? []) as unknown as { visit_date: string; duration_minutes: number | null; is_manual: boolean; stores: { town: string | null } | null }[];
   const rows = withObligations(stores, dates, settings, today);

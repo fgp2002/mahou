@@ -16,7 +16,7 @@ const GROUPS: Group[] = [
   { label: "Planificación", icon: Route, items: [{ href: "/map", label: "Mapa" }, { href: "/routes", label: "Rutas" }] },
   { label: "Tiendas", icon: Store, items: [{ href: "/stores", label: "Listado" }, { href: "/inventory", label: "Inventario" }, { href: "/stores/new", label: "Nueva tienda" }] },
   { label: "Visitas", icon: ClipboardList, items: [{ href: "/visits", label: "Historial" }, { href: "/visits/new", label: "Nueva visita" }, { href: "/gallery", label: "Galería" }] },
-  { label: "Pagos", icon: Wallet, items: [{ href: "/payments", label: "Desglose por tipo" }] },
+  { label: "Economía", icon: Wallet, items: [{ href: "/economy", label: "Resumen" }, { href: "/agreements", label: "Acuerdos" }] },
   { label: "Informes", icon: BarChart3, items: [{ href: "/stats", label: "Estadísticas" }] },
   { label: "Ajustes", icon: Settings, items: [{ href: "/settings?tab=jornada", label: "Jornada" }, { href: "/settings?tab=catalogo", label: "Catálogo" }, { href: "/settings?tab=app", label: "App y cuenta" }] },
 ];

@@ -10,13 +10,13 @@ import { GeocodePanel } from "@/components/GeocodePanel";
 import { LogosManager, type BrandRow } from "@/components/LogosManager";
 import { brandKey, logoUrl } from "@/lib/brands";
 import { PaymentTypesManager } from "@/components/PaymentTypesManager";
-import { loadPaymentTypes } from "@/lib/server/load";
+import { loadCatalog } from "@/lib/server/economy";
 import { SettingsForm, type SettingsValues } from "@/components/SettingsForm";
 import { DEFAULT_DURATIONS } from "@/lib/types";
 import { madridDate } from "@/lib/domain/dates";
 
 const TABS = [["jornada", "Jornada"], ["catalogo", "Catálogo"], ["app", "App y cuenta"]] as const;
-const SUBS = [["ensenas", "Enseñas"], ["productos", "Productos"], ["pagos", "Tipos de pago"], ["marcas", "Marcas"], ["datos", "Datos"]] as const;
+const SUBS = [["ensenas", "Enseñas"], ["productos", "Productos"], ["pagos", "Conceptos"], ["marcas", "Marcas"], ["datos", "Datos"]] as const;
 type Tab = (typeof TABS)[number][0];
 type Sub = (typeof SUBS)[number][0];
 
@@ -92,11 +92,11 @@ async function Productos() {
 
 async function Pagos() {
   const sb = await supabaseServer();
-  const types = await loadPaymentTypes();
+  const { types, categories } = await loadCatalog();
   const [{ data: uc }, { data: ur }] = await Promise.all([sb.from("store_equipment").select("type_id"), sb.from("payment_records").select("payment_type_id")]);
   const usage: Record<string, number> = {};
   for (const r of [...(uc ?? []).map((x) => ({ payment_type_id: x.type_id as string | null })), ...(ur ?? [])]) if (r.payment_type_id) usage[r.payment_type_id] = (usage[r.payment_type_id] ?? 0) + 1;
-  return <PaymentTypesManager types={types} usage={usage} />;
+  return <PaymentTypesManager types={types} usage={usage} categories={categories} />;
 }
 
 async function Datos() {

@@ -15,8 +15,8 @@ export interface VisitPayment {
   id: string; payment_type_id: string | null; concept: string; concept_name: string | null; amount: number; status: string; payment_date: string; is_demo: boolean;
   brand_id?: string | null; brand_name?: string | null;
 }
-const ST: Record<string, string> = { previsto: "Previsto", comprobado: "Comprobado", abonado: "Abonado" };
-const ST_STYLE: Record<string, string> = { previsto: "bg-slate-200 text-slate-700", comprobado: "bg-st-soon text-[#fff]", abonado: "bg-st-ok text-[#fff]" };
+const ST: Record<string, string> = { previsto: "Previsto", aprobado: "Aprobado", comprobado: "Comprobado", abonado: "Abonado", cancelado: "Cancelado" };
+const ST_STYLE: Record<string, string> = { previsto: "bg-slate-200 text-slate-700", aprobado: "bg-brand-50 text-brand-700", comprobado: "bg-st-soon text-[#fff]", abonado: "bg-st-ok text-[#fff]", cancelado: "bg-slate-100 text-slate-400 line-through" };
 
 /** Pagos registrados en una visita: lista con estado y total; en edición, cambiar, quitar y añadir. */
 export function VisitPayments({ visitId, storeId, payments, types, editable }: {
@@ -29,7 +29,7 @@ export function VisitPayments({ visitId, storeId, payments, types, editable }: {
   const [brand, setBrand] = useState<Brand | null>(null);
   const byId = new Map(types.map((t) => [t.id, t]));
   const name = (p: VisitPayment) => p.concept_name ?? (p.payment_type_id ? byId.get(p.payment_type_id)?.name : null) ?? p.concept;
-  const total = payments.reduce((s, p) => s + Number(p.amount), 0);
+  const total = payments.filter((p) => p.status !== "cancelado").reduce((s, p) => s + Number(p.amount), 0);
 
   async function run(fn: () => PromiseLike<{ error: { message: string } | null }>, ok: string) {
     setBusy(true);
@@ -41,7 +41,7 @@ export function VisitPayments({ visitId, storeId, payments, types, editable }: {
   }
 
   const update = (p: VisitPayment, patch: Partial<VisitPayment>) => run(() => sb.from("payment_records").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", p.id), "Pago actualizado");
-  const remove = (p: VisitPayment) => confirm(`¿Quitar el pago «${name(p)}» de ${eur(p.amount)}?`) && run(() => sb.from("payment_records").delete().eq("id", p.id), "Pago eliminado");
+  const remove = (p: VisitPayment) => confirm(`¿Quitar el pago «${name(p)}» de ${eur(p.amount)}?`) && run(() => sb.from("payment_records").update({ deleted_at: new Date().toISOString() }).eq("id", p.id), "Pago en la papelera");
   async function addPayment() {
     const t = byId.get(add.typeId);
     const amt = Number(add.amount.replace(",", "."));

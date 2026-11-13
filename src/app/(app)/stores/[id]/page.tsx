@@ -10,7 +10,9 @@ import { brandKey, logoUrl } from "@/lib/brands";
 import { StateBadge, Collapsible, EmptyState } from "@/components/ui";
 import { StoreForm } from "@/components/StoreForm";
 import { Contacts } from "@/components/Contacts";
-import { Payments } from "@/components/Payments";
+import { StoreEconomy } from "@/components/StoreEconomy";
+import { loadAgreements, loadCatalog } from "@/lib/server/economy";
+import { PAYMENT_COLS, type PaymentRow } from "@/lib/payments";
 import { QuickNote } from "@/components/QuickNote";
 import { StoreLineal } from "@/components/StoreLineal";
 import { EquipmentPanel } from "@/components/EquipmentPanel";
@@ -27,20 +29,21 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
   if (!store) notFound();
   const s = store as Store;
   const key = brandKey(s.banner);
-  const [settings, types, equipment, { data: visits }, { data: contacts }, { data: records }, { data: logo }] = await Promise.all([
+  const [settings, { types, categories }, agreements, equipment, { data: visits }, { data: contacts }, { data: records }, { data: logo }] = await Promise.all([
     loadSettings(),
-    loadPaymentTypes(),
+    loadCatalog(),
+    loadAgreements(id),
     loadStoreEquipment(id),
     sb.from("visits").select("*").eq("store_id", id).order("visit_date", { ascending: false }).limit(50),
     sb.from("store_contacts").select("*").eq("store_id", id).order("created_at"),
-    sb.from("payment_records").select("*").eq("store_id", id).order("payment_date", { ascending: false }).limit(50),
+    sb.from("payment_records").select(PAYMENT_COLS).eq("store_id", id).is("deleted_at", null).order("payment_date", { ascending: false }).limit(200),
     key ? sb.from("brand_logos").select("storage_path").eq("brand_key", key).maybeSingle() : Promise.resolve({ data: null }),
   ]);
   const vs = (visits ?? []) as Visit[];
   const done = vs.filter((v) => v.status === "completed").map((v) => v.visit_date);
   const ob = computeObligation(effectiveFrequency(s.frequency, s.audit), madridDate(), done, { trackingStart: settings.tracking_start });
   const logoSrc = logo?.storage_path ? logoUrl(logo.storage_path) : null;
-  const totalPaid = (records ?? []).reduce((a, r) => a + (r.status === "abonado" ? Number(r.amount) : 0), 0);
+  const totalPaid = (records ?? []).reduce((a, r) => a + (r.status === "abonado" && r.settlement !== "especie" ? Number(r.amount) : 0), 0);
 
   // Análisis de la tienda: visitas por mes (6 meses), elementos instalados y fotos recientes (miniaturas).
   const months: { key: string; label: string; n: number }[] = [];
@@ -166,8 +169,8 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
         <EquipmentPanel storeId={s.id} items={equipment} types={types} />
       </Collapsible>
 
-      <Collapsible title="Pagos" hint={`${(records ?? []).length}`}>
-        <Payments storeId={s.id} records={records ?? []} types={types} equipment={equipment} />
+      <Collapsible title="Pagos y acuerdos" hint={`${(records ?? []).length} pagos · ${agreements.length} acuerdos`}>
+        <StoreEconomy store={{ id: s.id, name: s.name, town: s.town }} payments={(records ?? []) as PaymentRow[]} agreements={agreements} types={types} categories={categories} equipment={equipment} />
       </Collapsible>
 
       <Collapsible title="Datos de la tienda" hint={s.source_id ? `ID ${s.source_id}` : "creada a mano"}>

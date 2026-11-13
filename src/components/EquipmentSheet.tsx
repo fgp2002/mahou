@@ -45,7 +45,7 @@ export function EquipmentSheet({ item, typeName, types, visitId, onClose }: { it
   async function load() {
     const [ph, pr, ev] = await Promise.all([
       sb.from("visit_photos").select("id,storage_path,thumb_path,taken_at,visit_id").eq("equipment_id", item.id).is("deleted_at", null).order("taken_at", { ascending: false }),
-      sb.from("payment_records").select("id,amount,payment_date,status,visit_id,concept_name").eq("equipment_id", item.id).order("payment_date", { ascending: false }),
+      sb.from("payment_records").select("id,amount,payment_date,status,visit_id,concept_name").eq("equipment_id", item.id).is("deleted_at", null).order("payment_date", { ascending: false }),
       sb.from("equipment_events").select("*").eq("equipment_id", item.id).order("occurred_on", { ascending: false }).order("created_at", { ascending: false }),
     ]);
     type Row = { id: string; storage_path: string; thumb_path: string | null; taken_at: string; visit_id: string | null };

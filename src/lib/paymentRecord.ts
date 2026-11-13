@@ -44,7 +44,7 @@ export function paymentValues(p: PaymentInput): Record<string, unknown> {
   if (p.quantity !== undefined) v.quantity = p.quantity;
   if (p.unit !== undefined) v.unit = p.unit;
   if (p.settlement) v.settlement = p.settlement;
-  if (p.periodStart !== undefined) v.period_start = p.periodStart;
+  v.period_start = p.periodStart ?? `${p.date.slice(0, 7)}-01`;
   return v;
 }
 

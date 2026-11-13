@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { VISIT_TYPES, type Visit } from "@/lib/types";
-import { type PaymentType } from "@/lib/payments";
+import { type InvestmentCategory, type PaymentType } from "@/lib/payments";
 import { enqueue, isNetworkError } from "@/lib/offline/outbox";
 import { uploadPhoto, trashPhoto } from "@/lib/photos";
 import type { Equipment } from "@/lib/equipment";
@@ -21,7 +21,7 @@ const fmt = (s: number) => `${String(Math.floor(s / 3600)).padStart(2, "0")}:${S
 
 const STEPS = ["Fotos", "Elementos y pagos", "Notas"];
 
-export function VisitRunner({ visit, storeName, contacts, equipment, photos, types, suggestedNext, tags, payments = [], items = [] }: { visit: Visit; storeName: string; contacts: Contact[]; equipment: Equipment[]; photos: PhotoView[]; types: PaymentType[]; suggestedNext: string | null; tags: PhotoTag[]; payments?: VisitPayment[]; items?: VisitItem[] }) {
+export function VisitRunner({ visit, storeName, contacts, equipment, photos, types, categories = [], suggestedNext, tags, payments = [], items = [] }: { visit: Visit; storeName: string; contacts: Contact[]; equipment: Equipment[]; photos: PhotoView[]; types: PaymentType[]; categories?: InvestmentCategory[]; suggestedNext: string | null; tags: PhotoTag[]; payments?: VisitPayment[]; items?: VisitItem[] }) {
   const router = useRouter();
   const sb = supabaseBrowser();
   const running = visit.status === "in_progress";
@@ -240,7 +240,7 @@ export function VisitRunner({ visit, storeName, contacts, equipment, photos, typ
         {vis(2) && ([["result", "Resultado"], ["items", "Productos / elementos revisados"], ["incidents", "Incidencias"], ["notes", "Notas"]] as const).map(([k, l]) => (
           <div key={k}><label className="label">{l}</label><textarea className="input" rows={2} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} /></div>
         ))}
-        {running && step === 1 && <VisitEquipment visitId={visit.id} storeId={visit.store_id} items={equipment} types={types} />}
+        {running && step === 1 && <VisitEquipment visitId={visit.id} storeId={visit.store_id} items={equipment} types={types} categories={categories} />}
         {running && step === 1 && (
           <div className="flex gap-2">
             <button type="button" className="btn-secondary" onClick={() => setStep(0)}>Atrás</button>

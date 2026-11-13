@@ -12,7 +12,7 @@ export async function loadStoreEquipment(storeId: string): Promise<EquipmentWith
   const ids = items.map((e) => e.id);
   const [{ data: photos }, { data: pays }] = await Promise.all([
     sb.from("visit_photos").select("equipment_id,thumb_path,storage_path,taken_at").in("equipment_id", ids).is("deleted_at", null).order("taken_at", { ascending: false }),
-    sb.from("payment_records").select("equipment_id,amount,status").in("equipment_id", ids),
+    sb.from("payment_records").select("equipment_id,amount,status").in("equipment_id", ids).is("deleted_at", null),
   ]);
   const lastPhoto = new Map<string, string>();
   for (const p of photos ?? []) if (p.equipment_id && !lastPhoto.has(p.equipment_id)) lastPhoto.set(p.equipment_id, p.thumb_path ?? p.storage_path);
