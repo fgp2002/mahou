@@ -181,3 +181,17 @@ details[open] > .fold-body { animation: page-in 220ms var(--ease) both; }
 .rp-flow { animation: rp-flow 1.1s linear infinite; }
 @keyframes rp-draw { from { stroke-dasharray: 4000; stroke-dashoffset: 4000; } to { stroke-dasharray: 4000; stroke-dashoffset: 0; } }
 .rp-line { animation: rp-draw 1.6s var(--ease) backwards; }
+
+/* Impresión / «Guardar como PDF»: solo el contenido del informe, sin menús ni barras, en blanco. */
+@media print {
+  :root { color-scheme: light; }
+  html, body { height: auto !important; overflow: visible !important; background: #fff !important; }
+  .scroll-root { height: auto !important; overflow: visible !important; margin: 0 !important; padding: 0 !important; }
+  aside, nav, .no-print, [role="status"], button { display: none !important; }
+  .sticky { position: static !important; }
+  .card { box-shadow: none !important; border-color: #ddd !important; break-inside: avoid; }
+  .report section { break-inside: avoid; }
+  .h-scroll { overflow: visible !important; }
+  a { color: inherit !important; text-decoration: none !important; }
+  @page { margin: 14mm; }
+}

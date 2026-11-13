@@ -9,7 +9,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 export interface AlertItem { id: string; message: string; severity: string }
 interface Hit { id: string; name: string; town: string | null; banner: string | null }
 
-const TITLES: [string, string][] = [["/map", "Mapa"], ["/stores", "Tiendas"], ["/inventory", "Inventario"], ["/visits", "Visitas"], ["/gallery", "Galería"], ["/incidents", "Incidencias"], ["/economy", "Economía"], ["/agreements", "Acuerdos"], ["/routes", "Rutas"], ["/stats", "Estadísticas"], ["/settings", "Ajustes"]];
+const TITLES: [string, string][] = [["/map", "Mapa"], ["/stores", "Tiendas"], ["/inventory", "Inventario"], ["/visits", "Visitas"], ["/gallery", "Galería"], ["/incidents", "Incidencias"], ["/economy", "Economía"], ["/agreements", "Acuerdos"], ["/routes", "Rutas"], ["/reports", "Informes"], ["/settings", "Ajustes"]];
 
 /** Barra superior fija: título que aparece al bajar, búsqueda global y campana de alertas. */
 export function TopBar({ unread, alerts }: { unread: number; alerts: AlertItem[] }) {
@@ -51,7 +51,7 @@ export function TopBar({ unread, alerts }: { unread: number; alerts: AlertItem[]
   }, []);
 
   return (
-    <div ref={box} className="sticky top-0 z-40 -mx-4 bg-slate-50/85 px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl md:-mx-6 md:px-6 xl:-mx-8 xl:px-8">
+    <div ref={box} className="no-print sticky top-0 z-40 -mx-4 bg-slate-50/85 px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl md:-mx-6 md:px-6 xl:-mx-8 xl:px-8">
       <div className="page relative flex items-center gap-2">
         <div className={clsx("min-w-0 shrink-0 text-base font-semibold transition-all duration-200 md:hidden", scrolled && title ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0")}>{title}</div>
         <div className="relative min-w-0 flex-1">

@@ -20,6 +20,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "read-excel-file": "^5.8.5",
+    "write-excel-file": "^2.3.10",
     "zod": "^3.23.8"
   },
   "devDependencies": {
