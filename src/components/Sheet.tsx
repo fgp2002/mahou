@@ -34,7 +34,7 @@ export function Segmented<T extends string>({ value, onChange, options }: { valu
     <div className="flex gap-1 rounded-xl bg-slate-100 p-1" role="tablist">
       {options.map((o) => (
         <button key={o.value} role="tab" aria-selected={value === o.value} onClick={() => onChange(o.value)}
-          className={`tap flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-sm font-semibold ${value === o.value ? "bg-white text-slate-900 shadow-card" : "text-slate-500"}`}>
+          className={`tap flex min-h-10 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-lg px-1.5 text-[13px] font-semibold ${value === o.value ? "bg-white text-slate-900 shadow-card" : "text-slate-500"}`}>
           {o.label}{o.count != null && <span className={`rounded-full px-1.5 text-[11px] tabular-nums ${value === o.value ? "bg-slate-900 text-slate-50" : "bg-slate-200 text-slate-600"}`}>{o.count}</span>}
         </button>
       ))}

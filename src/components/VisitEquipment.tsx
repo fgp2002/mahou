@@ -127,7 +127,7 @@ export function VisitEquipment({ visitId, storeId, items, types }: { visitId: st
         })}
       </ul>
       <div className="grid grid-cols-2 gap-2">
-        <button className="btn-secondary" onClick={() => setAdding(true)}><Plus size={16} /> Nuevo elemento</button>
+        <button className="btn-secondary" onClick={() => setAdding(true)}><Plus size={16} /> Elemento</button>
         <button className="btn-secondary" onClick={() => setOther(other ? null : { typeId: "", amount: "", status: "comprobado" })}><Wallet size={16} /> Otro pago</button>
       </div>
       {other && (

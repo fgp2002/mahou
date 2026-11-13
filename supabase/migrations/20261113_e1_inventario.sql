@@ -161,6 +161,8 @@ begin
   end if;
 
   foreach k in array watched loop
+    -- Las fechas que acompañan a un cambio de estado ya quedan en su propio suceso.
+    if new.status is distinct from old.status and k in ('installed_on','removed_on') then continue; end if;
     if (to_jsonb(new) -> k) is distinct from (to_jsonb(old) -> k) then
       diff := diff || jsonb_build_object(k, jsonb_build_array(to_jsonb(old) -> k, to_jsonb(new) -> k));
     end if;
