@@ -329,7 +329,9 @@ create trigger task_log_upd before update on public.tasks for each row execute f
 
 -- ── Rutas por persona ────────────────────────────────────────────────────
 alter table public.routes add column if not exists user_id uuid references auth.users(id) on delete cascade;
+alter table public.routes disable trigger user;
 update public.routes set user_id = owner_id where user_id is null;
+alter table public.routes enable trigger user;
 alter table public.routes alter column user_id set default auth.uid();
 -- La planificación automática (sin sesión) crea la ruta para el dueño de los datos si no se indica la persona.
 create or replace function public.routes_fill_user() returns trigger language plpgsql set search_path = public as $$
@@ -355,7 +357,10 @@ end $$;
 do $$ declare t text; begin
   foreach t in array array['visits','incidents','visit_photos','store_equipment','payment_records','agreements','store_contacts'] loop
     execute format('alter table public.%I add column if not exists created_by uuid', t);
+    -- Sin disparadores: rellenar este dato no es un cambio del usuario (no toca updated_at ni el historial).
+    execute format('alter table public.%I disable trigger user', t);
     execute format('update public.%I set created_by = owner_id where created_by is null', t);
+    execute format('alter table public.%I enable trigger user', t);
     execute format('alter table public.%I alter column created_by set default auth.uid()', t);
   end loop;
 end $$;
@@ -582,7 +587,9 @@ do $$ declare owner uuid; org uuid; es uuid; an uuid; ma uuid; nm text; em text;
   insert into public.org_units (organization_id, kind, name, sort_order) values (org, 'pais', 'España', 1) returning id into es;
   insert into public.org_units (organization_id, parent_id, kind, name, sort_order) values (org, es, 'region', 'Andalucía', 1) returning id into an;
   insert into public.org_units (organization_id, parent_id, kind, name, sort_order) values (org, an, 'zona', 'Málaga', 1) returning id into ma;
+  alter table public.stores disable trigger user;
   update public.stores set unit_id = ma where owner_id = owner and unit_id is null;
+  alter table public.stores enable trigger user;
   select coalesce(p.display_name, split_part(u.email, '@', 1)), u.email into nm, em from auth.users u left join public.profiles p on p.id = u.id where u.id = owner;
   insert into public.members (user_id, organization_id, full_name, email, position, role, unit_id)
     values (owner, org, coalesce(nullif(nm, ''), 'Propietario'), em, 'GPV · propietario de la plataforma', 'gpv', ma) on conflict do nothing;
@@ -591,3 +598,9 @@ do $$ declare owner uuid; org uuid; es uuid; an uuid; ma uuid; nm text; em text;
   insert into public.access_audit (organization_id, actor, action, target_user, detail, reason)
     values (org, owner, 'organizacion_creada', owner, jsonb_build_object('tiendas', (select count(*) from public.stores where owner_id = owner)), 'Migración a Mahou Enterprise');
 end $$;
+
+-- ── Endurecimiento: nadie sin sesión ejecuta estas funciones; los disparadores no se llaman desde la API ──
+revoke execute on function public.my_org_id, public.my_member, public.data_owner, public.is_org_owner, public.my_role, public.has_perm(text),
+  public.unit_subtree(uuid), public.visible_store_ids, public.can_see_store(uuid), public.team_user_ids, public.my_context, public.can_read_photo(text) from public, anon;
+revoke execute on function public.equipment_log, public.log_row_change, public.photo_fill_store, public.task_log, public.task_guard,
+  public.equipment_member_guard, public.routes_fill_user from public, anon, authenticated;
