@@ -12,14 +12,15 @@ import { PaymentSheet } from "./PaymentSheet";
 import { BrandBadge } from "./BrandLogo";
 
 /** Pagos y acuerdos de una tienda: totales, acuerdos vigentes y movimientos, con alta y edición. */
-export function StoreEconomy({ store, payments, agreements, types, categories, equipment }: {
+export function StoreEconomy({ store, payments, agreements, types, categories, equipment, initialPay, initialAg }: {
   store: { id: string; name: string; town: string | null }; payments: PaymentRow[]; agreements: Agreement[]; types: PaymentType[]; categories: InvestmentCategory[]; equipment: Equipment[];
+  initialPay?: string | null; initialAg?: string | null;
 }) {
   const today = madridDate();
   const typeById = useMemo(() => new Map(types.map((t) => [t.id, t])), [types]);
   const eqById = useMemo(() => new Map(equipment.map((e) => [e.id, e])), [equipment]);
-  const [pay, setPay] = useState<PaymentRow | "new" | null>(null);
-  const [ag, setAg] = useState<Agreement | "new" | null>(null);
+  const [pay, setPay] = useState<PaymentRow | "new" | null>(() => payments.find((p) => p.id === initialPay) ?? null);
+  const [ag, setAg] = useState<Agreement | "new" | null>(() => agreements.find((a) => a.id === initialAg) ?? null);
   const t = totals(payments.map((p) => ({ ...p, amount: Number(p.amount) })));
   const active = agreements.filter((a) => a.status === "en_ejecucion" || a.status === "aprobado" || a.status === "pendiente_aprobacion" || a.status === "borrador");
   const closed = agreements.filter((a) => !active.includes(a));

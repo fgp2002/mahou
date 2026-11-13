@@ -14,6 +14,7 @@ export interface Settings {
   transport: string;
   visit_durations: Record<string, number>;
   planning_prefs: { audit_first?: boolean; max_stops_per_day?: number | null; holidays?: string[]; work_days?: number[] };
+  checklist: string[];
 }
 
 // cache(): si varias partes de una misma pantalla piden lo mismo, se consulta una sola vez.
@@ -28,6 +29,7 @@ export const loadSettings = cache(async (): Promise<Settings> => {
     transport: data?.transport ?? "driving",
     visit_durations: data?.visit_durations ?? {},
     planning_prefs: data?.planning_prefs ?? {},
+    checklist: Array.isArray(data?.checklist) ? (data.checklist as string[]) : [],
   };
 });
 

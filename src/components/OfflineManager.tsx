@@ -39,18 +39,20 @@ export function OfflineManager() {
     const cacheData = async () => {
       if (!navigator.onLine) return;
       const sb = supabaseBrowser();
-      const [{ data: u }, { data: stores }, { data: types }, { data: brands }, { data: equipment }] = await Promise.all([
+      const [{ data: u }, { data: stores }, { data: types }, { data: brands }, { data: equipment }, { data: us }] = await Promise.all([
         sb.auth.getUser(),
         sb.from("stores").select("id,name,town,lat,lng").eq("active", true).order("name").limit(5000),
         sb.from("payment_types").select("id,code,name,default_amount,active,tracks_inventory").order("sort_order"),
         sb.from("payment_brands").select("id,name").eq("active", true).order("name"),
         sb.from("store_equipment").select("id,store_id,type_id,code,name,brand_id,brand_name,quantity,location,status,reference_amount,legacy_concept_id").is("deleted_at", null).neq("status", "retirado").limit(10000),
+        sb.from("user_settings").select("checklist").maybeSingle(),
       ]);
       if (u.user) await kv.set("uid", u.user.id);
       if (stores) await kv.set("stores", stores);
       if (types) await kv.set("types", types);
       if (brands) await kv.set("brands", brands);
       if (equipment) await kv.set("equipment", equipment);
+      if (us?.checklist) await kv.set("checklist", us.checklist);
       warmPages(["/", "/offline/visit"]);
     };
 

@@ -7,6 +7,8 @@ import type { PhotoTag } from "@/components/PhotoTags";
 import type { VisitPayment } from "@/components/VisitPayments";
 import type { VisitItem } from "@/components/VisitItems";
 import { loadCatalog } from "@/lib/server/economy";
+import { loadSettings } from "@/lib/server/load";
+import { INCIDENT_COLS, isOpen, type Incident } from "@/lib/incidents";
 import { effectiveFrequency, suggestNextVisit } from "@/lib/domain/periodicity";
 import { madridDate } from "@/lib/domain/dates";
 import type { Visit } from "@/lib/types";
@@ -17,7 +19,12 @@ export default async function VisitPage({ params }: { params: Promise<{ id: stri
   const sb = await supabaseServer();
   const { data: visit } = await sb.from("visits").select("*").eq("id", id).maybeSingle();
   if (!visit) notFound();
-  const { types, categories } = await loadCatalog();
+  const [{ types, categories }, settings, { data: incRows }, { count: linealCount }] = await Promise.all([
+    loadCatalog(), loadSettings(),
+    sb.from("incidents").select(INCIDENT_COLS).eq("store_id", visit.store_id).is("deleted_at", null).order("opened_on", { ascending: false }),
+    sb.from("visit_photos").select("id", { count: "exact", head: true }).eq("store_id", visit.store_id).eq("kind", "lineal").is("deleted_at", null),
+  ]);
+  const incidents = ((incRows ?? []) as Incident[]).filter((i) => isOpen(i.status) || i.visit_id === id);
   const [{ data: store }, { data: contacts }, { data: equipment }, { data: ph }, { data: tagRows }] = await Promise.all([
     sb.from("stores").select("id,name,frequency,audit").eq("id", visit.store_id).single(),
     sb.from("store_contacts").select("*").eq("store_id", visit.store_id),
@@ -40,7 +47,7 @@ export default async function VisitPage({ params }: { params: Promise<{ id: stri
       <PageHeader title="Visita">
         <Link href={`/stores/${visit.store_id}`} className="btn-secondary">Ver tienda</Link>
       </PageHeader>
-      <VisitRunner visit={visit as Visit} storeName={store?.name ?? ""} contacts={contacts ?? []} equipment={(equipment ?? []) as unknown as Equipment[]} photos={photos} types={types} categories={categories} tags={(tagRows ?? []) as PhotoTag[]} payments={(pays ?? []) as VisitPayment[]} items={(vitems ?? []) as VisitItem[]} suggestedNext={store ? suggestNextVisit(effectiveFrequency(store.frequency as "semanal", !!store.audit), madridDate()) : null} />
+      <VisitRunner visit={visit as Visit} storeName={store?.name ?? ""} contacts={contacts ?? []} equipment={(equipment ?? []) as unknown as Equipment[]} photos={photos} types={types} categories={categories} checklistItems={settings.checklist} incidents={incidents} linealCount={linealCount ?? 0} tags={(tagRows ?? []) as PhotoTag[]} payments={(pays ?? []) as VisitPayment[]} items={(vitems ?? []) as VisitItem[]} suggestedNext={store ? suggestNextVisit(effectiveFrequency(store.frequency as "semanal", !!store.audit), madridDate()) : null} />
     </div>
   );
 }

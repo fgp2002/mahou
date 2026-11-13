@@ -20,9 +20,10 @@ export function StatusBadge({ status }: { status: EquipmentStatus }) {
 }
 
 /** Inventario de la tienda: lo que hay, lo que hay que revisar y lo retirado, con alta rápida. */
-export function EquipmentPanel({ storeId, items, types, visitId }: { storeId: string; items: EquipmentRow[]; types: PaymentType[]; visitId?: string | null }) {
-  const [tab, setTab] = useState<EquipmentGroup>("actuales");
-  const [open, setOpen] = useState<string | null>(null);
+export function EquipmentPanel({ storeId, items, types, visitId, initialOpen }: { storeId: string; items: EquipmentRow[]; types: PaymentType[]; visitId?: string | null; initialOpen?: string | null }) {
+  const first = initialOpen ? items.find((e) => e.id === initialOpen) : undefined;
+  const [tab, setTab] = useState<EquipmentGroup>(first ? groupOf(first.status) : "actuales");
+  const [open, setOpen] = useState<string | null>(first?.id ?? null);
   const [adding, setAdding] = useState(false);
   const typeById = useMemo(() => new Map(types.map((t) => [t.id, t])), [types]);
   const by = (g: EquipmentGroup) => items.filter((e) => groupOf(e.status) === g);

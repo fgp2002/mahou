@@ -14,8 +14,12 @@ import { loadCatalog } from "@/lib/server/economy";
 import { SettingsForm, type SettingsValues } from "@/components/SettingsForm";
 import { DEFAULT_DURATIONS } from "@/lib/types";
 import { madridDate } from "@/lib/domain/dates";
+import { ChecklistEditor } from "@/components/ChecklistEditor";
+import { TrashBin, type TrashItem } from "@/components/TrashBin";
+import { INCIDENT_TYPE_LABEL, type IncidentType } from "@/lib/incidents";
+import { eur, dmy } from "@/lib/format";
 
-const TABS = [["jornada", "Jornada"], ["catalogo", "Catálogo"], ["app", "App y cuenta"]] as const;
+const TABS = [["jornada", "Jornada"], ["catalogo", "Catálogo"], ["papelera", "Papelera"], ["app", "App y cuenta"]] as const;
 const SUBS = [["ensenas", "Enseñas"], ["productos", "Productos"], ["pagos", "Conceptos"], ["marcas", "Marcas"], ["datos", "Datos"]] as const;
 type Tab = (typeof TABS)[number][0];
 type Sub = (typeof SUBS)[number][0];
@@ -50,6 +54,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           {sub === "datos" && <Datos />}
         </div>
       )}
+      {tab === "papelera" && <Papelera />}
       {tab === "app" && <App />}
     </div>
   );
@@ -68,7 +73,38 @@ async function Jornada() {
     home_address: s?.home_address ?? "", home_located: s?.home_lat != null, default_minutes: String(pp.default_visit_minutes ?? 45),
     lunch_enabled: pp.lunch?.enabled ?? true, lunch_from: pp.lunch?.from ?? "13:30", lunch_to: pp.lunch?.to ?? "16:00", lunch_minutes: String(pp.lunch?.minutes ?? 60),
   };
-  return <SettingsForm initial={initial} />;
+  const checklist = Array.isArray(s?.checklist) ? (s!.checklist as string[]) : [];
+  return (
+    <div className="space-y-4">
+      <SettingsForm initial={initial} />
+      {s?.owner_id && <ChecklistEditor ownerId={s.owner_id} items={checklist} />}
+    </div>
+  );
+}
+
+async function Papelera() {
+  const sb = await supabaseServer();
+  const [{ data: ph }, { data: eq }, { data: pr }, { data: ag }, { data: inc }, { data: stores }] = await Promise.all([
+    sb.from("visit_photos").select("id,kind,storage_path,thumb_path,taken_at,deleted_at,store_id").not("deleted_at", "is", null).order("deleted_at", { ascending: false }).limit(200),
+    sb.from("store_equipment").select("id,code,name,brand_name,deleted_at,store_id,payment_types(name)").not("deleted_at", "is", null).limit(200),
+    sb.from("payment_records").select("id,concept_name,concept,amount,payment_date,deleted_at,store_id").not("deleted_at", "is", null).limit(200),
+    sb.from("agreements").select("id,title,amount,start_date,deleted_at,store_id,payment_types(name)").not("deleted_at", "is", null).limit(200),
+    sb.from("incidents").select("id,type,description,opened_on,deleted_at,store_id").not("deleted_at", "is", null).limit(200),
+    sb.from("stores").select("id,name").limit(5000),
+  ]);
+  const sn = new Map((stores ?? []).map((x) => [x.id, x.name]));
+  const thumbs = (ph ?? []).map((p) => p.thumb_path ?? p.storage_path);
+  const { data: signed } = thumbs.length ? await sb.storage.from("visit-photos").createSignedUrls(thumbs, 3600) : { data: [] };
+  const url = new Map((signed ?? []).map((x) => [x.path ?? "", x.signedUrl]));
+  const tn = (x: unknown) => (x as { name: string } | null)?.name ?? "";
+  const items: TrashItem[] = [
+    ...(ph ?? []).map((p) => ({ table: "visit_photos" as const, id: p.id, title: `Foto ${p.kind === "lineal" ? "del lineal" : p.kind === "elemento" ? "de elemento" : p.kind === "incidencia" ? "de incidencia" : "de visita"}`, detail: `${sn.get(p.store_id) ?? ""} · ${dmy(p.taken_at.slice(0, 10))}`, deleted_at: p.deleted_at!, thumb: url.get(p.thumb_path ?? p.storage_path) ?? null, paths: [p.storage_path, p.thumb_path].filter(Boolean) as string[] })),
+    ...(eq ?? []).map((e) => ({ table: "store_equipment" as const, id: e.id, title: `${e.name || tn(e.payment_types)}${e.brand_name ? ` · ${e.brand_name}` : ""} (${e.code})`, detail: sn.get(e.store_id) ?? "", deleted_at: e.deleted_at! })),
+    ...(pr ?? []).map((p) => ({ table: "payment_records" as const, id: p.id, title: `${p.concept_name ?? p.concept} · ${eur(Number(p.amount))}`, detail: `${sn.get(p.store_id) ?? ""} · ${dmy(p.payment_date)}`, deleted_at: p.deleted_at! })),
+    ...(ag ?? []).map((a) => ({ table: "agreements" as const, id: a.id, title: `${a.title || tn(a.payment_types)} · ${eur(Number(a.amount))}`, detail: `${sn.get(a.store_id) ?? ""} · desde ${dmy(a.start_date)}`, deleted_at: a.deleted_at! })),
+    ...(inc ?? []).map((i) => ({ table: "incidents" as const, id: i.id, title: INCIDENT_TYPE_LABEL[i.type as IncidentType] ?? "Incidencia", detail: `${sn.get(i.store_id) ?? ""} · ${dmy(i.opened_on)}${i.description ? ` · ${i.description}` : ""}`, deleted_at: i.deleted_at! })),
+  ];
+  return <TrashBin items={items} />;
 }
 
 async function Ensenas() {

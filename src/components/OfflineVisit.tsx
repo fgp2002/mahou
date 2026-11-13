@@ -3,8 +3,9 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Camera, Check, CloudOff, Images, Plus, Wallet } from "lucide-react";
 import { kv } from "@/lib/offline/db";
-import { addPaymentOffline, finishOfflineVisit, reviewEquipmentOffline, savePhotoOffline, type CachedBrand, type CachedEquipment, type CachedType, type LocalVisit } from "@/lib/offline/visit";
+import { addIncidentOffline, addPaymentOffline, finishOfflineVisit, reviewEquipmentOffline, savePhotoOffline, type CachedBrand, type CachedEquipment, type CachedType, type LocalVisit } from "@/lib/offline/visit";
 import { eur } from "@/lib/format";
+import { INCIDENT_TYPE_LABEL } from "@/lib/incidents";
 
 const fmt = (s: number) => `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
@@ -19,7 +20,11 @@ export function OfflineVisit() {
   const [eqPay, setEqPay] = useState<{ id: string; amount: string } | null>(null);
   const [secs, setSecs] = useState(0);
   const [pay, setPay] = useState({ typeId: "", amount: "", brandId: "" });
-  const [f, setF] = useState({ result: "", notes: "", incidents: "" });
+  const [f, setF] = useState({ result: "", notes: "" });
+  const [checklist, setChecklist] = useState<string[]>([]);
+  const [check, setCheck] = useState<Record<string, boolean>>({});
+  const [inc, setInc] = useState({ type: "falta_producto", description: "", priority: "media" });
+  const [incDone, setIncDone] = useState<string[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -29,6 +34,7 @@ export function OfflineVisit() {
       setV((await kv.get<LocalVisit>(`visit:${id}`)) ?? null);
       setTypes(((await kv.get<CachedType[]>("types")) ?? []).filter((t) => t.active));
       setBrands((await kv.get<CachedBrand[]>("brands")) ?? []);
+      setChecklist((await kv.get<string[]>("checklist")) ?? []);
       const lv = (await kv.get<LocalVisit>(`visit:${id}`)) ?? null;
       setEquipment(((await kv.get<CachedEquipment[]>("equipment")) ?? []).filter((e) => lv && e.store_id === lv.storeId));
     })();
@@ -83,7 +89,7 @@ export function OfflineVisit() {
   async function finish() {
     if (!v) return;
     setBusy(true);
-    await finishOfflineVisit(v.id, v.startedAt, f);
+    await finishOfflineVisit(v.id, v.startedAt, { ...f, checklist: check });
     setBusy(false);
     setDone(true);
   }
@@ -152,7 +158,24 @@ export function OfflineVisit() {
           </section>
           <section className="card space-y-3">
             <h2 className="font-semibold">Notas</h2>
-            {([["result", "Resultado"], ["incidents", "Incidencias"], ["notes", "Notas"]] as const).map(([k, l]) => (
+            {checklist.length > 0 && (
+              <div><label className="label">Checklist (opcional)</label><div className="flex flex-wrap gap-1.5">{checklist.map((c) => (
+                <button key={c} type="button" onClick={() => setCheck({ ...check, [c]: !check[c] })} className={`tap min-h-10 rounded-full border px-3 text-sm ${check[c] ? "border-green-600 bg-green-100 font-semibold text-green-700" : "border-slate-300 text-slate-600"}`}>{check[c] ? "✓ " : ""}{c}</button>
+              ))}</div></div>
+            )}
+            <div className="space-y-2 rounded-xl border border-slate-200 p-2.5">
+              <label className="label">Incidencia</label>
+              {incDone.length > 0 && <p className="text-xs font-semibold text-green-700">✓ {incDone.join(", ")}</p>}
+              <div className="grid grid-cols-2 gap-2">
+                <select className="input" value={inc.type} onChange={(e) => setInc({ ...inc, type: e.target.value })} aria-label="Tipo de incidencia">
+                  {Object.entries(INCIDENT_TYPE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                </select>
+                <select className="input" value={inc.priority} onChange={(e) => setInc({ ...inc, priority: e.target.value })} aria-label="Prioridad"><option value="baja">Prioridad baja</option><option value="media">Prioridad media</option><option value="alta">Prioridad alta</option></select>
+                <textarea className="input col-span-2" rows={2} placeholder="Qué pasa" value={inc.description} onChange={(e) => setInc({ ...inc, description: e.target.value })} />
+                <button type="button" className="btn-secondary col-span-2" onClick={async () => { if (!v) return; await addIncidentOffline({ visitId: v.id, storeId: v.storeId, ...inc }); setIncDone([...incDone, INCIDENT_TYPE_LABEL[inc.type as keyof typeof INCIDENT_TYPE_LABEL]]); setInc({ type: "falta_producto", description: "", priority: "media" }); }}><Plus size={16} /> Registrar incidencia</button>
+              </div>
+            </div>
+            {([["result", "Resultado"], ["notes", "Notas"]] as const).map(([k, l]) => (
               <div key={k}><label className="label">{l}</label><textarea className="input" rows={2} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} /></div>
             ))}
           </section>

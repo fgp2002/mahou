@@ -8,6 +8,10 @@ import { enqueue, isNetworkError } from "@/lib/offline/outbox";
 import { uploadPhoto, trashPhoto } from "@/lib/photos";
 import type { Equipment } from "@/lib/equipment";
 import { VisitEquipment } from "./VisitEquipment";
+import { IncidentList } from "./IncidentList";
+import type { Incident } from "@/lib/incidents";
+import clsx from "clsx";
+import { Image as ImageIcon } from "lucide-react";
 import { toast } from "./Toast";
 import { VisitPayments, type VisitPayment } from "./VisitPayments";
 import { VisitItems, type VisitItem } from "./VisitItems";
@@ -21,7 +25,7 @@ const fmt = (s: number) => `${String(Math.floor(s / 3600)).padStart(2, "0")}:${S
 
 const STEPS = ["Fotos", "Elementos y pagos", "Notas"];
 
-export function VisitRunner({ visit, storeName, contacts, equipment, photos, types, categories = [], suggestedNext, tags, payments = [], items = [] }: { visit: Visit; storeName: string; contacts: Contact[]; equipment: Equipment[]; photos: PhotoView[]; types: PaymentType[]; categories?: InvestmentCategory[]; suggestedNext: string | null; tags: PhotoTag[]; payments?: VisitPayment[]; items?: VisitItem[] }) {
+export function VisitRunner({ visit, storeName, contacts, equipment, photos, types, categories = [], suggestedNext, tags, payments = [], items = [], checklistItems = [], incidents = [], linealCount = 0 }: { visit: Visit & { checklist?: Record<string, boolean> }; storeName: string; contacts: Contact[]; equipment: Equipment[]; photos: PhotoView[]; types: PaymentType[]; categories?: InvestmentCategory[]; suggestedNext: string | null; tags: PhotoTag[]; payments?: VisitPayment[]; items?: VisitItem[]; checklistItems?: string[]; incidents?: Incident[]; linealCount?: number }) {
   const router = useRouter();
   const sb = supabaseBrowser();
   const running = visit.status === "in_progress";
@@ -32,6 +36,9 @@ export function VisitRunner({ visit, storeName, contacts, equipment, photos, typ
   const [next, setNext] = useState(visit.next_visit_recommended ?? suggestedNext ?? "");
   const localTypes = types;
   const [step, setStep] = useState(0);
+  const [check, setCheck] = useState<Record<string, boolean>>(visit.checklist ?? {});
+  const [linealBusy, setLinealBusy] = useState(false);
+  const [linealDone, setLinealDone] = useState(0);
   const [editing, setEditing] = useState(false);
   const [meta, setMeta] = useState({ date: visit.visit_date, minutes: visit.duration_minutes != null ? String(visit.duration_minutes) : "" });
   const vis = (n: number) => (running ? step === n : editing);
@@ -70,6 +77,17 @@ export function VisitRunner({ visit, storeName, contacts, equipment, photos, typ
     router.refresh();
   }
 
+  async function uploadLineal(file: File | undefined) {
+    if (!file) return;
+    setLinealBusy(true);
+    try {
+      const { queued } = await uploadPhoto(file, { kind: "lineal", storeId: visit.store_id, visitId: visit.id });
+      setLinealDone((n) => n + 1);
+      toast(queued ? "Foto del lineal guardada en el móvil" : "Foto del lineal añadida al histórico");
+    } catch (e) { setErr("No se pudo subir la foto del lineal: " + (e as Error).message); }
+    setLinealBusy(false);
+  }
+
   async function finish() {
     setBusy(true);
     setErr(null);
@@ -78,7 +96,7 @@ export function VisitRunner({ visit, storeName, contacts, equipment, photos, typ
     const c = contacts.find((x) => x.id === f.contact);
     const finishValues = {
       status: "completed", ended_at: new Date().toISOString(), duration_minutes: minutes,
-      result: f.result || null, notes: f.notes || null, incidents: f.incidents || null, items_reviewed: f.items || null,
+      result: f.result || null, notes: f.notes || null, items_reviewed: f.items || null, checklist: check,
       next_visit_recommended: next || null, contact_id: c?.id ?? null, contact_name_snapshot: c?.full_name ?? null, contact_role_snapshot: c?.role ?? null,
     };
     const { error } = navigator.onLine ? await sb.from("visits").update(finishValues).eq("id", visit.id) : { error: new Error("offline") };
@@ -108,7 +126,7 @@ export function VisitRunner({ visit, storeName, contacts, equipment, photos, typ
     if (!/^\d{4}-\d{2}-\d{2}$/.test(meta.date)) return setErr("La fecha no es válida.");
     setBusy(true);
     const { error } = await sb.from("visits").update({
-      result: f.result || null, notes: f.notes || null, incidents: f.incidents || null, items_reviewed: f.items || null,
+      result: f.result || null, notes: f.notes || null, items_reviewed: f.items || null, checklist: check,
       visit_date: meta.date, duration_minutes: mins,
     }).eq("id", visit.id);
     setBusy(false);
@@ -146,7 +164,10 @@ export function VisitRunner({ visit, storeName, contacts, equipment, photos, typ
               <div><dt className="text-xs text-slate-500">Duración</dt><dd className="font-semibold">{visit.duration_minutes != null ? `${visit.duration_minutes} min` : "—"}</dd></div>
               <div><dt className="text-xs text-slate-500">Atendió</dt><dd className="font-semibold">{visit.contact_name_snapshot ?? "—"}</dd></div>
             </dl>
-            {([["Resultado", visit.result], ["Productos / elementos revisados", visit.items_reviewed], ["Incidencias", visit.incidents], ["Notas", visit.notes]] as const).filter(([, v]) => v).map(([l, v]) => (
+            {Object.values(visit.checklist ?? {}).some(Boolean) && (
+              <div><div className="text-xs font-semibold text-slate-500">Checklist</div><div className="mt-1 flex flex-wrap gap-1">{Object.entries(visit.checklist ?? {}).filter(([, v]) => v).map(([k]) => <span key={k} className="badge bg-green-100 text-green-700">✓ {k}</span>)}</div></div>
+            )}
+            {([["Resultado", visit.result], ["Productos / elementos revisados", visit.items_reviewed], ["Incidencias (texto antiguo)", visit.incidents], ["Notas", visit.notes]] as const).filter(([, v]) => v).map(([l, v]) => (
               <div key={l}><div className="text-xs font-semibold text-slate-500">{l}</div><p className="whitespace-pre-line text-sm">{v}</p></div>
             ))}
             {!visit.result && !visit.items_reviewed && !visit.incidents && !visit.notes && <p className="text-sm text-slate-500">Sin notas.</p>}
@@ -220,7 +241,11 @@ export function VisitRunner({ visit, storeName, contacts, equipment, photos, typ
           <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => upload(e.target.files)} disabled={busy} />
         </label>
         {err && <p className="text-sm text-red-600">{err}</p>}
-        {running && <button type="button" className="btn w-full" onClick={() => setStep(1)}>Siguiente: Pagos</button>}
+        <label className={clsx("btn-secondary cursor-pointer", linealBusy && "pointer-events-none opacity-60")}>
+          <ImageIcon size={16} /> Foto del lineal{linealDone ? ` ✓ ${linealDone}` : linealCount ? "" : " (primera)"}
+          <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { uploadLineal(e.target.files?.[0]); e.target.value = ""; }} />
+        </label>
+        {running && <button type="button" className="btn w-full" onClick={() => setStep(1)}>Siguiente: Elementos y pagos</button>}
         {running && <button type="button" className="w-full py-1 text-sm text-slate-500 underline" onClick={cancel}>Cancelar visita</button>}
       </div>
       )}
@@ -237,7 +262,24 @@ export function VisitRunner({ visit, storeName, contacts, equipment, photos, typ
             </select>
           </div>
         )}
-        {vis(2) && ([["result", "Resultado"], ["items", "Productos / elementos revisados"], ["incidents", "Incidencias"], ["notes", "Notas"]] as const).map(([k, l]) => (
+        {vis(2) && checklistItems.length > 0 && (
+          <div>
+            <div className="label">Checklist (opcional)</div>
+            <div className="flex flex-wrap gap-1.5">
+              {checklistItems.map((c) => (
+                <button key={c} type="button" aria-pressed={!!check[c]} onClick={() => setCheck({ ...check, [c]: !check[c] })}
+                  className={clsx("tap min-h-10 rounded-full border px-3 text-sm", check[c] ? "border-green-600 bg-green-100 font-semibold text-green-700" : "border-slate-300 text-slate-600")}>{check[c] ? "✓ " : ""}{c}</button>
+              ))}
+            </div>
+          </div>
+        )}
+        {vis(2) && (
+          <div>
+            <div className="label">Incidencias</div>
+            <IncidentList incidents={incidents} storeId={visit.store_id} visitId={visit.id} equipment={equipment} types={types} compact />
+          </div>
+        )}
+        {vis(2) && ([["result", "Resultado"], ["items", "Productos / elementos revisados"], ["notes", "Notas"]] as const).map(([k, l]) => (
           <div key={k}><label className="label">{l}</label><textarea className="input" rows={2} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} /></div>
         ))}
         {running && step === 1 && <VisitEquipment visitId={visit.id} storeId={visit.store_id} items={equipment} types={types} categories={categories} />}

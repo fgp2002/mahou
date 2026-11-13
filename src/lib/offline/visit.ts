@@ -51,15 +51,20 @@ export async function addPaymentOffline(v: { visitId: string; storeId: string; t
   });
 }
 
+/** Abre una incidencia sin conexión (se envía al volver la red). */
+export async function addIncidentOffline(v: { visitId: string; storeId: string; type: string; description: string; priority: string }) {
+  await enqueue({ kind: "insert", table: "incidents", label: "Incidencia", values: { id: uuid(), store_id: v.storeId, visit_id: v.visitId, type: v.type, description: v.description.trim() || null, priority: v.priority, status: "abierta", opened_on: madridDate() } });
+}
+
 /** Marca un elemento del inventario como revisado en esta visita (sin conexión). */
 export async function reviewEquipmentOffline(visitId: string, equipmentId: string) {
   await enqueue({ kind: "update", table: "store_equipment", id: equipmentId, label: "Revisión de elemento", values: { last_reviewed_at: new Date().toISOString(), context_visit_id: visitId } });
 }
 
-export async function finishOfflineVisit(visitId: string, startedAt: string, f: { result?: string; notes?: string; incidents?: string }) {
+export async function finishOfflineVisit(visitId: string, startedAt: string, f: { result?: string; notes?: string; checklist?: Record<string, boolean> }) {
   const minutes = Math.max(0, Math.round((Date.now() - new Date(startedAt).getTime()) / 60000));
   await enqueue({
     kind: "update", table: "visits", id: visitId, label: "Fin de visita",
-    values: { status: "completed", ended_at: new Date().toISOString(), duration_minutes: minutes, result: f.result || null, notes: f.notes || null, incidents: f.incidents || null },
+    values: { status: "completed", ended_at: new Date().toISOString(), duration_minutes: minutes, result: f.result || null, notes: f.notes || null, checklist: f.checklist ?? {} },
   });
 }
