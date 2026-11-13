@@ -3,11 +3,24 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { loadAllStores, loadCompletedDates, loadSettings, withObligations } from "@/lib/server/load";
 import { addDays, formatLong, madridDate, monthStart } from "@/lib/domain/dates";
 import { googleMapsRouteUrl } from "@/lib/domain/geo";
-import { StateBadge, Ring, FeasibilityCard } from "@/components/ui";
+import { StateBadge, FeasibilityCard } from "@/components/ui";
 import { loadFeasibility } from "@/lib/server/feasibility";
 import { StartVisitButton } from "@/components/StartVisitButton";
 import { GenerateRoute } from "@/components/GenerateRoute";
 import { OfflineWarmup } from "@/components/OfflineWarmup";
+import { complianceInRange, sumCompliance } from "@/lib/domain/report";
+import { monthEnd } from "@/lib/economy";
+import { INCIDENT_COLS, INCIDENT_TYPE_LABEL, PRIORITY_LABEL, PRIORITY_STYLE, daysOpen, sortIncidents, type Incident } from "@/lib/incidents";
+import { AlertTriangle, ChevronRight, Clock, Euro, FileSignature, ShieldCheck, Wrench } from "lucide-react";
+
+const eur = (n: number) => n.toLocaleString("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+
+/** A dónde lleva cada alerta al pulsarla. */
+function alertHref(a: { kind: string | null; dedupe_key: string | null }): string | null {
+  const date = a.dedupe_key?.match(/\d{4}-\d{2}-\d{2}/)?.[0];
+  if ((a.kind === "route_proposed" || a.kind === "route_unscheduled") && date) return `/routes/${date}`;
+  return null;
+}
 
 interface Stop {
   id: string; store_id: string; position: number; planned_arrival: string | null; planned_minutes: number;
@@ -25,9 +38,18 @@ export default async function Today() {
     sb.from("routes").select("id,status").eq("route_date", today).maybeSingle(),
     sb.from("routes").select("id,status,route_date").gt("route_date", today).lte("route_date", addDays(today, 4)).eq("status", "proposed").order("route_date").limit(1).maybeSingle(),
     sb.from("visits").select("id,stores(name)").eq("status", "in_progress").limit(1).maybeSingle(),
-    sb.from("alerts").select("id,message,severity").is("resolved_at", null).order("created_at", { ascending: false }).limit(4),
+    sb.from("alerts").select("id,message,severity,kind,dedupe_key").is("resolved_at", null).order("created_at", { ascending: false }).limit(5),
     sb.from("visits").select("id", { count: "exact", head: false }).eq("status", "completed").gte("visit_date", monthStart(today)).lte("visit_date", today),
   ]);
+  const soonEnd = addDays(today, 60);
+  const [{ data: incData }, { data: pend }, { count: toReview }, { count: agSoon }] = await Promise.all([
+    sb.from("incidents").select(INCIDENT_COLS).is("deleted_at", null).in("status", ["abierta", "en_seguimiento"]).limit(500),
+    sb.from("payment_records").select("amount").is("deleted_at", null).in("status", ["previsto", "aprobado", "comprobado"]).limit(2000),
+    sb.from("store_equipment").select("id", { count: "exact", head: true }).is("deleted_at", null).in("status", ["deteriorado", "pendiente_revision", "pendiente_instalacion"]),
+    sb.from("agreements").select("id", { count: "exact", head: true }).is("deleted_at", null).in("status", ["aprobado", "en_ejecucion"]).gte("end_date", today).lte("end_date", soonEnd),
+  ]);
+  const openInc = sortIncidents((incData ?? []) as Incident[]);
+  const pendAmount = (pend ?? []).reduce((a, p) => a + Number(p.amount), 0);
 
   let stops: Stop[] = [];
   const visitByStop = new Map<string, { id: string; status: string }>();
@@ -52,6 +74,20 @@ export default async function Today() {
   const next = stops.find((s) => visitByStop.get(s.id)?.status !== "completed");
   const url = googleMapsRouteUrl(stops.map((s) => ({ lat: s.stores.lat, lng: s.stores.lng, address: s.stores.address, town: s.stores.town, postal_code: s.stores.postal_code })));
   const top = [...pendientes].sort((a, b) => b.score - a.score).slice(0, 5);
+  // Visitas obligatorias del mes en curso: cuántas faltan (ventanas abiertas sin visita).
+  const m0 = monthStart(today);
+  const month = sumCompliance(rows.map((r) => complianceInRange(r.frequency, r.audit, dates.get(r.id) ?? [], m0, monthEnd(m0), today, settings.tracking_start)));
+  const audits = rows.filter((r) => r.audit && r.ob.pending > 0).length;
+  const storeName = new Map(rows.map((r) => [r.id, r.name]));
+  const tiles: { href: string; label: string; value: string | number; hint?: string; tone: string; icon: React.ReactNode }[] = [
+    { href: "/stores?state=atrasada", label: "Atrasadas", value: atrasadas, hint: "fuera de plazo", tone: atrasadas ? "text-st-late" : "", icon: <AlertTriangle size={16} /> },
+    { href: "/stores?state=proxima", label: "Vencen pronto", value: proximas, hint: "en los próximos días", tone: proximas ? "text-st-soon" : "", icon: <Clock size={16} /> },
+    { href: "/stores?audit=1&state=atrasada&state=proxima&state=pendiente", label: "Audit pendientes", value: audits, tone: "", icon: <ShieldCheck size={16} /> },
+    { href: "/incidents", label: "Incidencias abiertas", value: openInc.length, hint: openInc.filter((i) => i.priority === "alta").length ? `${openInc.filter((i) => i.priority === "alta").length} de prioridad alta` : undefined, tone: openInc.length ? "text-st-late" : "", icon: <AlertTriangle size={16} /> },
+    { href: `/economy?period=${today.slice(0, 4)}&status=previsto&status=aprobado&status=comprobado`, label: "Pagos pendientes", value: (pend ?? []).length, hint: (pend ?? []).length ? eur(pendAmount) : undefined, tone: "", icon: <Euro size={16} /> },
+    { href: "/inventory?status=deteriorado&status=pendiente_revision&status=pendiente_instalacion", label: "Elementos por revisar", value: toReview ?? 0, hint: "deteriorados o pendientes", tone: toReview ? "text-st-soon" : "", icon: <Wrench size={16} /> },
+    { href: "/agreements?venc=60", label: "Acuerdos que vencen", value: agSoon ?? 0, hint: "en 60 días", tone: agSoon ? "text-st-soon" : "", icon: <FileSignature size={16} /> },
+  ];
 
   return (
     <div className="space-y-6">
@@ -59,6 +95,29 @@ export default async function Today() {
         <p className="text-sm text-slate-500">{formatLong(today)}</p>
         <h1 className="text-3xl font-bold tracking-tight">{greeting}</h1>
       </header>
+
+      <section className="grid gap-3 md:grid-cols-[minmax(0,1.1fr)_minmax(0,2fr)]">
+        <Link href="/stores?state=pendiente&state=proxima&state=atrasada" className="card tap flex flex-col justify-between gap-2 !bg-brand-600 !text-white">
+          <span className="text-sm opacity-90">Visitas que faltan este mes</span>
+          <span className="text-6xl font-bold leading-none tabular-nums">{month.pending}</span>
+          <span className="text-sm opacity-90">{month.done} de {month.required} hechas{month.missed ? ` · ${month.missed} sin hacer en plazos ya cerrados` : ""}</span>
+          <span className="h-1.5 overflow-hidden rounded-full bg-white/25"><span className="block h-full rounded-full bg-white" style={{ width: `${month.required ? Math.round((month.done / month.required) * 100) : 0}%` }} /></span>
+        </Link>
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+          {tiles.map((t) => (
+            <Link key={t.label} href={t.href} className="card tap flex min-h-[92px] flex-col justify-between !p-3">
+              <span className="flex items-center gap-1.5 text-xs text-slate-500">{t.icon}{t.label}</span>
+              <span className={`text-2xl font-bold tabular-nums ${t.tone}`}>{t.value}</span>
+              {t.hint ? <span className="truncate text-[11px] text-slate-500">{t.hint}</span> : <span />}
+            </Link>
+          ))}
+          <Link href={`/routes/${today}`} className="card tap flex min-h-[92px] flex-col justify-between !p-3">
+            <span className="text-xs text-slate-500">Ruta de hoy</span>
+            <span className="text-2xl font-bold tabular-nums">{stops.length ? `${doneStops}/${stops.length}` : "—"}</span>
+            <span className="text-[11px] text-slate-500">{stops.length ? "paradas hechas" : "sin ruta"}</span>
+          </Link>
+        </div>
+      </section>
 
       <FeasibilityCard f={feas} compact />
       {route && <OfflineWarmup urls={[`/routes/${today}`, ...stops.map((s) => `/stores/${s.store_id}`)]} />}
@@ -114,12 +173,6 @@ export default async function Today() {
         </Link>
       )}
 
-      <section className="card grid grid-cols-2 gap-y-5 sm:grid-cols-4">
-        <Ring label="Ruta de hoy" value={doneStops} total={stops.length} display={stops.length ? `${doneStops}/${stops.length}` : "—"} />
-        <Ring label="Cumplimiento" value={cumplidas} total={conObl} display={conObl ? `${Math.round((cumplidas / conObl) * 100)}%` : "—"} color="rgb(var(--st-ok))" />
-        <Ring label="Atrasadas" value={atrasadas} total={conObl} color="rgb(var(--st-late))" />
-        <Ring label="Vencen pronto" value={proximas} total={conObl} color="rgb(var(--st-soon))" />
-      </section>
 
       <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
         <section className="card">
@@ -140,11 +193,37 @@ export default async function Today() {
         <section className="card">
           <h2 className="mb-2 font-medium">Alertas</h2>
           {(alerts ?? []).length === 0 ? <p className="text-sm text-slate-500">Sin alertas.</p> : (
-            <ul className="space-y-2 text-sm">{alerts!.map((a) => <li key={a.id} className={a.severity === "error" ? "text-red-600" : a.severity === "warning" ? "text-amber-700" : "text-slate-600"}>{a.message}</li>)}</ul>
+            <ul className="divide-y divide-slate-200 text-sm">{alerts!.map((a) => {
+              const href = alertHref(a);
+              const cls = a.severity === "error" ? "text-red-600" : a.severity === "warning" ? "text-amber-700" : "text-slate-600";
+              return <li key={a.id}>{href ? <Link href={href} className={`row-link -mx-2 flex min-h-12 items-center justify-between gap-2 rounded-xl px-2 py-2 ${cls}`}><span>{a.message}</span><ChevronRight size={16} className="shrink-0" /></Link> : <p className={`py-2 ${cls}`}>{a.message}</p>}</li>;
+            })}</ul>
           )}
           <p className="mt-3 text-xs text-slate-400">{(monthVisits ?? []).length} visitas completadas este mes</p>
         </section>
       </div>
+
+      <section className="card">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h2 className="font-medium">Incidencias abiertas</h2>
+          <Link href="/incidents" className="text-sm underline">Ver todas</Link>
+        </div>
+        {openInc.length === 0 ? <p className="text-sm text-slate-500">No hay incidencias abiertas.</p> : (
+          <ul className="divide-y divide-slate-200">
+            {openInc.slice(0, 5).map((i) => (
+              <li key={i.id}>
+                <Link href={`/stores/${i.store_id}?tab=incidencias&inc=${i.id}`} className="row-link -mx-2 flex min-h-12 items-center justify-between gap-2 rounded-xl px-2 py-2 text-sm">
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{storeName.get(i.store_id) ?? "Tienda"} · {INCIDENT_TYPE_LABEL[i.type]}</span>
+                    <span className="block truncate text-xs text-slate-500">{i.description || "Sin descripción"} · hace {daysOpen(i, today)} días</span>
+                  </span>
+                  <span className={`badge shrink-0 ${PRIORITY_STYLE[i.priority]}`}>{PRIORITY_LABEL[i.priority]}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {noGeo > 0 && <div className="card border-amber-300 bg-amber-50 text-sm">{noGeo} tiendas sin ubicación en el mapa. Ve a <Link className="underline" href="/settings">Ajustes</Link> y pulsa «Geocodificar pendientes».</div>}
     </div>

@@ -5,6 +5,9 @@ import { FREQ_LABEL } from "@/lib/types";
 import { STATE_LABEL } from "@/lib/domain/periodicity";
 import { FilterSelect } from "./FilterSelect";
 import { MultiFilter } from "./MultiFilter";
+import Link from "next/link";
+import { Map as MapIcon } from "lucide-react";
+import { filterQuery, loadFilters, saveFilters } from "@/lib/storeFilters";
 
 export interface Facets { towns: string[]; banners: string[]; chains: string[]; types: string[] }
 
@@ -27,6 +30,17 @@ export function StoreFilters({ facets }: { facets: Facets }) {
     start(() => router.replace(`${path}?${u}`, { scroll: false }));
   }
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  // Al entrar sin filtros en la URL se recuperan los últimos usados (en la lista o en el mapa).
+  const restored = useRef(false);
+  const fq = filterQuery(new URLSearchParams(sp.toString()));
+  useEffect(() => {
+    if (!restored.current) {
+      restored.current = true;
+      const saved = loadFilters();
+      if (!fq && saved && !sp.get("clear")) { setQ(new URLSearchParams(saved).get("q") ?? ""); start(() => router.replace(`${path}?${saved}`, { scroll: false })); return; }
+    }
+    saveFilters(fq);
+  }, [fq]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const f = (name: string, label: string, options: [string, string][], all?: string) => (
     <MultiFilter label={label} values={sp.getAll(name)} onChange={(v) => push({ [name]: v })} options={options} all={all} />
@@ -52,7 +66,8 @@ export function StoreFilters({ facets }: { facets: Facets }) {
         {one("geo", "Ubicación", [["no", "Sin ubicación"]], "Todas")}
       </div>
       <div className="flex items-center gap-3">
-        <button className="btn-secondary" disabled={!anyFilter} onClick={() => { setQ(""); start(() => router.replace(path, { scroll: false })); }}>Limpiar filtros</button>
+        <button className="btn-secondary" disabled={!anyFilter} onClick={() => { setQ(""); saveFilters(""); start(() => router.replace(path, { scroll: false })); }}>Limpiar filtros</button>
+        <Link className="btn-secondary" href={`/map${fq ? `?${fq}` : ""}`}><MapIcon size={16} /> Ver en el mapa</Link>
         {pending && <span className="text-xs text-slate-400">Actualizando…</span>}
       </div>
     </div>

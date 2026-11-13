@@ -18,6 +18,26 @@ export function ImportPanel() {
   const [res, setRes] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [geo, setGeo] = useState<string | null>(null);
+
+  /** Tras importar, sitúa en el mapa las tiendas nuevas o con dirección cambiada (por lotes). */
+  async function geocodeAfterImport() {
+    let tot = { ok: 0, partial: 0, failed: 0 };
+    for (let guard = 0; guard < 60; guard++) {
+      setGeo(`Situando tiendas en el mapa… ${tot.ok + tot.partial + tot.failed} hechas`);
+      let j: { ok: number; partial: number; failed: number; remaining: number; error?: string };
+      try {
+        const r = await fetch("/api/geocode", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+        j = await r.json();
+        if (!r.ok) { setGeo(`No se pudieron ubicar todas: ${j.error ?? r.status}. Puedes reintentarlo en Ajustes.`); return; }
+      } catch { setGeo("Sin conexión: las tiendas se ubicarán desde Ajustes cuando vuelvas a tener red."); return; }
+      tot = { ok: tot.ok + j.ok, partial: tot.partial + j.partial, failed: tot.failed + j.failed };
+      if (j.remaining <= 0 || j.ok + j.partial + j.failed === 0) break;
+    }
+    const n = tot.ok + tot.partial + tot.failed;
+    setGeo(n ? `Ubicadas en el mapa: ${tot.ok} exactas${tot.partial ? `, ${tot.partial} aproximadas (revísalas)` : ""}${tot.failed ? `, ${tot.failed} sin encontrar` : ""}.` : null);
+    router.refresh();
+  }
 
   async function post(dryRun: boolean, data = rows, filename = name) {
     setBusy(true);
@@ -27,7 +47,7 @@ export function ImportPanel() {
     setBusy(false);
     if (!r.ok) return setErr(j.error ?? "Error en la importación");
     setRes(j);
-    if (!dryRun) router.refresh();
+    if (!dryRun) { router.refresh(); void geocodeAfterImport(); }
   }
 
   async function onFile(f: File | undefined) {
@@ -73,6 +93,7 @@ export function ImportPanel() {
       <p className="text-sm text-slate-500">Se conservan los IDs originales. Si un ID ya existe se actualiza (salvo los campos que hayas editado a mano). Antes de guardar verás una vista previa.</p>
       <input type="file" accept=".xlsx" onChange={(e) => onFile(e.target.files?.[0])} />
       {err && <p className="text-sm text-red-600">{err}</p>}
+      {geo && <p className="text-sm text-slate-600" role="status">{geo}</p>}
       {res && (
         <div className="rounded-lg bg-slate-50 p-3 text-sm">
           <b>{res.dryRun ? "Vista previa (aún no guardado)" : "Importación terminada"}</b>

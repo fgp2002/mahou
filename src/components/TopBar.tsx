@@ -4,10 +4,9 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Bell, Search, X } from "lucide-react";
 import clsx from "clsx";
-import { supabaseBrowser } from "@/lib/supabase/client";
 
 export interface AlertItem { id: string; message: string; severity: string }
-interface Hit { id: string; name: string; town: string | null; banner: string | null }
+interface Hit { group: string; id: string; title: string; sub: string; href: string }
 
 const TITLES: [string, string][] = [["/map", "Mapa"], ["/stores", "Tiendas"], ["/inventory", "Inventario"], ["/visits", "Visitas"], ["/gallery", "Galería"], ["/incidents", "Incidencias"], ["/economy", "Economía"], ["/agreements", "Acuerdos"], ["/routes", "Rutas"], ["/reports", "Informes"], ["/settings", "Ajustes"]];
 
@@ -17,6 +16,7 @@ export function TopBar({ unread, alerts }: { unread: number; alerts: AlertItem[]
   const [scrolled, setScrolled] = useState(false);
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<Hit[]>([]);
+  const [loading, setLoading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [bell, setBell] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -34,13 +34,18 @@ export function TopBar({ unread, alerts }: { unread: number; alerts: AlertItem[]
   useEffect(() => { setSearchOpen(false); setBell(false); setQ(""); }, [path]);
 
   useEffect(() => {
-    const term = q.trim().replace(/[%,()]/g, " ");
+    const term = q.trim();
     if (term.length < 2) { setHits([]); return; }
     let cancelled = false;
     const t = setTimeout(async () => {
-      const { data } = await supabaseBrowser().from("stores").select("id,name,town,banner").or(`name.ilike.%${term}%,town.ilike.%${term}%,banner.ilike.%${term}%`).eq("active", true).order("name").limit(8);
-      if (!cancelled) setHits((data ?? []) as Hit[]);
-    }, 220);
+      setLoading(true);
+      try {
+        const r = await fetch(`/api/search?q=${encodeURIComponent(term)}`);
+        const j = r.ok ? await r.json() : { hits: [] };
+        if (!cancelled) setHits(j.hits ?? []);
+      } catch { if (!cancelled) setHits([]); }
+      if (!cancelled) setLoading(false);
+    }, 250);
     return () => { cancelled = true; clearTimeout(t); };
   }, [q]);
 
@@ -57,14 +62,17 @@ export function TopBar({ unread, alerts }: { unread: number; alerts: AlertItem[]
         <div className="relative min-w-0 flex-1">
           <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input value={q} onChange={(e) => { setQ(e.target.value); setSearchOpen(true); }} onFocus={() => setSearchOpen(true)}
-            placeholder="Buscar tienda, municipio o enseña…" aria-label="Buscar" className="input !rounded-full !pl-10 !pr-9" />
+            placeholder="Buscar tiendas, contactos, pagos, elementos…" aria-label="Buscar" className="input !rounded-full !pl-10 !pr-9" />
           {q && <button aria-label="Borrar búsqueda" onClick={() => { setQ(""); setHits([]); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400"><X size={16} /></button>}
           {searchOpen && q.trim().length >= 2 && (
             <div className="sheet-in absolute inset-x-0 top-full mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-card">
-              {hits.length === 0 ? <div className="p-4 text-sm text-slate-500">Sin resultados.</div> : (
-                <ul className="max-h-80 divide-y divide-slate-100 overflow-y-auto text-sm">
-                  {hits.map((h) => (
-                    <li key={h.id}><Link href={`/stores/${h.id}`} className="row-link flex min-h-12 flex-col justify-center px-4 py-2"><b className="truncate">{h.name}</b><span className="truncate text-xs text-slate-500">{[h.banner, h.town].filter(Boolean).join(" · ")}</span></Link></li>
+              {hits.length === 0 ? <div className="p-4 text-sm text-slate-500">{loading ? "Buscando…" : "Sin resultados."}</div> : (
+                <ul className="max-h-[70vh] overflow-y-auto text-sm">
+                  {hits.map((h, k) => (
+                    <li key={h.group + h.id}>
+                      {(k === 0 || hits[k - 1].group !== h.group) && <div className="sticky top-0 bg-slate-50 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">{h.group}</div>}
+                      <Link href={h.href} className="row-link flex min-h-12 flex-col justify-center border-t border-slate-100 px-4 py-2"><b className="truncate">{h.title}</b>{h.sub && <span className="truncate text-xs text-slate-500">{h.sub}</span>}</Link>
+                    </li>
                   ))}
                 </ul>
               )}

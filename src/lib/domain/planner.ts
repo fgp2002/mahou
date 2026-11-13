@@ -13,6 +13,8 @@ export interface PlanStore {
   priority: number;
   /** paradas forzadas por el usuario: se intentan incluir siempre primero */
   forced?: boolean;
+  /** horario de la tienda ese día (minutos desde medianoche): no se empieza antes de `from` y hay que terminar antes de `to` */
+  window?: { from: number; to: number } | null;
 }
 
 export interface Lunch { earliest: number; latest: number; minutes: number }
@@ -31,9 +33,13 @@ export interface PlanInput {
   kmWeight?: number;
 }
 
-export type UnscheduledReason = "tiempo" | "no_cabe";
+export type UnscheduledReason = "tiempo" | "no_cabe" | "horario";
 
 export interface PlannedStop {
+  /** minutos esperando a que abra la tienda */
+  waitMinutes?: number;
+  /** no da tiempo a terminar antes de que cierre */
+  late?: boolean;
   index: number;
   id: string;
   arrivalMinutes: number;
@@ -81,7 +87,8 @@ function simulate(c: Ctx, order: number[]) {
   let clock = input.startMinutes;
   let prev = c.home;
   let lunch: PlanResult["lunch"] = null;
-  const legs: { arrival: number; drive: number; dist: number }[] = [];
+  const legs: { arrival: number; drive: number; dist: number; wait: number; late: boolean }[] = [];
+  let late = false;
   order.forEach((i, k) => {
     const n = c.node(i);
     const drive = prev != null ? input.dur[prev][n] : 0;
@@ -92,15 +99,22 @@ function simulate(c: Ctx, order: number[]) {
       clock += input.lunch.minutes;
     }
     clock += drive / 60;
-    legs.push({ arrival: clock, drive, dist: d });
+    // Horario de la tienda: si se llega antes de abrir se espera; si no da tiempo a terminar antes de cerrar, no vale.
+    const w = input.stores[i].window;
+    let wait = 0;
+    if (w && clock < w.from) { wait = w.from - clock; clock = w.from; }
+    const tooLate = !!w && clock + input.stores[i].minutes > w.to + 1e-6;
+    if (tooLate) late = true;
+    legs.push({ arrival: clock, drive, dist: d, wait, late: tooLate });
     clock += input.stores[i].minutes;
     prev = n;
   });
-  return { end: clock, legs, lunch };
+  return { end: clock, legs, lunch, late };
 }
 
 function feasible(c: Ctx, order: number[]): boolean {
-  return simulate(c, order).end <= c.input.endMinutes + 1e-6;
+  const sim = simulate(c, order);
+  return !sim.late && sim.end <= c.input.endMinutes + 1e-6;
 }
 
 /** Mejora local: 2-opt (invertir tramos) y Or-opt (mover 1–3 paradas), con el inicio en casa fijo. */
@@ -162,6 +176,9 @@ export function planRoute(input: PlanInput): PlanResult {
 
   for (const r of ranking) {
     if (r.s.minutes > budget) { unscheduled.push({ index: r.i, id: r.s.id, reason: "no_cabe" }); continue; }
+    if (r.s.window && (r.s.window.to - Math.max(r.s.window.from, input.startMinutes) < r.s.minutes || r.s.window.from >= input.endMinutes)) {
+      unscheduled.push({ index: r.i, id: r.s.id, reason: "horario" }); continue;
+    }
     const next = tryInsert(c, order, r.i);
     if (next) order = next; else pending.push(r);
   }
@@ -169,13 +186,14 @@ export function planRoute(input: PlanInput): PlanResult {
   // Con el orden mejorado puede quedar hueco: segundo intento con las que no entraron.
   for (const r of pending) {
     const next = tryInsert(c, order, r.i);
-    if (next) order = improve(c, next); else unscheduled.push({ index: r.i, id: r.s.id, reason: "tiempo" });
+    if (next) order = improve(c, next); else unscheduled.push({ index: r.i, id: r.s.id, reason: r.s.window ? "horario" : "tiempo" });
   }
 
   const sim = simulate(c, order);
   const stops: PlannedStop[] = order.map((idx, k) => ({
     index: idx, id: stores[idx].id, arrivalMinutes: Math.round(sim.legs[k].arrival), minutes: stores[idx].minutes,
     driveSecondsFromPrev: sim.legs[k].drive, distanceMFromPrev: sim.legs[k].dist,
+    waitMinutes: Math.round(sim.legs[k].wait),
   }));
   return {
     stops,
@@ -190,14 +208,14 @@ export function planRoute(input: PlanInput): PlanResult {
 
 /** Recalcula horarios de una ruta con un orden ya fijado (edición manual). Mismos índices de matriz que planRoute. */
 export function scheduleFixedOrder(
-  order: { id: string; minutes: number }[],
+  order: { id: string; minutes: number; window?: { from: number; to: number } | null }[],
   dur: number[][],
   dist: number[][],
   startMinutes: number,
   opts: { hasHome?: boolean; lunch?: Lunch | null } = {},
 ): PlanResult {
   const input: PlanInput = {
-    stores: order.map((o) => ({ id: o.id, minutes: o.minutes, priority: 0 })), dur, dist,
+    stores: order.map((o) => ({ id: o.id, minutes: o.minutes, priority: 0, window: o.window ?? null })), dur, dist,
     startMinutes, endMinutes: Infinity, hasHome: opts.hasHome, lunch: opts.lunch ?? null,
   };
   const c = ctxOf(input);
@@ -206,6 +224,7 @@ export function scheduleFixedOrder(
   const stops: PlannedStop[] = idx.map((k) => ({
     index: k, id: order[k].id, arrivalMinutes: Math.round(sim.legs[k].arrival), minutes: order[k].minutes,
     driveSecondsFromPrev: sim.legs[k].drive, distanceMFromPrev: sim.legs[k].dist,
+    waitMinutes: Math.round(sim.legs[k].wait), late: sim.legs[k].late,
   }));
   return {
     stops, unscheduled: [],

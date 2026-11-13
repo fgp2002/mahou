@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { filterQuery, loadFilters, saveFilters } from "@/lib/storeFilters";
 import Link from "next/link";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
@@ -41,14 +42,19 @@ export function MapView({ stores }: { stores: MapStore[] }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ref = useRef<{ L: any; map: any; cluster: any; me: any; markers: Map<string, any> } | null>(null);
   const [ready, setReady] = useState(false);
-  const [q, setQ] = useState("");
-  const [state, setState] = useState<string[]>([]);
-  const [town, setTown] = useState<string[]>([]);
-  const [freq, setFreq] = useState<string[]>([]);
-  const [audit, setAudit] = useState("");
-  const [banner, setBanner] = useState<string[]>([]);
-  const [chain, setChain] = useState<string[]>([]);
-  const [type, setType] = useState<string[]>([]);
+  // Filtros iniciales: los de la URL (p. ej. desde la lista) o, si no hay, los últimos usados.
+  const init = useMemo(() => {
+    const url = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
+    return filterQuery(url) ? url : new URLSearchParams(loadFilters());
+  }, []);
+  const [q, setQ] = useState(init.get("q") ?? "");
+  const [state, setState] = useState<string[]>(init.getAll("state"));
+  const [town, setTown] = useState<string[]>(init.getAll("town"));
+  const [freq, setFreq] = useState<string[]>(init.getAll("freq"));
+  const [audit, setAudit] = useState(init.get("audit") ?? "");
+  const [banner, setBanner] = useState<string[]>(init.getAll("banner"));
+  const [chain, setChain] = useState<string[]>(init.getAll("chain"));
+  const [type, setType] = useState<string[]>(init.getAll("type"));
   const [showFilters, setShowFilters] = useState(false);
   const [sel, setSel] = useState<MapStore | null>(null);
   const [contacts, setContacts] = useState<{ id: string; full_name: string | null; phone: string | null }[]>([]);
@@ -75,6 +81,17 @@ export function MapView({ stores }: { stores: MapStore[] }) {
       (!t || `${s.name} ${s.town} ${s.address}`.toLowerCase().includes(t)));
   }, [stores, q, state, town, freq, audit, banner, chain, type]);
   const filtersOn = !!(q || state.length || town.length || freq.length || audit || banner.length || chain.length || type.length);
+  // Los filtros quedan en la URL y se recuerdan para la lista de tiendas.
+  const fq = useMemo(() => {
+    const u = new URLSearchParams();
+    const add = (k: string, v: string | string[]) => { for (const x of Array.isArray(v) ? v : [v]) if (x) u.append(k, x); };
+    add("q", q.trim()); add("state", state); add("town", town); add("banner", banner); add("chain", chain); add("type", type); add("freq", freq); add("audit", audit);
+    return u.toString();
+  }, [q, state, town, freq, audit, banner, chain, type]);
+  useEffect(() => {
+    saveFilters(fq);
+    try { window.history.replaceState(window.history.state, "", `${window.location.pathname}${fq ? `?${fq}` : ""}`); } catch { /* nada */ }
+  }, [fq]);
 
   // Mapa y marcadores se crean UNA vez; los filtros solo cambian qué marcadores están en el clúster.
   useEffect(() => {
@@ -206,6 +223,7 @@ export function MapView({ stores }: { stores: MapStore[] }) {
             <MultiFilter label="Periodicidad" values={freq} onChange={setFreq} options={Object.entries(FREQ_LABEL)} all="Todas" />
             <FilterSelect label="Audit" value={audit} onChange={setAudit} options={[["1", "Solo Audit"]]} all="Todas" />
             <button className="btn-secondary" disabled={!filtersOn} onClick={() => { setQ(""); setState([]); setTown([]); setFreq([]); setAudit(""); setBanner([]); setChain([]); setType([]); }}>Limpiar filtros</button>
+            <a className="btn-secondary" href={`/stores${fq ? `?${fq}` : ""}`}>Ver en lista</a>
           </div>
         </div>
       </div>

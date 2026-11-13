@@ -117,3 +117,33 @@ test("sale de casa, no hace zigzag y come en la franja", () => {
   assert.ok(r.stops[0].driveSecondsFromPrev > 0, "el primer tramo sale de casa");
   assert.ok(r.lunch && r.lunch.start >= 13 * 60 + 30 && r.lunch.start <= 15 * 60, "comida dentro de la franja");
 });
+
+test("horario de tienda: espera a que abra y la ordena después si abre tarde", () => {
+  const r = planRoute(input([
+    { id: "a", minutes: 30, priority: 10, window: { from: 12 * 60, to: 20 * 60 } },
+    { id: "b", minutes: 30, priority: 10 },
+  ]));
+  assert.equal(r.stops.length, 2);
+  // b se visita primero (a todavía está cerrada) y a no empieza antes de las 12:00
+  assert.equal(r.stops[0].id, "b");
+  const a = r.stops.find((s) => s.id === "a")!;
+  assert.ok(a.arrivalMinutes >= 12 * 60);
+});
+
+test("horario de tienda: si cierra antes de poder terminar, queda fuera con motivo «horario»", () => {
+  const r = planRoute(input([
+    { id: "a", minutes: 60, priority: 10, window: { from: 7 * 60, to: 9 * 60 + 30 } },
+    { id: "b", minutes: 30, priority: 5 },
+  ]));
+  assert.equal(r.stops.length, 1);
+  assert.deepEqual(r.unscheduled.map((u) => [u.id, u.reason]), [["a", "horario"]]);
+});
+
+test("orden fijo: marca la espera y el retraso respecto al cierre", () => {
+  const m = estimateMatrix(pts.slice(0, 2));
+  const r = scheduleFixedOrder([{ id: "a", minutes: 60 }, { id: "b", minutes: 30, window: { from: 9 * 60, to: 10 * 60 } }], m.dur, m.dist, 9 * 60);
+  assert.equal(r.stops[1].late, true);
+  const r2 = scheduleFixedOrder([{ id: "a", minutes: 10, window: { from: 10 * 60, to: 14 * 60 } }], m.dur, m.dist, 9 * 60);
+  assert.equal(r2.stops[0].waitMinutes, 60);
+  assert.equal(r2.stops[0].arrivalMinutes, 10 * 60);
+});

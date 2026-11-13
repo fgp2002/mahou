@@ -5,6 +5,7 @@ import { addDays, fmtHM, madridDate, parseHM, weekdayMon0 } from "../domain/date
 import { computeObligation, effectiveFrequency, priorityScore } from "../domain/periodicity.ts";
 import { estimateMatrix, googleMatrix, googleRoutePolyline, type Matrix } from "../domain/geo.ts";
 import { geocodeOne } from "./geocode.ts";
+import { opensOn, visitWindow, type StoreHoursLike } from "../domain/hours.ts";
 import { pickZone, planRoute, scheduleFixedOrder, ZONE_DEFAULTS, type Lunch } from "../domain/planner.ts";
 
 import { MAX_CANDIDATES } from "./labels.ts";
@@ -150,9 +151,9 @@ export async function generateRoute(
   }
 
   // Tiendas candidatas
-  const stores: { id: string; name: string; town: string | null; lat: number | null; lng: number | null; frequency: string; audit: boolean; banner: string | null; geocode_status: string | null }[] = [];
+  const stores: ({ id: string; name: string; town: string | null; lat: number | null; lng: number | null; frequency: string; audit: boolean; banner: string | null; geocode_status: string | null } & StoreHoursLike)[] = [];
   for (let from = 0; ; from += 1000) {
-    const { data } = await sb.from("stores").select("id,name,town,lat,lng,frequency,audit,banner,geocode_status").eq("owner_id", ownerId).eq("active", true).range(from, from + 999);
+    const { data } = await sb.from("stores").select("id,name,town,lat,lng,frequency,audit,banner,geocode_status,opening_days,open_time,close_time,preferred_from,preferred_to,extra_minutes").eq("owner_id", ownerId).eq("active", true).range(from, from + 999);
     stores.push(...(data ?? []));
     if (!data || data.length < 1000) break;
   }
@@ -177,8 +178,12 @@ export async function generateRoute(
     .sort((a, b) => b.score - a.score);
 
   const unscheduled: { store_id: string; name: string; reason: string }[] = [];
-  const located = scored.filter((x) => x.s.lat != null && x.s.lng != null);
-  for (const x of scored) if (x.s.lat == null || x.s.lng == null) unscheduled.push({ store_id: x.s.id, name: x.s.name, reason: "sin_ubicacion" });
+  // Tiendas que cierran ese día: fuera de la ruta, con su motivo (salvo que la elijas tú expresamente).
+  const closed = new Set(scored.filter((x) => !anchors.includes(x.s.id) && !opensOn(x.s, date)).map((x) => x.s.id));
+  for (const x of scored) if (closed.has(x.s.id)) unscheduled.push({ store_id: x.s.id, name: x.s.name, reason: "cerrada" });
+  const open = scored.filter((x) => !closed.has(x.s.id));
+  const located = open.filter((x) => x.s.lat != null && x.s.lng != null);
+  for (const x of open) if (x.s.lat == null || x.s.lng == null) unscheduled.push({ store_id: x.s.id, name: x.s.name, reason: "sin_ubicacion" });
   // Zona del día: ancla (la más urgente) + pendientes cercanas, con tope de Audit por día.
   const zone = pickZone(located.map((x) => ({
     id: x.s.id, lat: x.s.lat!, lng: x.s.lng!, score: x.score, audit: x.s.audit && settings.audit_first,
@@ -200,7 +205,10 @@ export async function generateRoute(
     if (matrix.estimated) warnings.push("Tiempos de trayecto ESTIMADOS (no por carretera real): la distancia en línea recta se multiplica por 1,35 a 45 km/h.");
     const learned = await learnedMinutes(sb, ownerId, cand.map((x) => x.s.id));
     result = planRoute({
-      stores: cand.map((x) => ({ id: x.s.id, minutes: learned.get(x.s.id) ?? settings.default_minutes, priority: prio.get(x.s.id) ?? x.score, forced: forced.has(x.s.id) })),
+      stores: cand.map((x) => ({
+        id: x.s.id, minutes: (learned.get(x.s.id) ?? settings.default_minutes) + (x.s.extra_minutes ?? 0),
+        priority: prio.get(x.s.id) ?? x.score, forced: forced.has(x.s.id), window: visitWindow(x.s),
+      })),
       dur: matrix.dur, dist: matrix.dist, startMinutes: startMin, endMinutes: endMin,
       hasHome: !!origin, lunch: settings.lunch, kmWeight: KM_WEIGHT,
     });
@@ -276,12 +284,20 @@ export async function generateRoute(
   return { status: "created", routeId: route.id, stops: nStops, unscheduled: unscheduled.length, estimate: matrix?.estimated ?? false };
 }
 
-/** Recalcula horarios y trayectos de una ruta existente tras editarla (orden, altas, bajas, hora de salida). */
-export async function recalcRoute(sb: SupabaseClient, ownerId: string, routeId: string): Promise<{ estimate: boolean }> {
+/**
+ * Recalcula horarios y trayectos de una ruta existente tras editarla (orden, altas, bajas, hora de salida).
+ * Con `from` (tu ubicación y la hora actual) reordena SOLO las paradas pendientes desde donde estás;
+ * las visitas ya hechas o en curso se quedan como están, al principio.
+ */
+export async function recalcRoute(
+  sb: SupabaseClient, ownerId: string, routeId: string,
+  opts: { from?: { lat: number; lng: number; minutes: number } | null } = {},
+): Promise<{ estimate: boolean; reordered?: number }> {
   const { data: route } = await sb.from("routes").select("*").eq("id", routeId).eq("owner_id", ownerId).single();
   if (!route) throw new Error("Ruta no encontrada");
-  const { data: stops } = await sb.from("route_stops").select("*, stores(lat,lng)").eq("route_id", routeId).eq("owner_id", ownerId).order("position");
-  const list = (stops ?? []) as unknown as { id: string; planned_minutes: number; stores: { lat: number; lng: number } }[];
+  const { data: stops } = await sb.from("route_stops").select("*, stores(name,lat,lng,open_time,close_time,preferred_from,preferred_to)").eq("route_id", routeId).eq("owner_id", ownerId).order("position");
+  type Row = { id: string; planned_minutes: number; planned_arrival: string | null; drive_seconds_from_prev: number | null; distance_m_from_prev: number | null; stores: { name: string; lat: number; lng: number } & StoreHoursLike };
+  const list = (stops ?? []) as unknown as Row[];
   if (!list.length) {
     await sb.from("routes").update({ est_distance_m: 0, est_drive_seconds: 0, est_visit_seconds: 0, updated_at: new Date().toISOString() }).eq("id", routeId);
     return { estimate: false };
@@ -289,9 +305,56 @@ export async function recalcRoute(sb: SupabaseClient, ownerId: string, routeId: 
   const settings = await loadOwnerSettings(sb, ownerId);
   if (settings) await ensureHome(sb, ownerId, settings);
   const home = settings?.home ?? null;
+  const warnings: string[] = [];
+
+  if (opts.from) {
+    // Paradas ya hechas (o empezadas): se conservan tal cual.
+    const { data: vs } = await sb.from("visits").select("route_stop_id,status").eq("owner_id", ownerId).in("route_stop_id", list.map((s) => s.id));
+    const doneIds = new Set((vs ?? []).filter((v) => v.status === "completed" || v.status === "in_progress" || v.status === "cancelled").map((v) => v.route_stop_id as string));
+    const done = list.filter((s) => doneIds.has(s.id));
+    const rest = list.filter((s) => !doneIds.has(s.id));
+    const here = { lat: opts.from.lat, lng: opts.from.lng };
+    if (rest.length) {
+      const m = await matrixFor([here, ...rest.map((s) => ({ lat: s.stores.lat, lng: s.stores.lng }))]);
+      // Orden óptimo desde aquí (sin descartar ninguna) y después horarios con el horario de cada tienda.
+      const ord = planRoute({
+        stores: rest.map((s) => ({ id: s.id, minutes: s.planned_minutes, priority: 0 })),
+        dur: m.dur, dist: m.dist, startMinutes: opts.from.minutes, endMinutes: Infinity, hasHome: true, lunch: null, kmWeight: KM_WEIGHT,
+      });
+      const ordered = ord.stops.map((st) => rest[st.index]);
+      const pts = ordered.map((s) => ({ lat: s.stores.lat, lng: s.stores.lng }));
+      const m2 = await matrixFor([here, ...pts]);
+      const r = scheduleFixedOrder(ordered.map((s) => ({ id: s.id, minutes: s.planned_minutes, window: visitWindow(s.stores) })), m2.dur, m2.dist, opts.from.minutes, { hasHome: true, lunch: null });
+      // Posiciones en dos pasos para no chocar con las existentes.
+      for (let i = 0; i < ordered.length; i++) await sb.from("route_stops").update({ position: 1000 + i }).eq("id", ordered[i].id);
+      for (let i = 0; i < ordered.length; i++) {
+        const st = r.stops[i];
+        await sb.from("route_stops").update({
+          position: done.length + i + 1, planned_arrival: fmtHM(st.arrivalMinutes),
+          drive_seconds_from_prev: Math.round(st.driveSecondsFromPrev), distance_m_from_prev: Math.round(st.distanceMFromPrev),
+        }).eq("id", ordered[i].id);
+      }
+      for (let i = 0; i < done.length; i++) await sb.from("route_stops").update({ position: i + 1 }).eq("id", done[i].id);
+      const late = r.stops.filter((st) => st.late).map((st) => ordered[st.index].stores.name);
+      if (late.length) warnings.push(`Con este orden no da tiempo a visitar dentro de su horario: ${late.join(", ")}.`);
+      if (m2.estimated) warnings.push("Tiempos de trayecto ESTIMADOS (no por carretera real).");
+      const all = [...done, ...ordered];
+      const drive = done.reduce((a, s) => a + (s.drive_seconds_from_prev ?? 0), 0) + r.totalDriveSeconds;
+      const dist = done.reduce((a, s) => a + (s.distance_m_from_prev ?? 0), 0) + r.totalDistanceM;
+      await saveRouteShape(sb, routeId, here, pts);
+      await sb.from("routes").update({
+        is_estimate: m2.estimated, routing_provider: m2.provider, est_distance_m: Math.round(dist), est_drive_seconds: Math.round(drive),
+        est_visit_seconds: all.reduce((a, s) => a + s.planned_minutes, 0) * 60, warnings, user_modified: true, updated_at: new Date().toISOString(),
+        lunch_start: null, lunch_after_position: null,
+      }).eq("id", routeId);
+      return { estimate: m2.estimated, reordered: ordered.length };
+    }
+    return { estimate: false, reordered: 0 };
+  }
+
   const pts = list.map((s) => ({ lat: s.stores.lat, lng: s.stores.lng }));
   const matrix = await matrixFor(home ? [home, ...pts] : pts);
-  const r = scheduleFixedOrder(list.map((s) => ({ id: s.id, minutes: s.planned_minutes })), matrix.dur, matrix.dist, parseHM(String(route.start_time).slice(0, 5)), { hasHome: !!home, lunch: settings?.lunch ?? null });
+  const r = scheduleFixedOrder(list.map((s) => ({ id: s.id, minutes: s.planned_minutes, window: visitWindow(s.stores) })), matrix.dur, matrix.dist, parseHM(String(route.start_time).slice(0, 5)), { hasHome: !!home, lunch: settings?.lunch ?? null });
   for (let i = 0; i < list.length; i++) {
     const st = r.stops[i];
     await sb.from("route_stops").update({
@@ -300,7 +363,9 @@ export async function recalcRoute(sb: SupabaseClient, ownerId: string, routeId: 
     }).eq("id", list[i].id);
   }
   await saveRouteShape(sb, routeId, home, pts);
-  const warnings: string[] = matrix.estimated ? ["Tiempos de trayecto ESTIMADOS (no por carretera real)."] : [];
+  if (matrix.estimated) warnings.push("Tiempos de trayecto ESTIMADOS (no por carretera real).");
+  const late = r.stops.filter((st) => st.late).map((st) => list[st.index].stores.name);
+  if (late.length) warnings.push(`Con este orden no da tiempo a visitar dentro de su horario: ${late.join(", ")}.`);
   const { data: set } = await sb.from("user_settings").select("work_end").eq("owner_id", ownerId).single();
   if (set && r.endMinutes > parseHM(String(set.work_end).slice(0, 5))) warnings.push(`La ruta termina a las ${fmtHM(r.endMinutes)}, después del fin de jornada (${String(set.work_end).slice(0, 5)}).`);
   await sb.from("routes").update({

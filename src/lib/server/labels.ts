@@ -9,4 +9,6 @@ export const UNSCHEDULED_LABEL: Record<string, string> = {
   limite_paradas: "Superaría el máximo de paradas por día",
   otra_zona: "Queda lejos de la zona de este día: irá en otra ruta",
   limite_audit: "Ya hay suficientes Audit este día: se reparte a otro día",
+  cerrada: "La tienda cierra ese día",
+  horario: "No da tiempo a visitarla dentro de su horario",
 };

@@ -10,11 +10,17 @@ export async function POST(req: Request) {
   if (!key) return NextResponse.json({ error: "Falta GOOGLE_API_KEY" }, { status: 500 });
   const body = await req.json().catch(() => ({}));
   const retryFailed = !!body.retryFailed;
+  const storeId = typeof body.storeId === "string" ? body.storeId : null;
   const sb = await supabaseServer();
 
-  const statuses = retryFailed ? ["pending", "failed"] : ["pending"];
-  const { data: batch, error } = await sb
-    .from("stores").select("id,address,town,postal_code,province").in("geocode_status", statuses).is("lat", null).eq("active", true).limit(20);
+  const statuses = retryFailed || storeId ? ["pending", "failed"] : ["pending"];
+  // Con storeId se localiza solo esa tienda (alta rápida o cambio de dirección).
+  // Con «force» (cambio de dirección) se relocaliza aunque ya tenga coordenadas; si falla, se conservan las anteriores.
+  const force = !!storeId && !!body.force;
+  let query = sb.from("stores").select("id,address,town,postal_code,province").eq("active", true);
+  query = storeId ? query.eq("id", storeId) : query.in("geocode_status", statuses).is("lat", null);
+  if (storeId && !force) query = query.is("lat", null);
+  const { data: batch, error } = await query.limit(20);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const t0 = Date.now();
@@ -24,6 +30,7 @@ export async function POST(req: Request) {
     if (Date.now() - t0 > 45000) break;
     try {
       const g = await geocodeOne(s, key);
+      if (force && g.status === "failed") { failed++; continue; }
       const upd: Record<string, unknown> = { geocode_status: g.status, geocode_provider: "google", geocoded_at: new Date().toISOString(), geocode_formatted: g.formatted ?? null, geocode_place_id: g.placeId ?? null };
       if (g.status !== "failed") { upd.lat = g.lat; upd.lng = g.lng; }
       await sb.from("stores").update(upd).eq("id", s.id);
@@ -37,6 +44,10 @@ export async function POST(req: Request) {
       failed++;
       errors.push((e as Error).message);
     }
+  }
+  if (storeId) {
+    const { data: one } = await sb.from("stores").select("lat,lng,geocode_status,geocode_formatted").eq("id", storeId).maybeSingle();
+    return NextResponse.json({ ok, partial, failed, remaining: 0, errors, store: one });
   }
   const { count } = await sb.from("stores").select("id", { count: "exact", head: true }).eq("geocode_status", "pending").is("lat", null).eq("active", true);
   return NextResponse.json({ ok, partial, failed, remaining: count ?? 0, errors });
