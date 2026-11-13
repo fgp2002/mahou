@@ -83,14 +83,14 @@ export default async function StorePage({ params, searchParams }: { params: Prom
   const counts: Partial<Record<Tab, number>> = { visitas: done.length, inventario: installed, incidencias: openInc.length, contactos: (contacts ?? []).length };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
+    <div className="mx-auto max-w-6xl space-y-4">
       <section className="card overflow-hidden !p-0">
         <div className="flex items-center gap-4 p-4 md:p-6">
           <span className={`flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white ring-[3px] md:h-20 md:w-20 ${s.audit ? "ring-slate-900" : "ring-slate-200"}`}>
             {logoSrc ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={logoSrc} alt="" className="h-11 w-11 object-contain md:h-14 md:w-14" /> : <StoreIcon size={28} className="text-slate-400" />}
           </span>
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-bold leading-tight tracking-tight md:text-3xl">{s.name}</h1>
+            <h1 className="t-page">{s.name}</h1>
             <p className="truncate text-sm text-slate-500">{[s.chain && s.chain !== s.banner ? `${s.banner ?? ""} · ${s.chain}` : s.banner, s.town].filter(Boolean).join(" · ")}</p>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <StateBadge state={ob.state} />
@@ -116,7 +116,7 @@ export default async function StorePage({ params, searchParams }: { params: Prom
       <nav className="h-scroll -mx-4 flex gap-1.5 px-4 pb-1 md:mx-0 md:px-0" aria-label="Secciones de la tienda">
         {TABS.map(([k, l]) => (
           <Link key={k} href={tabHref(k)} scroll={false} aria-current={tab === k ? "page" : undefined}
-            className={clsx("tap flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-sm", tab === k ? "border-slate-900 bg-slate-900 font-semibold text-slate-50" : "border-slate-200 bg-white text-slate-600")}>
+            className={clsx("tap flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-sm", tab === k ? "border-brand-600 bg-brand-600 font-semibold text-[rgb(var(--on-accent))]" : "border-slate-200 bg-white text-slate-600")}>
             {l}{counts[k] ? <span className={clsx("rounded-full px-1.5 text-[11px] tabular-nums", tab === k ? "bg-white/20" : k === "incidencias" ? "bg-st-late text-[#fff]" : "bg-slate-100")}>{counts[k]}</span> : null}
           </Link>
         ))}
@@ -197,11 +197,11 @@ async function Resumen({ store: s, visits, done, ob, installed, openInc, today }
         </Link>
       </div>
       <section className="card">
-        <div className="mb-2 flex items-center justify-between"><h2 className="font-semibold">Últimas actuaciones</h2><Link href={`/stores/${s.id}?tab=historico`} scroll={false} className="text-sm font-semibold text-brand-600">Ver todo</Link></div>
+        <div className="mb-2 flex items-center justify-between"><h2 className="t-section">Últimas actuaciones</h2><Link href={`/stores/${s.id}?tab=historico`} scroll={false} className="text-sm font-semibold text-brand-600">Ver todo</Link></div>
         <Timeline items={recent} />
       </section>
       <section className="card space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold">Datos de la tienda</h2><QuickNote storeId={s.id} current={s.notes} /></div>
+        <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="t-section">Datos de la tienda</h2><QuickNote storeId={s.id} current={s.notes} /></div>
         <StoreHours store={s} />
         <details>
           <summary className="cursor-pointer text-sm font-semibold text-slate-600">Editar datos{s.source_id ? ` (ID ${s.source_id})` : ""}</summary>
@@ -235,8 +235,8 @@ async function Fotos({ storeId }: { storeId: string }) {
   const all: StorePhoto[] = rows.map((r) => ({ id: r.id, kind: r.kind, url: null, thumb: urls.get(r.thumb_path ?? r.storage_path) ?? null, taken_at: r.taken_at, visit_id: r.visit_id }));
   return (
     <div className="space-y-4">
-      <section className="card space-y-3"><h2 className="font-semibold">Lineal</h2><StoreLineal storeId={storeId} photos={L} /></section>
-      <section className="card space-y-3"><h2 className="font-semibold">Todas las fotos</h2><StorePhotos photos={all} /></section>
+      <section className="card space-y-3"><h2 className="t-section">Lineal</h2><StoreLineal storeId={storeId} photos={L} /></section>
+      <section className="card space-y-3"><h2 className="t-section">Todas las fotos</h2><StorePhotos photos={all} /></section>
     </div>
   );
 }

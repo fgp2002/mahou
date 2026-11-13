@@ -11,6 +11,7 @@ import { OfflineWarmup } from "@/components/OfflineWarmup";
 import { complianceInRange, sumCompliance } from "@/lib/domain/report";
 import { monthEnd } from "@/lib/economy";
 import { INCIDENT_COLS, INCIDENT_TYPE_LABEL, PRIORITY_LABEL, PRIORITY_STYLE, daysOpen, sortIncidents, type Incident } from "@/lib/incidents";
+import { MahouEmblem } from "@/components/MahouLogo";
 import { AlertTriangle, ChevronRight, Clock, Euro, FileSignature, ShieldCheck, Wrench } from "lucide-react";
 
 const eur = (n: number) => n.toLocaleString("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
@@ -92,28 +93,29 @@ export default async function Today() {
   return (
     <div className="space-y-6">
       <header>
-        <p className="text-sm text-slate-500">{formatLong(today)}</p>
-        <h1 className="text-3xl font-bold tracking-tight">{greeting}</h1>
+        <p className="t-eyebrow">{formatLong(today)}</p>
+        <h1 className="t-display mt-1">{greeting}</h1>
       </header>
 
-      <section className="grid gap-3 md:grid-cols-[minmax(0,1.1fr)_minmax(0,2fr)]">
-        <Link href="/stores?state=pendiente&state=proxima&state=atrasada" className="card tap flex flex-col justify-between gap-2 !bg-brand-600 !text-white">
-          <span className="text-sm opacity-90">Visitas que faltan este mes</span>
-          <span className="text-6xl font-bold leading-none tabular-nums">{month.pending}</span>
-          <span className="text-sm opacity-90">{month.done} de {month.required} hechas{month.missed ? ` · ${month.missed} sin hacer en plazos ya cerrados` : ""}</span>
-          <span className="h-1.5 overflow-hidden rounded-full bg-white/25"><span className="block h-full rounded-full bg-white" style={{ width: `${month.required ? Math.round((month.done / month.required) * 100) : 0}%` }} /></span>
+      <section className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <Link href="/stores?state=pendiente&state=proxima&state=atrasada" className="card tap relative flex min-h-[13rem] flex-col justify-between gap-3 overflow-hidden !border-brand-700 !bg-brand-600 !p-5 text-[#fff] shadow-brand md:!p-6">
+          <MahouEmblem size={190} tone="white" className="pointer-events-none absolute -bottom-8 -right-6 opacity-[0.09]" />
+          <span className="relative text-sm font-semibold text-[#fff]/90">Visitas que faltan este mes</span>
+          <span className="relative text-7xl font-extrabold leading-none tracking-[-0.04em] tabular-nums">{month.pending}</span>
+          <span className="relative text-sm text-[#fff]/90">{month.done} de {month.required} hechas{month.missed ? ` · ${month.missed} sin hacer en plazos ya cerrados` : ""}</span>
+          <span className="relative h-2 overflow-hidden rounded-full bg-white/25"><span className="block h-full rounded-full bg-[#fff]" style={{ width: `${month.required ? Math.round((month.done / month.required) * 100) : 0}%` }} /></span>
         </Link>
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 xl:gap-3">
           {tiles.map((t) => (
-            <Link key={t.label} href={t.href} className="card tap flex min-h-[92px] flex-col justify-between !p-3">
-              <span className="flex items-center gap-1.5 text-xs text-slate-500">{t.icon}{t.label}</span>
-              <span className={`text-2xl font-bold tabular-nums ${t.tone}`}>{t.value}</span>
+            <Link key={t.label} href={t.href} className="card tap flex min-h-[6.25rem] flex-col justify-between gap-1 !p-3.5">
+              <span className="flex items-start gap-1.5 text-xs font-semibold leading-tight text-slate-500"><span className="mt-px shrink-0">{t.icon}</span>{t.label}</span>
+              <span className={`text-[1.75rem] font-extrabold leading-none tracking-[-0.03em] tabular-nums ${t.tone}`}>{t.value}</span>
               {t.hint ? <span className="truncate text-[11px] text-slate-500">{t.hint}</span> : <span />}
             </Link>
           ))}
-          <Link href={`/routes/${today}`} className="card tap flex min-h-[92px] flex-col justify-between !p-3">
-            <span className="text-xs text-slate-500">Ruta de hoy</span>
-            <span className="text-2xl font-bold tabular-nums">{stops.length ? `${doneStops}/${stops.length}` : "—"}</span>
+          <Link href={`/routes/${today}`} className="card tap flex min-h-[6.25rem] flex-col justify-between gap-1 !p-3.5">
+            <span className="text-xs font-semibold text-slate-500">Ruta de hoy</span>
+            <span className="text-[1.75rem] font-extrabold leading-none tracking-[-0.03em] tabular-nums">{stops.length ? `${doneStops}/${stops.length}` : "—"}</span>
             <span className="text-[11px] text-slate-500">{stops.length ? "paradas hechas" : "sin ruta"}</span>
           </Link>
         </div>
@@ -123,16 +125,16 @@ export default async function Today() {
       {route && <OfflineWarmup urls={[`/routes/${today}`, ...stops.map((s) => `/stores/${s.store_id}`)]} />}
 
       {open && (
-        <Link href={`/visits/${open.id}`} className="card tap flex items-center justify-between gap-3 !bg-slate-900 !text-white">
-          <span className="min-w-0"><span className="block text-xs opacity-70">Visita en curso</span><b className="block truncate">{(open.stores as unknown as { name: string } | null)?.name}</b></span>
-          <span className="shrink-0 text-sm underline">Continuar</span>
+        <Link href={`/visits/${open.id}`} className="card tap flex items-center justify-between gap-3 !border-brand-600/40 !bg-brand-50">
+          <span className="min-w-0"><span className="flex items-center gap-1.5 text-xs font-bold text-brand-700"><span className="h-2 w-2 animate-pulse rounded-full bg-brand-600" />Visita en curso</span><b className="block truncate">{(open.stores as unknown as { name: string } | null)?.name}</b></span>
+          <span className="link shrink-0 text-sm">Continuar</span>
         </Link>
       )}
 
       <section className="card space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-medium">Ruta de hoy</h2>
-          {route && <Link href={`/routes/${today}`} className="text-sm underline">{route.status === "proposed" ? "Revisar y aceptar" : "Ver ruta"}</Link>}
+          <h2 className="t-section">Ruta de hoy</h2>
+          {route && <Link href={`/routes/${today}`} className="link text-sm">{route.status === "proposed" ? "Revisar y aceptar" : "Ver ruta"}</Link>}
         </div>
         {!route || route.status === "rejected" ? (
           <>
@@ -176,7 +178,7 @@ export default async function Today() {
 
       <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
         <section className="card">
-          <h2 className="mb-2 font-medium">Prioritarias ahora</h2>
+          <h2 className="t-section mb-2">Prioritarias ahora</h2>
           {top.length === 0 ? <p className="text-sm text-slate-500">Nada pendiente. El seguimiento arranca el {settings.tracking_start}.</p> : (
             <ul className="divide-y divide-slate-200">
               {top.map((s) => (
@@ -191,7 +193,7 @@ export default async function Today() {
           )}
         </section>
         <section className="card">
-          <h2 className="mb-2 font-medium">Alertas</h2>
+          <h2 className="t-section mb-2">Alertas</h2>
           {(alerts ?? []).length === 0 ? <p className="text-sm text-slate-500">Sin alertas.</p> : (
             <ul className="divide-y divide-slate-200 text-sm">{alerts!.map((a) => {
               const href = alertHref(a);
@@ -205,8 +207,8 @@ export default async function Today() {
 
       <section className="card">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <h2 className="font-medium">Incidencias abiertas</h2>
-          <Link href="/incidents" className="text-sm underline">Ver todas</Link>
+          <h2 className="t-section">Incidencias abiertas</h2>
+          <Link href="/incidents" className="link text-sm">Ver todas</Link>
         </div>
         {openInc.length === 0 ? <p className="text-sm text-slate-500">No hay incidencias abiertas.</p> : (
           <ul className="divide-y divide-slate-200">

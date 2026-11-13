@@ -141,7 +141,7 @@ export function IncidentSheet({ incident, storeId, visitId, equipment = [], type
               <input type="file" accept="image/*" capture="environment" className="hidden" disabled={busy} onChange={(e) => { addPhoto(e.target.files); e.target.value = ""; }} /></label>
           </div>
         </div>
-        {i?.visit_id && <Link href={`/visits/${i.visit_id}`} className="text-sm font-semibold text-brand-600 underline">Ver la visita en la que se abrió</Link>}
+        {i?.visit_id && <Link href={`/visits/${i.visit_id}`} className="link text-sm">Ver la visita en la que se abrió</Link>}
       </div>
     </Sheet>
   );

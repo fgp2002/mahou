@@ -16,21 +16,24 @@ export function StateBadge({ state }: { state: DueState }) {
 export function Kpi({ label, value, hint, tone }: { label: string; value: React.ReactNode; hint?: string; tone?: "red" | "green" | "amber" }) {
   return (
     <div className="card">
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className={clsx("mt-1 text-2xl font-semibold", tone === "red" && "text-red-600", tone === "green" && "text-green-600", tone === "amber" && "text-amber-600")}>{value}</div>
+      <div className="text-xs font-semibold text-slate-500">{label}</div>
+      <div className={clsx("mt-1 text-2xl font-extrabold tracking-[-0.02em] tabular-nums", tone === "red" && "text-red-600", tone === "green" && "text-green-600", tone === "amber" && "text-amber-600")}>{value}</div>
       {hint && <div className="mt-1 text-xs text-slate-400">{hint}</div>}
     </div>
   );
 }
 
-export function PageHeader({ title, count, children }: { title: string; count?: number; children?: React.ReactNode }) {
+export function PageHeader({ title, count, subtitle, children }: { title: string; count?: number; subtitle?: React.ReactNode; children?: React.ReactNode }) {
   return (
-    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-      <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight">
-        {title}
-        {count != null && <span className="rounded-md bg-slate-200/70 px-2 py-0.5 text-sm font-semibold tabular-nums text-slate-600">{count.toLocaleString("es-ES")}</span>}
-      </h1>
-      <div className="flex flex-wrap gap-2">{children}</div>
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-x-4 gap-y-3 md:mb-6">
+      <div className="min-w-0">
+        <h1 className="t-page flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="min-w-0 break-words">{title}</span>
+          {count != null && <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-sm font-bold tabular-nums text-brand-700">{count.toLocaleString("es-ES")}</span>}
+        </h1>
+        {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
+      </div>
+      {children && <div className="flex flex-wrap gap-2">{children}</div>}
     </div>
   );
 }
@@ -64,7 +67,7 @@ export function EmptyState({ title, text, children }: { title: string; text?: st
         <path d="M48 86V62h24v24" /><path d="M48 32h0M72 32h0" strokeWidth="5" />
         <path d="M52 52q8 6 16 0" stroke="rgb(var(--slate-500))" />
       </svg>
-      <div className="text-base font-semibold">{title}</div>
+      <div className="t-section">{title}</div>
       {text && <p className="max-w-xs text-sm text-slate-500">{text}</p>}
       {children}
     </div>

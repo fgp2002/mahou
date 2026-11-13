@@ -68,7 +68,7 @@ export function VisitPayments({ visitId, storeId, payments, types, editable }: {
   return (
     <section className="card space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold">Pagos de esta visita</h2>
+        <h2 className="t-section">Pagos de esta visita</h2>
         <span className="text-sm font-bold tabular-nums">{eur(total)}</span>
       </div>
       {payments.length === 0 && !editable && <p className="text-sm text-slate-500">No se registraron pagos en esta visita.</p>}

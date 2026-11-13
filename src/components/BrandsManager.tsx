@@ -114,7 +114,7 @@ export function BrandsManager({ brands }: { brands: BrandUse[] }) {
   return (
     <section className="card space-y-4">
       <div>
-        <h2 className="font-semibold">Marcas</h2>
+        <h2 className="t-section">Marcas</h2>
         <p className="text-xs text-slate-500">Las marcas que eliges en cada pago (por ejemplo, la marca de una nevera o una cabecera). Toca el cuadro de la izquierda para ponerle logo.</p>
       </div>
       <div className="flex gap-2">
@@ -134,7 +134,7 @@ export function BrandsManager({ brands }: { brands: BrandUse[] }) {
               {edit?.id === b.id ? (
                 <>
                   <input className="input !min-h-9" autoFocus value={edit.name} maxLength={80} onChange={(e) => setEdit({ ...edit, name: e.target.value })}
-                    onKeyDown={(e) => { if (e.key === "Enter") rename(); if (e.key === "Escape") setEdit(null); }} aria-label="Nuevo nombre" />
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); rename(); } if (e.key === "Escape") setEdit(null); }} aria-label="Nuevo nombre" />
                   <button className="icon-btn" aria-label="Guardar nombre" disabled={busy} onClick={rename}><Check size={16} /></button>
                   <button className="icon-btn" aria-label="Cancelar" onClick={() => setEdit(null)}><X size={16} /></button>
                 </>

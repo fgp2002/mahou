@@ -29,7 +29,7 @@ export function GeocodePanel({ pending, failed }: { pending: number; failed: num
 
   return (
     <section className="card space-y-3">
-      <h2 className="font-medium">Ubicación de las tiendas</h2>
+      <h2 className="t-section">Ubicación de las tiendas</h2>
       <p className="text-sm text-slate-500">Pendientes de geocodificar: <b>{remaining}</b> · Fallidas: <b>{failed}</b>. Se usa Google Geocoding. Las ubicaciones aproximadas se marcan para que las revises.</p>
       <div className="flex gap-2">
         <button className="btn" disabled={busy || remaining === 0} onClick={() => run(false)}>{busy ? "Geocodificando…" : "Geocodificar pendientes"}</button>

@@ -183,7 +183,7 @@ export function PaymentSheet({ storeId, payment, types, categories, equipment, a
             <p className="mt-1 text-xs text-slate-500">{PAY_HINT[f.status]}</p>
           </div>
           <div className="col-span-2"><label className="label">Observaciones</label><input className="input" value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></div>
-          {init?.visit_id && <Link href={`/visits/${init.visit_id}`} className="col-span-2 text-sm font-semibold text-brand-600 underline">Ver la visita en la que se registró</Link>}
+          {init?.visit_id && <Link href={`/visits/${init.visit_id}`} className="link col-span-2 text-sm">Ver la visita en la que se registró</Link>}
         </div>
       )}
     </Sheet>

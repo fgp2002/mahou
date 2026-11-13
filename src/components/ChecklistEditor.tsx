@@ -23,7 +23,7 @@ export function ChecklistEditor({ ownerId, items }: { ownerId: string; items: st
   }
   return (
     <section className="card space-y-3">
-      <div><h2 className="font-semibold">Checklist de visita</h2><p className="text-sm text-slate-500">Casillas que aparecen al cerrar la visita. Ninguna es obligatoria.</p></div>
+      <div><h2 className="t-section">Checklist de visita</h2><p className="text-sm text-slate-500">Casillas que aparecen al cerrar la visita. Ninguna es obligatoria.</p></div>
       <ul className="space-y-1.5">
         {list.map((c, i) => (
           <li key={c} className="flex items-center gap-1.5 rounded-lg bg-slate-50 px-2 py-1.5 text-sm">
@@ -36,7 +36,7 @@ export function ChecklistEditor({ ownerId, items }: { ownerId: string; items: st
       </ul>
       <div className="flex gap-2">
         <input className="input" placeholder="Nueva comprobación" value={txt} maxLength={60} onChange={(e) => setTxt(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && txt.trim() && !list.includes(txt.trim())) { setList([...list, txt.trim()]); setTxt(""); } }} />
+          onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); if (e.key === "Enter" && txt.trim() && !list.includes(txt.trim())) { setList([...list, txt.trim()]); setTxt(""); } }} />
         <button className="btn-secondary" disabled={!txt.trim() || list.includes(txt.trim())} onClick={() => { setList([...list, txt.trim()]); setTxt(""); }}><Plus size={16} /></button>
       </div>
       <button className="btn" disabled={!dirty || busy} onClick={save}>Guardar checklist</button>

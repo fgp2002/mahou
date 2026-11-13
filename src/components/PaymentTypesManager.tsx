@@ -55,7 +55,7 @@ export function PaymentTypesManager({ types, usage, categories }: { types: Payme
 
   return (
     <section className="card space-y-3">
-      <h2 className="font-medium">Tipos de elemento y conceptos de pago</h2>
+      <h2 className="t-section">Tipos de elemento y conceptos de pago</h2>
       <p className="text-sm text-slate-500">Un solo catálogo para el inventario y los pagos. Marca «Se instala en tienda» en lo que es físico (neveras, cabeceras, expositores…): aparecerá en el inventario. Los pagos ya registrados conservan su nombre original; los tipos con historial no se pueden eliminar, solo desactivar.</p>
       <ul className="divide-y divide-slate-200">
         {types.map((t) => {

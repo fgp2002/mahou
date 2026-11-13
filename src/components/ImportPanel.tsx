@@ -89,7 +89,7 @@ export function ImportPanel() {
 
   return (
     <section className="card space-y-3">
-      <h2 className="font-medium">Importar Excel de puntos de venta</h2>
+      <h2 className="t-section">Importar Excel de puntos de venta</h2>
       <p className="text-sm text-slate-500">Se conservan los IDs originales. Si un ID ya existe se actualiza (salvo los campos que hayas editado a mano). Antes de guardar verás una vista previa.</p>
       <input type="file" accept=".xlsx" onChange={(e) => onFile(e.target.files?.[0])} />
       {err && <p className="text-sm text-red-600">{err}</p>}

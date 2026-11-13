@@ -60,7 +60,7 @@ export function MapSelectBar({ picked, onRemove, onClear, onClose }: {
               <button type="button" aria-label={`Quitar ${p.name}`} onClick={() => onRemove(p.id)} className="icon-btn !h-7 !w-7"><X size={14} /></button>
             </li>
           ))}
-          <li><button type="button" className="text-xs text-brand-600 underline" onClick={onClear}>Quitar todas</button></li>
+          <li><button type="button" className="link text-xs" onClick={onClear}>Quitar todas</button></li>
         </ul>
       )}
 

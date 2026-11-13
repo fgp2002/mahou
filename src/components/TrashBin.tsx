@@ -41,7 +41,7 @@ export function TrashBin({ items }: { items: TrashItem[] }) {
       <p className="text-sm text-slate-500">Lo que envías a la papelera deja de verse en la app pero no se borra. Recupéralo cuando quieras o elimínalo para siempre.</p>
       {groups.map(([t, xs]) => (
         <section key={t} className="card space-y-2">
-          <h2 className="font-semibold">{GROUP[t]} ({xs.length})</h2>
+          <h2 className="t-section">{GROUP[t]} ({xs.length})</h2>
           <ul className="divide-y divide-slate-100">
             {xs.map((it) => (
               <li key={it.id} className="flex items-center gap-3 py-2.5 text-sm">

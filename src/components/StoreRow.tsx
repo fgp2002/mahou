@@ -1,4 +1,5 @@
 "use client";
+import { ScrollLock } from "@/lib/useScrollLock";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { MapPin, Play, Store as StoreIcon, X } from "lucide-react";
@@ -67,6 +68,7 @@ export function StoreRow({ s }: { s: StoreRowData }) {
 
       {menu && (
         <div className="fixed inset-0 z-[70] flex items-end bg-black/40 fade-in" onClick={() => setMenu(false)}>
+          <ScrollLock />
           <div className="sheet-up w-full rounded-t-2xl bg-white p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))]" onClick={(e) => e.stopPropagation()}>
             <div className="mb-2 flex items-center justify-between"><b className="truncate">{s.name}</b><button aria-label="Cerrar" className="p-2" onClick={() => setMenu(false)}><X size={18} /></button></div>
             <Link href={`/stores/${s.id}`} className="flex min-h-12 items-center rounded-lg px-3 hover:bg-slate-100">Ver ficha</Link>

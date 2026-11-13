@@ -16,7 +16,7 @@ export default async function RoutePage({ params }: { params: Promise<{ date: st
     return (
       <div className="max-w-3xl space-y-6">
         <PageHeader title={formatLong(date)}><Link href="/routes" className="btn-secondary">Todas las rutas</Link></PageHeader>
-        <p className="text-sm text-slate-500">No hay ruta para este día. Genera una automática o <Link href="/map" className="font-semibold text-brand-600 underline">elige tiendas en el mapa</Link> con «Seleccionar» y la ruta se completará con las pendientes más cercanas.</p>
+        <p className="text-sm text-slate-500">No hay ruta para este día. Genera una automática o <Link href="/map" className="link">elige tiendas en el mapa</Link> con «Seleccionar» y la ruta se completará con las pendientes más cercanas.</p>
         <GenerateRoute defaultDate={date} routeStart="la hora configurada" />
       </div>
     );
@@ -41,13 +41,15 @@ export default async function RoutePage({ params }: { params: Promise<{ date: st
   const preview = located.map((s, i) => ({ lat: s.stores.lat!, lng: s.stores.lng!, name: s.stores.name, done: s.visit?.status === "completed", next: i === nextIdx }));
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="space-y-6">
       <PageHeader title={formatLong(date)}><Link href="/routes" className="btn-secondary">Todas las rutas</Link></PageHeader>
-      {preview.length > 0 && <RoutePreviewLoader stops={preview} start={start} polyline={polyline} />}
+      <div className="space-y-6 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:items-start xl:gap-6 xl:space-y-0">
+      {preview.length > 0 && <div className="xl:sticky xl:top-24"><RoutePreviewLoader stops={preview} start={start} polyline={polyline} /></div>}
       <RouteEditor
         route={{ id: route.id, date, status: route.status, start_time: String(route.start_time).slice(0, 5), is_estimate: route.is_estimate, provider: route.routing_provider, drive: route.est_drive_seconds ?? 0, visit: route.est_visit_seconds ?? 0, dist: route.est_distance_m ?? 0, unscheduled: route.unscheduled ?? [], warnings: route.warnings ?? [], generated_by: route.generated_by, user_modified: route.user_modified, lunch_start: route.lunch_start, lunch_after: route.lunch_after_position, banners: route.banner_filter, saved: route.est_saved_seconds }}
         stops={views}
       />
+      </div>
     </div>
   );
 }

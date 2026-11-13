@@ -51,7 +51,7 @@ export function VisitItems({ visitId, initial, editable }: { visitId: string; in
   if (!editable && items.length === 0) return null;
   return (
     <section className="card space-y-3">
-      <h2 className="font-semibold">Material colocado</h2>
+      <h2 className="t-section">Material colocado</h2>
       {items.length === 0 && <p className="text-sm text-slate-500">Nada todavía.</p>}
       <ul className="divide-y divide-slate-100">
         {items.map((it) => (

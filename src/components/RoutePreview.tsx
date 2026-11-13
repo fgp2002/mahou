@@ -1,4 +1,5 @@
 "use client";
+import { ScrollLock } from "@/lib/useScrollLock";
 import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import { Maximize2, Minimize2 } from "lucide-react";
@@ -66,6 +67,7 @@ export function RoutePreview({ stops, start, polyline }: { stops: PreviewStop[];
 
   return (
     <div className={big ? "fixed inset-0 z-[80] bg-black p-0 fade-in" : "relative"}>
+      {big && <ScrollLock />}
       <div ref={el} className={big ? "map-touch h-full w-full" : "map-touch h-72 w-full overflow-hidden rounded-xl border border-slate-200 md:h-96"} aria-label="Vista previa de la ruta" />
       <button type="button" onClick={() => setBig(!big)} aria-label={big ? "Cerrar vista grande" : "Ver en grande"}
         className={`absolute z-[500] flex h-10 w-10 items-center justify-center rounded-lg bg-white text-slate-900 shadow-pop ${big ? "right-4 top-[max(1rem,env(safe-area-inset-top))]" : "right-3 top-3"}`}>

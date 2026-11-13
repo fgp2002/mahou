@@ -217,7 +217,7 @@ export function EquipmentSheet({ item, typeName, types, visitId, onClose }: { it
                   {pays.map((p) => (
                     <li key={p.id} className="flex items-center gap-2 py-2">
                       <span className="w-20 shrink-0 tabular-nums text-slate-500">{dmy(p.payment_date)}</span>
-                      <span className="min-w-0 flex-1 truncate">{p.concept_name}{p.visit_id && <Link href={`/visits/${p.visit_id}`} className="ml-1 text-xs text-brand-600 underline">visita</Link>}</span>
+                      <span className="min-w-0 flex-1 truncate">{p.concept_name}{p.visit_id && <Link href={`/visits/${p.visit_id}`} className="link ml-1 text-xs">visita</Link>}</span>
                       <b className="tabular-nums">{eur(Number(p.amount))}</b>
                       <span className="badge bg-slate-100 text-slate-600">{PAY_LABEL[p.status] ?? p.status}</span>
                     </li>
@@ -234,7 +234,7 @@ export function EquipmentSheet({ item, typeName, types, visitId, onClose }: { it
               {events.map((ev) => (
                 <li key={ev.id} className="relative text-sm">
                   <span className="absolute -left-[1.32rem] top-1.5 h-2.5 w-2.5 rounded-full bg-brand-600" />
-                  <div className="text-xs tabular-nums text-slate-500">{dmy(ev.occurred_on)}{ev.visit_id && <> · <Link href={`/visits/${ev.visit_id}`} className="text-brand-600 underline">en visita</Link></>}</div>
+                  <div className="text-xs tabular-nums text-slate-500">{dmy(ev.occurred_on)}{ev.visit_id && <> · <Link href={`/visits/${ev.visit_id}`} className="link">en visita</Link></>}</div>
                   <div>{describeEvent(ev)}</div>
                 </li>
               ))}

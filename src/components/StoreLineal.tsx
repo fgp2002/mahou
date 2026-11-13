@@ -1,4 +1,5 @@
 "use client";
+import { ScrollLock } from "@/lib/useScrollLock";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -58,8 +59,8 @@ export function StoreLineal({ storeId, photos, visitId }: { storeId: string; pho
       {latest ? (
         <button type="button" onClick={() => setBig(latest)} className="tap relative block w-full overflow-hidden rounded-xl bg-slate-100" aria-label="Ver la foto actual del lineal en grande">
           <Img p={latest} className={clsx("max-h-80 w-full object-contain", busy && "opacity-60")} />
-          <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-semibold text-white">Actual · {when(latest.taken_at)}</span>
-          <span className="absolute right-2 top-2 rounded-full bg-black/55 p-1.5 text-white"><Maximize2 size={14} /></span>
+          <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-semibold text-[#fff]">Actual · {when(latest.taken_at)}</span>
+          <span className="absolute right-2 top-2 rounded-full bg-black/55 p-1.5 text-[#fff]"><Maximize2 size={14} /></span>
         </button>
       ) : (
         <p className="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">Todavía no hay fotos del lineal de esta tienda.</p>
@@ -115,11 +116,12 @@ export function StoreLineal({ storeId, photos, visitId }: { storeId: string; pho
 
       {big && (
         <div className="fixed inset-0 z-[90] flex flex-col bg-black/95" role="dialog" aria-label="Foto del lineal">
-          <div className="flex items-center gap-2 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
+          <ScrollLock />
+          <div className="flex items-center gap-2 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] text-[#fff]">
             <span className="min-w-0 flex-1 truncate text-sm">{when(big.taken_at)}{big.id === latest?.id ? " · actual" : ""}</span>
-            {big.visit_id && <Link href={`/visits/${big.visit_id}`} className="rounded-full bg-white/15 px-3 py-1.5 text-xs">Visita</Link>}
-            <button className="rounded-full bg-white/15 p-2" aria-label="Enviar a la papelera" onClick={() => remove(big)}><Trash2 size={18} /></button>
-            <button className="rounded-full bg-white/15 p-2" aria-label="Cerrar" onClick={() => setBig(null)}><X size={20} /></button>
+            {big.visit_id && <Link href={`/visits/${big.visit_id}`} className="rounded-full bg-[#fff]/15 px-3 py-1.5 text-xs">Visita</Link>}
+            <button className="rounded-full bg-[#fff]/15 p-2" aria-label="Enviar a la papelera" onClick={() => remove(big)}><Trash2 size={18} /></button>
+            <button className="rounded-full bg-[#fff]/15 p-2" aria-label="Cerrar" onClick={() => setBig(null)}><X size={20} /></button>
           </div>
           <div className="flex flex-1 items-center justify-center p-2" onClick={() => setBig(null)}><Img p={big} className="max-h-full max-w-full object-contain" /></div>
         </div>

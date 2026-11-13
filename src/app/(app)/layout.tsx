@@ -19,9 +19,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <ToastHost />
       <PullToRefresh />
       <OfflineManager />
-      <main className="scroll-root min-w-0 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:ml-60 md:px-6 md:pb-10 xl:px-8">
+      <main className="scroll-root min-w-0 px-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] md:px-6 lg:ml-64 lg:pb-12 xl:px-10">
         <TopBar unread={count ?? 0} alerts={alerts as AlertItem[]} />
-        <div className="page pt-2"><PageTransition>{children}</PageTransition></div>
+        <div className="page pt-4 lg:pt-3"><PageTransition>{children}</PageTransition></div>
       </main>
     </div>
   );

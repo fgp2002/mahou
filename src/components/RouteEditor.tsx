@@ -260,7 +260,7 @@ export function RouteEditor({ route, stops }: { route: RouteView; stops: StopVie
 
       {!locked && (
         <div className="card space-y-2">
-          <h2 className="font-medium">Añadir tienda a la ruta</h2>
+          <h2 className="t-section">Añadir tienda a la ruta</h2>
           <StorePicker value={adding} onChange={setAdding} />
           <button className="btn" disabled={!adding || busy} onClick={addStop}>Añadir al final</button>
         </div>
@@ -268,7 +268,7 @@ export function RouteEditor({ route, stops }: { route: RouteView; stops: StopVie
 
       {route.unscheduled.length > 0 && (
         <div className="card text-sm">
-          <h2 className="mb-2 font-medium">Pendientes que no entraron ({route.unscheduled.length})</h2>
+          <h2 className="t-section mb-2">Pendientes que no entraron ({route.unscheduled.length})</h2>
           <ul className="space-y-1">
             {route.unscheduled.map((u) => (
               <li key={u.store_id}><Link className="underline" href={`/stores/${u.store_id}`}>{u.name}</Link> <span className="text-slate-500">— {UNSCHEDULED_LABEL[u.reason] ?? u.reason}</span></li>

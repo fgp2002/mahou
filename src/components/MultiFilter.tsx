@@ -1,4 +1,5 @@
 "use client";
+import { ScrollLock } from "@/lib/useScrollLock";
 import { useEffect, useId, useMemo, useState } from "react";
 import clsx from "clsx";
 import { Check, ChevronDown, Search, X } from "lucide-react";
@@ -38,6 +39,7 @@ export function MultiFilter({ label, values, onChange, options, all = "Todos" }:
 
       {open && (
         <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/40 fade-in md:items-center md:p-6" onClick={() => setOpen(false)} data-no-ptr>
+          <ScrollLock />
           <div role="dialog" aria-label={label} onClick={(e) => e.stopPropagation()}
             className="sheet-up flex max-h-[80dvh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-pop md:rounded-2xl">
             <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">

@@ -148,12 +148,12 @@ async function Datos() {
       <ImportPanel />
       {(runs ?? []).length > 0 && (
         <section className="card text-sm">
-          <h2 className="mb-2 font-semibold">Últimas importaciones</h2>
+          <h2 className="t-section mb-2">Últimas importaciones</h2>
           <ul className="space-y-1">{runs!.map((r) => <li key={r.id}>{r.created_at.slice(0, 16).replace("T", " ")} · {r.filename} · +{r.inserted} / ~{r.updated} / ={r.skipped}</li>)}</ul>
         </section>
       )}
       <section className="card space-y-2 text-sm">
-        <h2 className="font-semibold">Exportar datos</h2>
+        <h2 className="t-section">Exportar datos</h2>
         <a className="btn-secondary" href="/api/export">Descargar tiendas (CSV)</a>
       </section>
     </div>

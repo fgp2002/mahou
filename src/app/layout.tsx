@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { FormAssist } from "@/components/FormAssist";
 
-const nunito = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 
 export const metadata: Metadata = {
   title: "Mahou · Gestión de visitas",
@@ -10,15 +11,15 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: "Mahou", statusBarStyle: "default" },
   robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } },
 };
-export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: [{ media: "(prefers-color-scheme: light)", color: "#ffffff" }, { media: "(prefers-color-scheme: dark)", color: "#0c0c0d" }] };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: [{ media: "(prefers-color-scheme: light)", color: "#DE1F26" }, { media: "(prefers-color-scheme: dark)", color: "#96161C" }] };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={nunito.variable} suppressHydrationWarning>
+    <html lang="es" className={inter.variable} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem("mahou-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}` }} />
       </head>
-      <body>{children}</body>
+      <body><FormAssist />{children}</body>
     </html>
   );
 }

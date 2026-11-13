@@ -1,4 +1,5 @@
 "use client";
+import { ScrollLock } from "@/lib/useScrollLock";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
@@ -97,7 +98,7 @@ export function ProductsManager({ products }: { products: Product[] }) {
     <section className="card space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="font-semibold">Productos</h2>
+          <h2 className="t-section">Productos</h2>
           <p className="text-xs text-slate-500">{products.length} en el catálogo</p>
         </div>
         <button className="btn" onClick={() => { setErr(null); setD({ ...empty }); }}><Plus size={16} /> Nuevo producto</button>
@@ -133,6 +134,7 @@ export function ProductsManager({ products }: { products: Product[] }) {
 
       {d && (
         <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 fade-in md:items-center" onClick={() => setD(null)}>
+          <ScrollLock />
           <div role="dialog" aria-label={d.id ? "Editar producto" : "Nuevo producto"} onClick={(e) => e.stopPropagation()}
             className="sheet-up max-h-[92dvh] w-full max-w-lg space-y-3 overflow-y-auto rounded-t-2xl bg-white p-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:rounded-lg">
             <div className="flex items-center justify-between"><b className="text-lg">{d.id ? "Editar producto" : "Nuevo producto"}</b><button aria-label="Cerrar" className="p-2" onClick={() => setD(null)}><X size={18} /></button></div>

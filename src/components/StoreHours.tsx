@@ -50,7 +50,7 @@ export function StoreHours({ store }: { store: StoreHoursValues & { id: string }
         <div className="label">Días de apertura</div>
         <div className="flex gap-1">{DAY_SHORT.map((d, i) => (
           <button key={d} type="button" aria-pressed={f.days.includes(i)} onClick={() => setF({ ...f, days: f.days.includes(i) ? f.days.filter((x) => x !== i) : [...f.days, i] })}
-            className={clsx("tap h-10 flex-1 rounded-lg border text-sm font-semibold", f.days.includes(i) ? "border-slate-900 bg-slate-900 text-slate-50" : "border-slate-200 text-slate-500")}>{d}</button>
+            className={clsx("tap h-10 flex-1 rounded-lg border text-sm font-semibold", f.days.includes(i) ? "border-brand-600 bg-brand-600 text-[rgb(var(--on-accent))]" : "border-slate-200 text-slate-500")}>{d}</button>
         ))}</div>
         <p className="mt-1 text-xs text-slate-500">Sin marcar ninguno = abre todos los días.</p>
       </div>

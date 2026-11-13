@@ -27,7 +27,7 @@ export function PeriodPicker({ allowCustom = true }: { allowCustom?: boolean }) 
   }
   const chip = (label: string, period: string) => (
     <button key={period} type="button" onClick={() => { setCustom({ ...custom, open: false }); go(period); }}
-      className={clsx("tap min-h-10 whitespace-nowrap rounded-full border px-3.5 text-sm", cur === period ? "border-slate-900 bg-slate-900 font-semibold text-slate-50" : "border-slate-300 bg-white text-slate-700")}>{label}</button>
+      className={clsx("tap min-h-10 whitespace-nowrap rounded-full border px-3.5 text-sm", cur === period ? "border-brand-600 bg-brand-600 font-semibold text-[rgb(var(--on-accent))]" : "border-slate-300 bg-white text-slate-700")}>{label}</button>
   );
   const other = /^\d{4}-\d{2}$/.test(cur) && cur !== thisMonth && cur !== prevMonth;
 
@@ -40,7 +40,7 @@ export function PeriodPicker({ allowCustom = true }: { allowCustom?: boolean }) 
         {chip("Año anterior", String(Number(year) - 1))}
         <input type="month" aria-label="Elegir mes" value={other ? cur : ""} onChange={(e) => e.target.value && go(e.target.value)}
           className={clsx("input !min-h-10 !w-auto !rounded-full", other && "!border-slate-900 font-semibold")} />
-        {allowCustom && <button type="button" onClick={() => setCustom({ ...custom, open: !custom.open })} className={clsx("tap min-h-10 whitespace-nowrap rounded-full border px-3.5 text-sm", cur === "custom" ? "border-slate-900 bg-slate-900 font-semibold text-slate-50" : "border-slate-300 bg-white text-slate-700")}>Fechas…</button>}
+        {allowCustom && <button type="button" onClick={() => setCustom({ ...custom, open: !custom.open })} className={clsx("tap min-h-10 whitespace-nowrap rounded-full border px-3.5 text-sm", cur === "custom" ? "border-brand-600 bg-brand-600 font-semibold text-[rgb(var(--on-accent))]" : "border-slate-300 bg-white text-slate-700")}>Fechas…</button>}
       </div>
       {custom.open && (
         <div className="fade-in flex flex-wrap items-end gap-2">

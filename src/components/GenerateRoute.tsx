@@ -66,7 +66,7 @@ export function GenerateRoute({ defaultDate, routeStart, embedded = false }: { d
         <div className="fade-in space-y-2 rounded-lg border border-slate-200 p-3">
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm font-semibold">Basar la ruta solo en estas enseñas</span>
-            {picked.length > 0 && <button type="button" className="text-xs text-brand-600 underline" onClick={() => setPicked([])}>Quitar selección</button>}
+            {picked.length > 0 && <button type="button" className="link text-xs" onClick={() => setPicked([])}>Quitar selección</button>}
           </div>
           <input className="input" placeholder="Buscar enseña…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar enseña" />
           {!banners ? <p className="text-sm text-slate-500">Cargando enseñas…</p> : (

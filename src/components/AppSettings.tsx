@@ -30,7 +30,7 @@ export function ThemeSwitch() {
   return (
     <section className="card space-y-3">
       <div>
-        <h2 className="font-semibold">Apariencia</h2>
+        <h2 className="t-section">Apariencia</h2>
         <p className="text-xs text-slate-500">Automático sigue el modo claro u oscuro de tu dispositivo. Se guarda en este dispositivo.</p>
       </div>
       <div className="grid grid-cols-3 gap-2">
@@ -75,7 +75,7 @@ export function AccountPanel({ email }: { email: string }) {
     <section className="card space-y-4">
       <div className="flex items-center gap-3">
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-lg font-bold uppercase text-[rgb(var(--on-accent))]">{email.slice(0, 1)}</span>
-        <div className="min-w-0"><h2 className="font-semibold">Cuenta</h2><p className="truncate text-sm text-slate-500">{email}</p></div>
+        <div className="min-w-0"><h2 className="t-section">Cuenta</h2><p className="truncate text-sm text-slate-500">{email}</p></div>
       </div>
       <div className="space-y-2">
         <div className="label">Cambiar contraseña</div>

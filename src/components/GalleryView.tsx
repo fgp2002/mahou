@@ -1,4 +1,5 @@
 "use client";
+import { ScrollLock } from "@/lib/useScrollLock";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Images, X } from "lucide-react";
@@ -65,7 +66,7 @@ export function GalleryView({ photos, tags }: { photos: GalleryPhoto[]; tags: Ta
           {shown.map((p) => (
             <button key={p.id} onClick={() => setOpen(p)} className="tap group relative aspect-square overflow-hidden rounded-lg bg-slate-100 text-left">
               {p.url && /* eslint-disable-next-line @next/next/no-img-element */ <img src={p.url} alt={`${p.store}, ${p.date}`} loading="lazy" decoding="async" className="h-full w-full object-cover" />}
-              <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 text-[11px] leading-tight text-white">
+              <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 text-[11px] leading-tight text-[#fff]">
                 <b className="block truncate">{p.store}</b>
                 <span className="block truncate opacity-90">{p.tagIds.map((id) => tagById.get(id)?.name).filter(Boolean).join(" · ") || p.date}</span>
               </span>
@@ -76,11 +77,12 @@ export function GalleryView({ photos, tags }: { photos: GalleryPhoto[]; tags: Ta
 
       {open && (
         <div className="fixed inset-0 z-[60] flex flex-col bg-black/90 p-4 pt-[max(1rem,env(safe-area-inset-top))]" role="dialog" aria-label="Foto" onClick={() => setOpen(null)}>
-          <button aria-label="Cerrar" className="self-end rounded-full bg-white/15 p-2 text-white" onClick={() => setOpen(null)}><X size={22} /></button>
+          <ScrollLock />
+          <button aria-label="Cerrar" className="self-end rounded-full bg-[#fff]/15 p-2 text-[#fff]" onClick={() => setOpen(null)}><X size={22} /></button>
           <div className="flex min-h-0 flex-1 items-center justify-center" onClick={(e) => e.stopPropagation()}>
             {(full ?? open.url) && /* eslint-disable-next-line @next/next/no-img-element */ <img src={(full ?? open.url)!} alt={open.store} className="max-h-full max-w-full rounded-xl object-contain" />}
           </div>
-          <div className="space-y-2 pt-3 text-center text-sm text-white" onClick={(e) => e.stopPropagation()}>
+          <div className="space-y-2 pt-3 text-center text-sm text-[#fff]" onClick={(e) => e.stopPropagation()}>
             <div><b>{open.store}</b> {open.town && `· ${open.town}`} · {open.date}</div>
             <div className="flex flex-wrap justify-center gap-1.5">
               {open.tagIds.map((id) => tagById.get(id)).filter(Boolean).map((t) => <span key={t!.id} className="rounded-full bg-white/20 px-3 py-1 text-xs">{t!.name}</span>)}

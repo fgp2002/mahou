@@ -14,7 +14,7 @@ export default async function NewVisitPage({ searchParams }: { searchParams: Pro
     initial = data;
   }
   return (
-    <div>
+    <div className="mx-auto max-w-2xl">
       <PageHeader title="Nueva visita" />
       <NewVisit initialStore={initial} durations={{ ...DEFAULT_DURATIONS, ...settings.visit_durations }} />
     </div>

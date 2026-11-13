@@ -47,7 +47,7 @@ export function IncidentList({ incidents, storeId, storeNames, visitId, equipmen
         </>
       )}
       {allowNew && storeId && <button className="btn-secondary w-full sm:w-auto" onClick={() => setOpen("new")}><Plus size={16} /> Incidencia</button>}
-      {!storeId && compact && openOnes.length > 0 && <Link href="/incidents" className="text-sm font-semibold text-brand-600 underline">Ver todas</Link>}
+      {!storeId && compact && openOnes.length > 0 && <Link href="/incidents" className="link text-sm">Ver todas</Link>}
       {open && <IncidentSheet incident={current} storeId={current?.store_id ?? storeId!} visitId={visitId} equipment={equipment} types={types} onClose={() => setOpen(null)} />}
     </div>
   );

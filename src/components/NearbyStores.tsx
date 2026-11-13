@@ -38,7 +38,7 @@ export function NearbyStores({ onPick }: { onPick: (s: PickedStore) => void }) {
   if (state === "denied") return (
     <div className="card flex flex-wrap items-center gap-3 text-sm text-slate-600">
       <MapPin size={18} /> No se pudo usar tu ubicación. Elige la tienda abajo o
-      <button type="button" className="font-semibold text-brand-600 underline" onClick={locate}>vuelve a intentarlo</button>.
+      <button type="button" className="link" onClick={locate}>vuelve a intentarlo</button>.
     </div>
   );
   return (

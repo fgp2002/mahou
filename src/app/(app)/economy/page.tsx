@@ -127,7 +127,7 @@ export default async function EconomyPage({ searchParams }: { searchParams: Prom
       ) : (
         <>
           <section className="card space-y-3">
-            <h2 className="font-semibold">Por tipo de inversión</h2>
+            <h2 className="t-section">Por tipo de inversión</h2>
             <ul className="space-y-2.5">
               {cats.map(([id, c]) => (
                 <li key={id}>
@@ -141,7 +141,7 @@ export default async function EconomyPage({ searchParams }: { searchParams: Prom
           </section>
 
           <section className="card space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold">Evolución (12 meses)</h2>
+            <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="t-section">Evolución (12 meses)</h2>
               <span className="flex gap-3 text-[11px] text-slate-500"><span className="inline-flex items-center gap-1"><i className="h-2.5 w-2.5 rounded-sm bg-brand-600" />Dinero</span><span className="inline-flex items-center gap-1"><i className="h-2.5 w-2.5 rounded-sm bg-brand-300" />Especie</span><span className="inline-flex items-center gap-1"><i className="h-0.5 w-3 bg-slate-900" />Comprometido</span></span></div>
             <div className="flex h-40 items-end gap-1.5">
               {evo.map((e) => (
@@ -157,13 +157,13 @@ export default async function EconomyPage({ searchParams }: { searchParams: Prom
 
           <div className="grid gap-4 lg:grid-cols-2">
             <section className="card space-y-2">
-              <h2 className="font-semibold">Por enseña</h2>
+              <h2 className="t-section">Por enseña</h2>
               {banners.length === 0 ? <p className="text-sm text-slate-500">Sin inversión ejecutada.</p> : (
                 <ul className="divide-y divide-slate-100 text-sm">{banners.map(([b, v]) => <li key={b}><Link href={`/economy?${qs({ banner: b })}`} className="row-link -mx-2 flex min-h-11 items-center justify-between rounded-lg px-2"><span>{b}</span><b className="tabular-nums">{eur(v)}</b></Link></li>)}</ul>
               )}
             </section>
             <section className="card space-y-2">
-              <h2 className="font-semibold">Tiendas con más inversión</h2>
+              <h2 className="t-section">Tiendas con más inversión</h2>
               {topStores.length === 0 ? <p className="text-sm text-slate-500">Sin inversión ejecutada.</p> : (
                 <ol className="divide-y divide-slate-100 text-sm">{topStores.map(([id, v]) => <li key={id}><Link href={`/stores/${id}?tab=pagos`} className="row-link -mx-2 flex min-h-11 items-center justify-between gap-2 rounded-lg px-2"><span className="truncate">{storeById.get(id)?.name}<span className="text-xs text-slate-500"> · {storeById.get(id)?.town}</span></span><b className="tabular-nums">{eur(v)}</b></Link></li>)}</ol>
               )}
@@ -176,7 +176,7 @@ export default async function EconomyPage({ searchParams }: { searchParams: Prom
         <div className="grid gap-4 lg:grid-cols-2">
           {expiring.length > 0 && (
             <section className="card space-y-2">
-              <h2 className="font-semibold">Acuerdos que vencen en 60 días</h2>
+              <h2 className="t-section">Acuerdos que vencen en 60 días</h2>
               <ul className="divide-y divide-slate-100 text-sm">{expiring.map(({ a, d }) => (
                 <li key={a.id}><Link href={`/stores/${a.store_id}?tab=pagos`} className="row-link -mx-2 flex min-h-11 items-center justify-between gap-2 rounded-lg px-2">
                   <span className="min-w-0"><span className="block truncate font-medium">{a.title || typeById.get(a.type_id)?.name}</span><span className="block truncate text-xs text-slate-500">{storeById.get(a.store_id)?.name} · {AGREEMENT_LABEL[a.status]} · {eur(monthlyEquivalent(a))}/mes</span></span>
@@ -187,7 +187,7 @@ export default async function EconomyPage({ searchParams }: { searchParams: Prom
           )}
           {dups.length > 0 && (
             <section className="card space-y-2 border-[rgb(var(--st-soon))]">
-              <h2 className="flex items-center gap-2 font-semibold"><AlertTriangle size={17} className="text-[rgb(var(--st-soon))]" /> Posibles pagos duplicados</h2>
+              <h2 className="t-section flex items-center gap-2"><AlertTriangle size={17} className="text-[rgb(var(--st-soon))]" /> Posibles pagos duplicados</h2>
               <p className="text-xs text-slate-500">Misma tienda, mismo concepto y mismo mes. Revísalos y cancela el que sobre.</p>
               <ul className="divide-y divide-slate-100 text-sm">{dups.slice(0, 20).map((g) => (
                 <li key={g[0].id}><Link href={`/stores/${g[0].store_id}?tab=pagos`} className="row-link -mx-2 flex min-h-11 items-center justify-between gap-2 rounded-lg px-2">
@@ -202,7 +202,7 @@ export default async function EconomyPage({ searchParams }: { searchParams: Prom
 
       {cur.length > 0 && (
         <section className="card !p-0">
-          <h2 className="px-4 pt-4 font-semibold md:px-5">Pagos del periodo ({cur.length})</h2>
+          <h2 className="t-section px-4 pt-4 md:px-5">Pagos del periodo ({cur.length})</h2>
           <div className="h-scroll mt-2">
             <table className="data-table">
               <thead><tr><th className="pl-4">Fecha</th><th>Tienda</th><th>Concepto</th><th className="text-right">Importe</th><th>Estado</th></tr></thead>

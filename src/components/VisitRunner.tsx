@@ -156,7 +156,7 @@ export function VisitRunner({ visit, storeName, contacts, equipment, photos, typ
         <>
           <div className="card space-y-4 fade-in">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="font-semibold">Resumen de la visita</h2>
+              <h2 className="t-section">Resumen de la visita</h2>
               <button className="btn-secondary" onClick={() => setEditing(true)}><Pencil size={15} /> Editar visita</button>
             </div>
             <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
@@ -175,7 +175,7 @@ export function VisitRunner({ visit, storeName, contacts, equipment, photos, typ
           <VisitPayments visitId={visit.id} storeId={visit.store_id} payments={payments} types={localTypes} editable={false} />
           <VisitItems visitId={visit.id} initial={items} editable={false} />
           <div className="card space-y-3">
-            <h2 className="font-semibold">Fotos ({photos.length})</h2>
+            <h2 className="t-section">Fotos ({photos.length})</h2>
             {photos.length === 0 ? <p className="text-sm text-slate-500">Sin fotos.</p> : (
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {photos.map((p) => (
@@ -193,7 +193,7 @@ export function VisitRunner({ visit, storeName, contacts, equipment, photos, typ
       {editing && (
         <div className="card space-y-3 fade-in">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="font-semibold">Editando visita</h2>
+            <h2 className="t-section">Editando visita</h2>
             <button className="btn-secondary" onClick={() => setEditing(false)} disabled={busy}>Cancelar</button>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -220,7 +220,7 @@ export function VisitRunner({ visit, storeName, contacts, equipment, photos, typ
 
       {vis(0) && (
       <div className="card space-y-3 fade-in">
-        <h2 className="font-medium">Fotos</h2>
+        <h2 className="t-section">Fotos</h2>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {photos.map((p) => (
             <div key={p.id} className="relative">
@@ -252,7 +252,7 @@ export function VisitRunner({ visit, storeName, contacts, equipment, photos, typ
 
       {(running ? step > 0 : editing) && (
       <div className="card space-y-3 fade-in">
-        <h2 className="font-medium">{running ? STEPS[step] : "Datos de la visita"}</h2>
+        <h2 className="t-section">{running ? STEPS[step] : "Datos de la visita"}</h2>
         {vis(2) && running && contacts.length > 0 && (
           <div>
             <label className="label">Persona que te atendió</label>

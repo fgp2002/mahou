@@ -95,7 +95,7 @@ export function OfflineVisit() {
   }
 
   if (!id || v === null) {
-    return <div className="card text-sm text-slate-600">No encuentro esta visita en el móvil. <a href="/" className="font-semibold text-brand-600 underline">Volver a Hoy</a></div>;
+    return <div className="card text-sm text-slate-600">No encuentro esta visita en el móvil. <a href="/" className="link">Volver a Hoy</a></div>;
   }
 
   return (
@@ -110,7 +110,7 @@ export function OfflineVisit() {
       ) : (
         <>
           <section className="card space-y-3">
-            <h2 className="font-semibold">Fotos ({v.photos})</h2>
+            <h2 className="t-section">Fotos ({v.photos})</h2>
             <div className="grid grid-cols-2 gap-2">
               <label className="btn-secondary cursor-pointer"><Camera size={16} /> Hacer foto<input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => photo(e.target.files)} disabled={busy} /></label>
               <label className="btn-secondary cursor-pointer"><Images size={16} /> Galería<input type="file" accept="image/*" multiple className="hidden" onChange={(e) => photo(e.target.files)} disabled={busy} /></label>
@@ -118,7 +118,7 @@ export function OfflineVisit() {
           </section>
           {equipment.length > 0 && (
             <section className="card space-y-2">
-              <h2 className="font-semibold">Elementos de la tienda</h2>
+              <h2 className="t-section">Elementos de la tienda</h2>
               {equipment.map((e) => {
                 const t = types.find((x) => x.id === e.type_id);
                 const d = eqDone[e.id] ?? [];
@@ -139,7 +139,7 @@ export function OfflineVisit() {
             </section>
           )}
           <section className="card space-y-3">
-            <h2 className="font-semibold">{equipment.length > 0 ? "Otros pagos" : "Pagos"}</h2>
+            <h2 className="t-section">{equipment.length > 0 ? "Otros pagos" : "Pagos"}</h2>
             {v.payments.length > 0 && <ul className="divide-y divide-slate-100 text-sm">{v.payments.map((p, i) => <li key={i} className="flex justify-between py-1.5"><span>{p.name}</span><b>{eur(p.amount)}</b></li>)}</ul>}
             {types.length === 0 ? <p className="text-xs text-slate-500">Abre la app una vez con conexión para tener los tipos de pago disponibles sin red.</p> : (
               <div className="grid grid-cols-2 gap-2">
@@ -157,7 +157,7 @@ export function OfflineVisit() {
             )}
           </section>
           <section className="card space-y-3">
-            <h2 className="font-semibold">Notas</h2>
+            <h2 className="t-section">Notas</h2>
             {checklist.length > 0 && (
               <div><label className="label">Checklist (opcional)</label><div className="flex flex-wrap gap-1.5">{checklist.map((c) => (
                 <button key={c} type="button" onClick={() => setCheck({ ...check, [c]: !check[c] })} className={`tap min-h-10 rounded-full border px-3 text-sm ${check[c] ? "border-green-600 bg-green-100 font-semibold text-green-700" : "border-slate-300 text-slate-600"}`}>{check[c] ? "✓ " : ""}{c}</button>

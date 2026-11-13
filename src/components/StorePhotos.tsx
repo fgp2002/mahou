@@ -1,4 +1,5 @@
 "use client";
+import { ScrollLock } from "@/lib/useScrollLock";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -44,11 +45,12 @@ export function StorePhotos({ photos }: { photos: StorePhoto[] }) {
       </div>
       {big && (
         <div className="fixed inset-0 z-[90] flex flex-col bg-black/95" role="dialog" aria-label="Foto">
-          <div className="flex items-center gap-2 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
+          <ScrollLock />
+          <div className="flex items-center gap-2 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] text-[#fff]">
             <span className="min-w-0 flex-1 truncate text-sm">{dmy(big.taken_at.slice(0, 10))} · {KIND[big.kind]}</span>
-            {big.visit_id && <Link href={`/visits/${big.visit_id}`} className="rounded-full bg-white/15 px-3 py-1.5 text-xs">Visita</Link>}
-            <button className="rounded-full bg-white/15 p-2" aria-label="Enviar a la papelera" onClick={async () => { if (!confirm("¿Enviar la foto a la papelera?")) return; const { error } = await trashPhoto(big.id); if (error) return toast(error.message, "error"); toast("Foto en la papelera"); setBig(null); router.refresh(); }}><Trash2 size={18} /></button>
-            <button className="rounded-full bg-white/15 p-2" aria-label="Cerrar" onClick={() => setBig(null)}><X size={20} /></button>
+            {big.visit_id && <Link href={`/visits/${big.visit_id}`} className="rounded-full bg-[#fff]/15 px-3 py-1.5 text-xs">Visita</Link>}
+            <button className="rounded-full bg-[#fff]/15 p-2" aria-label="Enviar a la papelera" onClick={async () => { if (!confirm("¿Enviar la foto a la papelera?")) return; const { error } = await trashPhoto(big.id); if (error) return toast(error.message, "error"); toast("Foto en la papelera"); setBig(null); router.refresh(); }}><Trash2 size={18} /></button>
+            <button className="rounded-full bg-[#fff]/15 p-2" aria-label="Cerrar" onClick={() => setBig(null)}><X size={20} /></button>
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <div className="flex flex-1 items-center justify-center p-2" onClick={() => setBig(null)}>{(big.url ?? big.thumb) && <img src={(big.url ?? big.thumb)!} alt="" className="max-h-full max-w-full object-contain" />}</div>

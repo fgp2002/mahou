@@ -2,42 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Paleta Mahou: blanco y negro con grises neutros. Los verdes/rojos/ámbar solo comunican estados. */
+/* ── Sistema de diseño Mahou ──────────────────────────────────────────────
+   Rojo Mahou #DE1F26 (tomado del logotipo oficial), sobre blanco como en el envase,
+   con neutros cálidos. Los verdes/ámbar/rojos de estado solo comunican estados.
+   Todo color sale de estos tokens: claro y oscuro se diseñan por separado. Ver DESIGN.md. */
 :root {
   color-scheme: light dark;
   --white: 255 255 255;
-  --slate-50: 246 246 247; --slate-100: 240 240 242; --slate-200: 228 228 231; --slate-300: 212 212 216; --slate-400: 161 161 170;
-  --slate-500: 113 113 122; --slate-600: 82 82 91; --slate-700: 63 63 70; --slate-800: 39 39 42; --slate-900: 17 17 17;
-  --brand-50: 253 236 237; --brand-100: 250 212 214; --brand-300: 240 130 134; --brand-500: 232 60 66; --brand-600: 222 31 38; --brand-700: 186 24 31; --brand-800: 150 20 26;
+  --slate-50: 247 245 243; --slate-100: 240 237 234; --slate-200: 229 225 221; --slate-300: 211 206 201; --slate-400: 163 158 153;
+  --slate-500: 118 113 108; --slate-600: 87 83 79; --slate-700: 64 61 58; --slate-800: 42 39 37; --slate-900: 23 20 19;
+  --brand-50: 253 237 238; --brand-100: 250 212 214; --brand-300: 240 130 134; --brand-500: 232 60 66; --brand-600: 222 31 38; --brand-700: 184 21 27; --brand-800: 142 16 21;
   --on-accent: 255 255 255; --danger: 185 28 28;
   --red-100: 254 226 226; --red-600: 200 30 30; --red-700: 153 27 27;
   --green-100: 220 252 231; --green-600: 22 130 60; --green-700: 21 100 50;
   --amber-50: 255 251 235; --amber-100: 254 243 199; --amber-300: 252 211 77; --amber-600: 180 100 5; --amber-700: 150 80 5; --amber-800: 120 60 5;
   --orange-100: 255 237 213; --orange-800: 154 52 18;
+  --shadow-rgb: 23 20 19; --bar: 222 31 38;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --white: 23 23 26;
-    --slate-50: 12 12 13; --slate-100: 30 30 33; --slate-200: 42 42 46; --slate-300: 63 63 68; --slate-400: 113 113 122;
-    --slate-500: 161 161 170; --slate-600: 200 200 207; --slate-700: 220 220 225; --slate-800: 235 235 238; --slate-900: 245 245 247;
-    --brand-50: 54 18 20; --brand-100: 76 22 25; --brand-300: 155 45 50; --brand-500: 236 70 76; --brand-600: 228 40 47; --brand-700: 245 112 117; --brand-800: 250 152 156;
-    --on-accent: 255 255 255;
+    --white: 30 26 25;
+    --slate-50: 18 16 15; --slate-100: 38 34 32; --slate-200: 50 45 43; --slate-300: 70 65 62; --slate-400: 120 114 110;
+    --slate-500: 166 160 155; --slate-600: 204 199 195; --slate-700: 224 220 216; --slate-800: 238 235 232; --slate-900: 247 244 241;
+    --brand-50: 58 20 22; --brand-100: 80 24 27; --brand-300: 160 50 55; --brand-500: 242 72 78; --brand-600: 228 40 47; --brand-700: 248 120 125; --brand-800: 252 160 164;
+    --on-accent: 255 255 255; --danger: 220 50 50;
     --red-100: 69 26 26; --red-600: 248 113 113; --red-700: 252 165 165;
     --green-100: 20 60 35; --green-600: 74 222 128; --green-700: 134 239 172;
     --amber-50: 45 33 10; --amber-100: 66 46 8; --amber-300: 120 90 20; --amber-600: 251 191 36; --amber-700: 252 211 77; --amber-800: 253 224 130;
     --orange-100: 67 33 15; --orange-800: 253 186 116;
+    --shadow-rgb: 0 0 0; --bar: 150 22 28;
   }
 }
 :root[data-theme="dark"] {
-    --white: 23 23 26;
-    --slate-50: 12 12 13; --slate-100: 30 30 33; --slate-200: 42 42 46; --slate-300: 63 63 68; --slate-400: 113 113 122;
-    --slate-500: 161 161 170; --slate-600: 200 200 207; --slate-700: 220 220 225; --slate-800: 235 235 238; --slate-900: 245 245 247;
-    --brand-50: 54 18 20; --brand-100: 76 22 25; --brand-300: 155 45 50; --brand-500: 236 70 76; --brand-600: 228 40 47; --brand-700: 245 112 117; --brand-800: 250 152 156;
-    --on-accent: 255 255 255;
+    --white: 30 26 25;
+    --slate-50: 18 16 15; --slate-100: 38 34 32; --slate-200: 50 45 43; --slate-300: 70 65 62; --slate-400: 120 114 110;
+    --slate-500: 166 160 155; --slate-600: 204 199 195; --slate-700: 224 220 216; --slate-800: 238 235 232; --slate-900: 247 244 241;
+    --brand-50: 58 20 22; --brand-100: 80 24 27; --brand-300: 160 50 55; --brand-500: 242 72 78; --brand-600: 228 40 47; --brand-700: 248 120 125; --brand-800: 252 160 164;
+    --on-accent: 255 255 255; --danger: 220 50 50;
     --red-100: 69 26 26; --red-600: 248 113 113; --red-700: 252 165 165;
     --green-100: 20 60 35; --green-600: 74 222 128; --green-700: 134 239 172;
     --amber-50: 45 33 10; --amber-100: 66 46 8; --amber-300: 120 90 20; --amber-600: 251 191 36; --amber-700: 252 211 77; --amber-800: 253 224 130;
     --orange-100: 67 33 15; --orange-800: 253 186 116;
+    --shadow-rgb: 0 0 0; --bar: 150 22 28;
   }
 :root[data-theme="dark"] { color-scheme: dark; }
 :root[data-theme="light"] { color-scheme: light; }
@@ -59,14 +65,26 @@ input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-dat
 @media (max-width: 767px) { input, select, textarea { font-size: 16px !important; } }
 
 @layer components {
-  .card { @apply rounded-xl border border-slate-200 bg-white p-4 shadow-card md:p-5; }
-  .btn { @apply transition inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-[rgb(var(--on-accent))] transition-colors hover:bg-brand-700 disabled:opacity-50 md:min-h-10; }
-  .btn-secondary { @apply transition inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-50 md:min-h-10; }
-  .btn-danger { @apply transition inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[rgb(var(--danger))] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 md:min-h-10; }
-  .input { @apply transition-colors min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/25 md:min-h-10; }
-  .label { @apply mb-1 block text-xs font-medium text-slate-600; }
-  .badge { @apply inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium; }
-  .page { @apply mx-auto w-full max-w-6xl; }
+  /* Superficies */
+  .card { @apply rounded-2xl border border-slate-200 bg-white p-4 shadow-card md:p-5; }
+  .panel { @apply rounded-2xl bg-slate-100 p-4; }
+  /* Botones: primario (rojo Mahou), secundario, fantasma y peligro. Superficie táctil mínima 44 px. */
+  .btn { @apply inline-flex min-h-11 select-none items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-[rgb(var(--on-accent))] transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-secondary { @apply inline-flex min-h-11 select-none items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-ghost { @apply inline-flex min-h-11 select-none items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-danger { @apply inline-flex min-h-11 select-none items-center justify-center gap-2 rounded-xl bg-[rgb(var(--danger))] px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50; }
+  /* Campos */
+  .input { @apply min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 transition-colors placeholder:text-slate-400 hover:border-slate-400 focus:border-brand-600 focus:outline-none focus:ring-4 focus:ring-brand-600/15 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-70; }
+  .label { @apply mb-1 block text-xs font-semibold text-slate-600; }
+  .field-error { @apply mt-1 text-xs font-medium text-red-600; }
+  .badge { @apply inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold; }
+  /* Tipografía */
+  .t-display { @apply text-[2rem] font-extrabold leading-[1.05] tracking-[-0.025em] md:text-[2.5rem]; }
+  .t-page { @apply text-[1.6rem] font-extrabold leading-tight tracking-[-0.02em] md:text-[1.85rem]; }
+  .t-section { @apply text-[1.05rem] font-bold tracking-[-0.01em]; }
+  .link { @apply font-semibold text-brand-700 underline-offset-4 hover:underline; }
+  .t-eyebrow { @apply text-[11px] font-bold uppercase tracking-[0.1em] text-brand-600; }
+  .page { @apply mx-auto w-full max-w-[1400px]; }
   .tap { @apply transition duration-200; }
   .row-link { @apply transition-colors duration-150; }
   .nav-item { @apply transition duration-150; }
@@ -75,6 +93,14 @@ input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-dat
 }
 
 :focus-visible { outline: 2px solid rgb(var(--brand-600)); outline-offset: 2px; }
+.input:focus-visible { outline: none; }
+/* Campo con error: borde y anillo en el color de error, sin borrar lo escrito. */
+.input[aria-invalid="true"] { border-color: rgb(var(--red-600)); box-shadow: 0 0 0 4px rgb(var(--red-600) / 0.12); }
+.ff > .input[aria-invalid="true"] + label { color: rgb(var(--red-600)); }
+/* Un formulario enviándose no admite un segundo envío. */
+form[aria-busy="true"] button[type="submit"], form[aria-busy="true"] button:not([type]) { pointer-events: none; opacity: .6; }
+/* Con un modal abierto el fondo no se desplaza. */
+html[data-scroll-locked] .scroll-root { overflow: hidden !important; }
 
 /* Movimiento: corto, con propósito y siempre anulable (prefers-reduced-motion). */
 :root { --ease: cubic-bezier(0.2, 0.7, 0.2, 1); --spring: cubic-bezier(0.34, 1.45, 0.64, 1); }

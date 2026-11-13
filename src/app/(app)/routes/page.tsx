@@ -33,12 +33,12 @@ export default async function RoutesPage() {
     </ul>
   );
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader title="Rutas" />
       <FeasibilityCard f={feas} />
       <GenerateRoute defaultDate={defaultDate} routeStart={settings.route_start} />
-      <section className="card p-0"><h2 className="p-3 pb-0 font-medium">Próximas</h2><List items={upcoming} /></section>
-      <section className="card p-0"><h2 className="p-3 pb-0 font-medium">Pasadas</h2><List items={past} /></section>
+      <section className="card p-0"><h2 className="t-section p-3 pb-0">Próximas</h2><List items={upcoming} /></section>
+      <section className="card p-0"><h2 className="t-section p-3 pb-0">Pasadas</h2><List items={past} /></section>
     </div>
   );
 }

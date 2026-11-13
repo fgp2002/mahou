@@ -86,7 +86,7 @@ export function LogosManager({ brands }: { brands: BrandRow[] }) {
   const withLogo = brands.filter((b) => b.url);
   return (
     <section className="card space-y-3">
-      <h2 className="font-medium">Logotipos de enseñas</h2>
+      <h2 className="t-section">Logotipos de enseñas</h2>
       <p className="text-sm text-slate-500">Un logotipo por enseña; se guarda una sola vez y se reutiliza en todos los pines. Faltan <b>{missing}</b> de {brands.length}. Sube un PNG/JPG/WebP o pega la dirección de la imagen. Se admiten imágenes de hasta 1 MB.</p>
       <ul className="divide-y divide-slate-200">
         {brands.map((b) => (
